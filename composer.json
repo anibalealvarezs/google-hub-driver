@@ -10,6 +10,12 @@
         "psr/log": "^1.0 || ^2.0 || ^3.0",
         "nesbot/carbon": "^2.0 || ^3.0"
     },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://satis.anibalalvarez.com/"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Anibalealvarezs\\GoogleHubDriver\\": "src/"
