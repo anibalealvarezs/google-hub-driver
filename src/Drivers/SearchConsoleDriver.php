@@ -139,15 +139,19 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     private function initializeApi(array $config): SearchConsoleApi
     {
+        // Credentials are now managed by GoogleAuthProvider
+        $scopes = $this->authProvider->getScopes();
+        $token = $this->authProvider->getAccessToken();
+
         return new SearchConsoleApi(
-            redirectUrl: $config['google_search_console']['redirect_uri'] ?? '',
-            clientId: $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? '',
-            clientSecret: $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? '',
-            refreshToken: $config['google_search_console']['refresh_token'] ?? '',
-            userId: $config['google_search_console']['user_id'] ?? '',
-            scopes: $this->authProvider->getScopes(),
-            token: $this->authProvider->getAccessToken(),
-            tokenPath: $config['google_search_console']['token_path'] ?? ""
+            redirectUrl: $config['google_search_console']['redirect_uri'] ?? $config['google']['redirect_uri'] ?? '',
+            clientId: $config['google_search_console']['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? '',
+            clientSecret: $config['google_search_console']['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? '',
+            refreshToken: $config['google_search_console']['refresh_token'] ?? $config['google']['refresh_token'] ?? '',
+            userId: $config['google_search_console']['user_id'] ?? $config['google']['user_id'] ?? '',
+            scopes: $scopes,
+            token: $token,
+            tokenPath: $config['google_search_console']['token_path'] ?? $config['google']['token_path'] ?? ""
         );
     }
 
