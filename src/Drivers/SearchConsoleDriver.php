@@ -6,6 +6,7 @@ use Anibalealvarezs\ApiSkeleton\Helpers\DateHelper;
 use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
+use Anibalealvarezs\GoogleApi\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
@@ -41,6 +42,11 @@ class SearchConsoleDriver implements SyncDriverInterface
         $this->authProvider = $provider;
     }
 
+    public function getAuthProvider(): ?AuthProviderInterface
+    {
+        return $this->authProvider;
+    }
+
     public function setDataProcessor(callable $processor): void
     {
         $this->dataProcessor = $processor;
@@ -56,7 +62,9 @@ class SearchConsoleDriver implements SyncDriverInterface
             throw new Exception("DataProcessor not set for SearchConsoleDriver");
         }
 
-        $this->logger->info("Starting SearchConsoleDriver sync...");
+        if ($this->logger) {
+            $this->logger->info("Starting SearchConsoleDriver sync (Modular)...");
+        }
 
         try {
             $api = $this->initializeApi($config);
@@ -68,30 +76,44 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!($site['enabled'] ?? true)) continue;
 
                 $siteUrl = $site['url'];
-                $this->logger->info("Processing Google Search Console site: $siteUrl");
+                if ($this->logger) {
+                    $this->logger->info("Processing Google Search Console site: $siteUrl");
+                }
 
                 $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                 foreach ($period as $day) {
                     $dayStr = $day->format('Y-m-d');
                     $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
                     
-                    $result = ($this->dataProcessor)(
-                        data: $rows,
-                        site: $site,
-                        day: $dayStr,
-                        config: $config
+                    if (empty($rows)) continue;
+
+                    // Convert raw data into metrics using the SDK
+                    // We pass the site URL as the "page" identifier; the host will resolve the entity if needed.
+                    $collection = GoogleSearchConsoleConvert::metrics(
+                        rows: $rows,
+                        siteUrl: $siteUrl,
+                        siteKey: $siteUrl,
+                        logger: $this->logger,
+                        page: $siteUrl 
                     );
 
-                    $totalStats['metrics'] += $result['metrics'] ?? 0;
-                    $totalStats['rows'] += $result['rows'] ?? 0;
-                    $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                    // Persist converted collection in the host
+                    if ($this->dataProcessor && $collection->count() > 0) {
+                        $result = ($this->dataProcessor)($collection, $this->logger);
+                        
+                        $totalStats['metrics'] += $result['metrics'] ?? $collection->count();
+                        $totalStats['rows'] += $result['rows'] ?? count($rows);
+                        $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                    }
                 }
             }
 
             return new Response(json_encode(['status' => 'success', 'data' => $totalStats]));
 
         } catch (Exception $e) {
-            $this->logger->error("SearchConsoleDriver error: " . $e->getMessage());
+            if ($this->logger) {
+                $this->logger->error("SearchConsoleDriver error: " . $e->getMessage());
+            }
             throw $e;
         }
     }
@@ -101,7 +123,6 @@ class SearchConsoleDriver implements SyncDriverInterface
         $rowLimit = $config['google_search_console']['row_limit'] ?? 25000;
         $allFetchedData = [];
 
-        // Logic moved from MetricRequests::fetchGSCDailyData
         $dimensionsSubsets = $this->getAllSubsets(self::$optionalDimensions);
         foreach ($dimensionsSubsets as $dimensionsSubset) {
             $actualDimensionsSubset = array_merge(array_diff(self::$allDimensions, self::$optionalDimensions), $dimensionsSubset);
@@ -139,16 +160,15 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     private function initializeApi(array $config): SearchConsoleApi
     {
-        // Credentials are now managed by GoogleAuthProvider
         $scopes = $this->authProvider->getScopes();
         $token = $this->authProvider->getAccessToken();
 
         return new SearchConsoleApi(
             redirectUrl: $config['google_search_console']['redirect_uri'] ?? $config['google']['redirect_uri'] ?? '',
             clientId: $config['google_search_console']['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? '',
-            clientSecret: $config['google_search_console']['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? '',
+            clientSecret: $config['google_search_console']['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['FACEBOOK_APP_SECRET'] ?? '', // Fixed typo from env mapping if exists
             refreshToken: $config['google_search_console']['refresh_token'] ?? $config['google']['refresh_token'] ?? '',
-            userId: $config['google_search_console']['user_id'] ?? $config['google']['user_id'] ?? '',
+            userId: $config['google_search_console']['user_id'] ?? $config['google']['user_id'] ?? 'default',
             scopes: $scopes,
             token: $token,
             tokenPath: $config['google_search_console']['token_path'] ?? $config['google']['token_path'] ?? ""
