@@ -158,6 +158,11 @@ class SearchConsoleDriver implements SyncDriverInterface
         return $allFetchedData;
     }
 
+    public function getApi(array $config = []): SearchConsoleApi
+    {
+        return $this->initializeApi($config);
+    }
+
     protected function initializeApi(array $config): SearchConsoleApi
     {
         $scopes = $this->authProvider->getScopes();

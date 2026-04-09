@@ -38,4 +38,9 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
             'message' => 'Google Analytics driver (Modular) placeholder executed successfully.'
         ]));
     }
+
+    public function getApi(array $config = []): mixed
+    {
+        return null;
+    }
 }
