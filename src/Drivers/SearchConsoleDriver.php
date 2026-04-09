@@ -200,4 +200,46 @@ class SearchConsoleDriver implements SyncDriverInterface
         }
         return $result;
     }
+
+    /**
+     * @inheritdoc
+     */
+    public function getConfigSchema(): array
+    {
+        return [
+            'global' => [
+                'enabled' => false,
+                'cache_history_range' => '16 months',
+                'cache_aggregations' => false,
+            ],
+            'entity' => [
+                'url' => '',
+                'title' => '',
+                'hostname' => '',
+                'enabled' => true,
+                'target_countries' => [],
+                'target_keywords' => [],
+                'include_keywords' => [],
+                'exclude_keywords' => [],
+                'include_countries' => [],
+                'exclude_countries' => [],
+                'include_pages' => [],
+                'exclude_pages' => [],
+            ],
+            'metrics' => [
+                'clicks' => ['enabled' => true, 'format' => 'number', 'precision' => 0],
+                'impressions' => ['enabled' => true, 'format' => 'number', 'precision' => 0],
+                'ctr' => ['enabled' => true, 'format' => 'percent', 'precision' => 2],
+                'position' => ['enabled' => true, 'format' => 'number', 'precision' => 1, 'sparkline_direction' => 'inverted'],
+            ]
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function validateConfig(array $config): array
+    {
+        return $config;
+    }
 }
