@@ -39,6 +39,11 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
         $this->authProvider = $provider;
     }
 
+    public function getAuthProvider(): ?AuthProviderInterface
+    {
+        return $this->authProvider;
+    }
+
     public function sync(DateTime $startDate, DateTime $endDate, array $config = []): Response
     {
         $this->logger->info("GoogleAnalyticsDriver: Placeholder sync for GA4.");
