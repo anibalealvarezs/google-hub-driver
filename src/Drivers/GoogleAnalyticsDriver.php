@@ -4,12 +4,22 @@ namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
 use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use DateTime;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
+    use HasUpdatableCredentials;
+
+    public array $updatableCredentials = [
+        'GOOGLE_REFRESH_TOKEN',
+        'GOOGLE_USER_ID',
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET'
+    ];
+
     private ?AuthProviderInterface $authProvider = null;
     private ?LoggerInterface $logger = null;
 

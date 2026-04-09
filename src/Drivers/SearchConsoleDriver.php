@@ -5,6 +5,7 @@ namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 use Anibalealvarezs\ApiSkeleton\Helpers\DateHelper;
 use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleApi\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
@@ -15,6 +16,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
+    use HasUpdatableCredentials;
+
+    public array $updatableCredentials = [
+        'GOOGLE_REFRESH_TOKEN',
+        'GOOGLE_USER_ID',
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET'
+    ];
+
     private ?AuthProviderInterface $authProvider = null;
     private ?LoggerInterface $logger = null;
     /** @var callable|null */
