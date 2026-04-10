@@ -365,4 +365,8 @@ class SearchConsoleDriver implements SyncDriverInterface
             if ($output) $output->writeln("   - Site $hostname complete.");
         }
     }
+    public function boot(): void
+    {
+    }
 }
+
