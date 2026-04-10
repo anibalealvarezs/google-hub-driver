@@ -66,6 +66,16 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     {
         return 'GoogleAnalytics';
     }
+
+    /**
+     * Get the routes served by this driver.
+     * 
+     * @return array
+     */
+    public static function getRoutes(): array
+    {
+        return [];
+    }
     use HasUpdatableCredentials;
 
     public array $updatableCredentials = [
