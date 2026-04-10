@@ -2,10 +2,10 @@
 
 namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-use Anibalealvarezs\ApiDriverCore\Helpers\DateHelper;
-use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiSkeleton\Helpers\DateHelper;
+use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
