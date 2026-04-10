@@ -46,6 +46,16 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
         
         file_put_contents($tokenPath, json_encode($tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
+
+    /**
+     * Get the public resources exposed by this driver.
+     * 
+     * @return array
+     */
+    public static function getPublicResources(): array
+    {
+        return ['metrics' => 'gsc_metrics'];
+    }
     use HasUpdatableCredentials;
 
     public array $updatableCredentials = [
