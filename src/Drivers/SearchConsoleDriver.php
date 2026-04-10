@@ -7,7 +7,7 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
-use Anibalealvarezs\GoogleApi\Conversions\GoogleSearchConsoleConvert;
+use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
