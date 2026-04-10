@@ -62,6 +62,16 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         return ['metrics' => 'gsc_metrics'];
     }
+
+    /**
+     * Get the display label for the channel.
+     * 
+     * @return string
+     */
+    public static function getChannelLabel(): string
+    {
+        return 'GoogleSearchConsole';
+    }
     use HasUpdatableCredentials;
 
     public array $updatableCredentials = [
