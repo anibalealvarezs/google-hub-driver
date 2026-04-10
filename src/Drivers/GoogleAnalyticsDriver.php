@@ -12,6 +12,11 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
+
+    public static function getCommonConfigKey(): ?string
+    {
+        return 'google';
+    }
     use HasUpdatableCredentials;
 
     public array $updatableCredentials = [

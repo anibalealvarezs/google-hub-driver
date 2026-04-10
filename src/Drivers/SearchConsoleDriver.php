@@ -18,6 +18,11 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
+
+    public static function getCommonConfigKey(): ?string
+    {
+        return 'google';
+    }
     use HasUpdatableCredentials;
 
     public array $updatableCredentials = [
