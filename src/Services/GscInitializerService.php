@@ -34,6 +34,12 @@ class GscInitializerService
         foreach ($sites as $site) {
             $siteUrl = $site['url'];
             $normalizedSiteUrl = rtrim($siteUrl, '/');
+
+            if (\Anibalealvarezs\ApiDriverCore\Helpers\Helpers::isAssetFiltered($normalizedSiteUrl, $config)) {
+                $this->logger?->info("Skipping filtered GSC site: $normalizedSiteUrl");
+                continue;
+            }
+
             $title = $site['title'] ?? $siteUrl;
             $hostname = $site['hostname'] ?? parse_url($siteUrl, PHP_URL_HOST) ?? str_replace('sc-domain:', '', $siteUrl);
 
