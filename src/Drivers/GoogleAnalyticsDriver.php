@@ -2,13 +2,13 @@
 
 namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
-use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use DateTime;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
@@ -82,6 +82,21 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
      */
     public function validateConfig(array $config): array
     {
+        $envOverrides = [
+            'GOOGLE_CLIENT_ID' => 'client_id',
+            'GOOGLE_CLIENT_SECRET' => 'client_secret',
+            'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
+            'GOOGLE_REDIRECT_URI' => 'redirect_uri',
+            'GOOGLE_USER_ID' => 'user_id',
+        ];
+
+        foreach ($envOverrides as $envKey => $configPath) {
+            $val = getenv($envKey);
+            if ($val !== false && $val !== '') {
+                $config[$configPath] = $val;
+            }
+        }
+
         return $config;
     }
 
@@ -94,6 +109,20 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     }
     public function boot(): void
     {
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getAssetPatterns(): array
+    {
+        return [
+            'google_business' => [
+                'prefix' => 'gb:location',
+                'hostnames' => [],
+                'url_id_regex' => null
+            ]
+        ];
     }
 }
 

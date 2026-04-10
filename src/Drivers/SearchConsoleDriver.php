@@ -2,10 +2,10 @@
 
 namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-use Anibalealvarezs\ApiSkeleton\Helpers\DateHelper;
-use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
-use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiDriverCore\Helpers\DateHelper;
+use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleApi\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
@@ -13,7 +13,7 @@ use DateTime;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 class SearchConsoleDriver implements SyncDriverInterface
@@ -170,6 +170,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         return $allFetchedData;
     }
 
+
     public function getApi(array $config = []): SearchConsoleApi
     {
         return $this->initializeApi($config);
@@ -245,6 +246,25 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public function validateConfig(array $config): array
     {
+        $envOverrides = [
+            'GOOGLE_CLIENT_ID' => 'client_id',
+            'GOOGLE_CLIENT_SECRET' => 'client_secret',
+            'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
+            'GOOGLE_REDIRECT_URI' => 'redirect_uri',
+            'GOOGLE_USER_ID' => 'user_id',
+            'GOOGLE_SEARCH_CONSOLE_CLIENT_ID' => 'client_id',
+            'GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET' => 'client_secret',
+            'GOOGLE_SEARCH_CONSOLE_REFRESH_TOKEN' => 'refresh_token',
+            'GOOGLE_SEARCH_CONSOLE_TOKEN' => 'token',
+        ];
+
+        foreach ($envOverrides as $envKey => $configPath) {
+            $val = getenv($envKey);
+            if ($val !== false && $val !== '') {
+                $config[$configPath] = $val;
+            }
+        }
+
         return $config;
     }
 
@@ -367,6 +387,20 @@ class SearchConsoleDriver implements SyncDriverInterface
     }
     public function boot(): void
     {
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getAssetPatterns(): array
+    {
+        return [
+            'website' => [
+                'prefix' => 'web:site',
+                'hostnames' => [],
+                'url_id_regex' => null
+            ]
+        ];
     }
 }
 
