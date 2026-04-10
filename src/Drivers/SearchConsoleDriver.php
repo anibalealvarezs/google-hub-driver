@@ -2,10 +2,10 @@
 
 namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-use Anibalealvarezs\ApiSkeleton\Helpers\DateHelper;
-use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Helpers\DateHelper;
+use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Anibalealvarezs\GoogleHubDriver\Services\GscInitializerService;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
@@ -81,6 +82,162 @@ class SearchConsoleDriver implements SyncDriverInterface
     public static function getRoutes(): array
     {
         return [];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function fetchAvailableAssets(): array
+    {
+        if (!$this->authProvider) {
+            return [];
+        }
+
+        try {
+            $api = $this->getApi();
+            $sitesResponse = $api->getSites();
+            $assets = ['gsc' => []];
+            
+            if (isset($sitesResponse['siteEntry'])) {
+                foreach ($sitesResponse['siteEntry'] as $entry) {
+                    $url = $entry['siteUrl'];
+                    $assets['gsc'][] = [
+                        'url' => $url,
+                        'title' => $this->deriveTitleFromUrl($url),
+                        'hostname' => $this->deriveHostnameFromUrl($url),
+                    ];
+                }
+            }
+            return $assets;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Derive a human-readable title from a GSC site URL.
+     */
+    public function deriveTitleFromUrl(string $url): string
+    {
+        return str_replace(['https://', 'http://', 'sc-domain:'], '', rtrim($url, '/'));
+    }
+
+    /**
+     * Derive a hostname from a GSC site URL.
+     */
+    public function deriveHostnameFromUrl(string $url): string
+    {
+        return parse_url(str_replace('sc-domain:', 'http://', $url), PHP_URL_HOST) ?? $url;
+    }
+
+    /**
+     * Normalize a GSC site URL for comparison.
+     */
+    public function normalizeGscUrl(?string $url): string
+    {
+        if (!$url) return '';
+        return rtrim(strtolower($url), '/');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function updateConfiguration(array $newData, array $currentConfig): array
+    {
+        $selectedSites = $newData['assets'] ?? [];
+        $enabled = $newData['enabled'] ?? true;
+        $historyRange = $newData['cache_history_range'] ?? null;
+        $featureToggles = $newData['feature_toggles'] ?? [];
+
+        if (!isset($currentConfig['channels']['google_search_console'])) {
+            $currentConfig['channels']['google_search_console'] = [];
+        }
+        
+        $chanCfg = &$currentConfig['channels']['google_search_console'];
+
+        if ($historyRange) {
+            $chanCfg['cache_history_range'] = $historyRange;
+        }
+        
+        // Cron settings
+        foreach (['cron_entities_hour', 'cron_entities_minute', 'cron_recent_hour', 'cron_recent_minute'] as $key) {
+            if (isset($featureToggles[$key])) {
+                $chanCfg[$key] = (int)$featureToggles[$key];
+            }
+        }
+        
+        $chanCfg['enabled'] = $enabled;
+
+        // Redis cache toggle
+        if (isset($featureToggles['cache_aggregations'])) {
+            $prevValue = (bool)($chanCfg['cache_aggregations'] ?? false);
+            $newValue = (bool)$featureToggles['cache_aggregations'];
+            $chanCfg['cache_aggregations'] = $newValue;
+            
+            if ($prevValue && !$newValue && class_exists('\Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService')) {
+                \Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService::clearChannel('google_search_console');
+            }
+        }
+
+        // Sites management
+        $currentSites = $chanCfg['sites'] ?? [];
+        $newSitesList = [];
+        $selectedMap = [];
+        foreach ($selectedSites as $sel) {
+            $normUrl = $this->normalizeGscUrl($sel['url']);
+            $selectedMap[$normUrl] = $sel;
+        }
+
+        $processedNormUrls = [];
+        foreach ($currentSites as $site) {
+            $normUrl = $this->normalizeGscUrl($site['url']);
+            if (isset($selectedMap[$normUrl])) {
+                $site['target_countries'] = $selectedMap[$normUrl]['target_countries'] ?? [];
+                $site['target_keywords'] = $selectedMap[$normUrl]['target_keywords'] ?? [];
+                $newSitesList[] = $site;
+                $processedNormUrls[] = $normUrl;
+            }
+        }
+
+        foreach ($selectedSites as $sel) {
+            $normUrl = $this->normalizeGscUrl($sel['url']);
+            if (!in_array($normUrl, $processedNormUrls)) {
+                $newSitesList[] = [
+                    'url' => $sel['url'],
+                    'title' => $this->deriveTitleFromUrl($sel['url']),
+                    'hostname' => $this->deriveHostnameFromUrl($sel['url']),
+                    'enabled' => true,
+                    'target_countries' => $sel['target_countries'] ?? [],
+                    'target_keywords' => $sel['target_keywords'] ?? [],
+                ];
+            }
+        }
+
+        $chanCfg['sites'] = $newSitesList;
+
+        return $currentConfig;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function validateAuthentication(): array
+    {
+        try {
+            $api = $this->getApi();
+            $api->getSites();
+            return [
+                'success' => true,
+                'message' => 'Authentication is valid.',
+                'details' => []
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'details' => []
+            ];
+        }
     }
     use HasUpdatableCredentials;
 
@@ -459,12 +616,64 @@ class SearchConsoleDriver implements SyncDriverInterface
     public function getAssetPatterns(): array
     {
         return [
-            'website' => [
-                'prefix' => 'web:site',
+            'gsc' => [
+                'prefix' => 'sc:',
                 'hostnames' => [],
-                'url_id_regex' => null
+                'url_id_regex' => null,
+                'type' => 'gsc_site'
             ]
         ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function prepareUiConfig(array $channelConfig): array
+    {
+        $ui = [];
+        $ui['gsc_cache_history_range'] = $channelConfig['cache_history_range'] ?? '16 months';
+        $ui['gsc_enabled'] = $channelConfig['enabled'] ?? true;
+        $ui['gsc_cron_recent_hour'] = $channelConfig['cron_recent_hour'] ?? 5;
+        $ui['gsc_cron_recent_minute'] = $channelConfig['cron_recent_minute'] ?? 0;
+        
+        $ui['gsc'] = [];
+        foreach (($channelConfig['sites'] ?? []) as $site) {
+            $url = $site['url'];
+            if (class_exists('\Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService')) {
+                $ui['gsc'][$url] = \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate('google_search_console', 'entity', $site);
+            } else {
+                $ui['gsc'][$url] = $site;
+            }
+        }
+        return $ui;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function initializeEntities(mixed $entityManager, array $config = []): array
+    {
+        if (!$entityManager instanceof EntityManagerInterface) {
+            throw new Exception("EntityManagerInterface required for SearchConsoleDriver entity initialization.");
+        }
+
+        $assets = $this->fetchAvailableAssets();
+        $initializer = new GscInitializerService($entityManager, $this->logger);
+        
+        return $initializer->initialize($this->getChannel(), $config, $assets['gsc'] ?? []);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function reset(mixed $entityManager, string $mode = 'all', array $config = []): array
+    {
+        if (!$entityManager instanceof EntityManagerInterface) {
+            throw new Exception("EntityManagerInterface required for SearchConsoleDriver reset.");
+        }
+
+        $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
+        return $resetter->reset($this->getChannel(), $mode);
     }
 }
 
