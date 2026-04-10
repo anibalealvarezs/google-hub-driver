@@ -538,16 +538,40 @@ class SearchConsoleDriver implements SyncDriverInterface
         $chanEnumClass = $seeder->getEnumClass('channel');
         $gscChan = $chanEnumClass::google_search_console;
 
+        $accClass = $seeder->getEntityClass('account');
+        $chanAccountClass = $seeder->getEntityClass('channeled_account');
+        $accTypeEnumClass = $seeder->getEnumClass('account_type');
+
+        $accRepo = $em->getRepository($accClass);
+        $gscAcc = $accRepo->findOneBy(['name' => 'Demo Agency GSC']) ?? (new $accClass())->addName('Demo Agency GSC');
+        $em->persist($gscAcc);
+        $em->flush();
+
         for ($s = 1; $s <= 10; $s++) {
             $hostname = "blog" . $s . ".demo-agency.com";
             $siteName = "Brand Blog $s ($hostname)";
 
             $property = $em->getRepository($pageClass)->findOneBy(['platformId' => $hostname]);
             if (!$property) {
-                $property = (new $pageClass())->addUrl("https://$hostname")->addTitle($siteName)->addHostname($hostname)->addPlatformId($hostname)->addCanonicalId($hostname);
+                $property = (new $pageClass())
+                    ->addUrl("https://$hostname")
+                    ->addTitle($siteName)
+                    ->addHostname($hostname)
+                    ->addPlatformId($hostname)
+                    ->addCanonicalId($hostname)
+                    ->addAccount($gscAcc);
                 $em->persist($property);
                 $em->flush();
             }
+
+            $ca = $em->getRepository($chanAccountClass)->findOneBy(['platformId' => $hostname, 'channel' => $gscChan->value]) ?? (new $chanAccountClass());
+            $ca->addPlatformId($hostname)
+                ->addAccount($gscAcc)
+                ->addType($accTypeEnumClass::GSC_SITE)
+                ->addChannel($gscChan->value)
+                ->addName($siteName);
+            $em->persist($ca);
+            $em->flush();
 
             $childUrls = [];
             for ($i = 0; $i < 20; $i++) {
@@ -590,6 +614,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                             value: $data[$name],
                             setId: $setId,
                             pageId: $property->getId(),
+                            caId: $ca->getId(),
                             countryId: $country->getId(),
                             deviceId: $device->getId(),
                             data: json_encode($data),
