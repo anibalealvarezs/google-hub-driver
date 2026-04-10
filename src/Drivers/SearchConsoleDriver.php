@@ -13,6 +13,8 @@ use DateTime;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
+use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
+use Doctrine\ORM\EntityManagerInterface;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
@@ -238,8 +240,129 @@ class SearchConsoleDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
+    /**
+     * @inheritdoc
+     */
     public function validateConfig(array $config): array
     {
         return $config;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function seedDemoData(SeederInterface $seeder, array $config = []): void
+    {
+        $output = $config['output'] ?? null;
+        if ($output) $output->writeln("🔍 GSC (10 Sites, 6 Months, Correct Universal SEO Domain Model)...");
+
+        $em = $seeder->getEntityManager();
+        
+        $dates = $seeder->getDates(180);
+        $countryEnumValues = ['USA', 'ESP', 'MEX', 'COL'];
+        $deviceEnumValues = ['desktop', 'mobile', 'tablet'];
+        $appearances = ['AMP_TOP_STORIES', 'PRODUCT_SNIPPETS', 'REVIEW_SNIPPET', 'VIDEO', 'ORGANIC_SHOPPING'];
+
+        $dimManager = $seeder->getDimensionManager();
+
+        // Pre-fetch Universal Entities
+        $countries = [];
+        foreach ($countryEnumValues as $code) {
+            $enumClass = $seeder->getEnumClass('country');
+            $countryClass = $seeder->getEntityClass('country');
+            $enum = $enumClass::from($code);
+            $c = $em->getRepository($countryClass)->findOneBy(['code' => $enum]);
+            if (!$c) {
+                $c = (new $countryClass())->addCode($enum)->addName($code);
+                $em->persist($c);
+            }
+            $countries[$code] = $c;
+        }
+        $devices = [];
+        foreach ($deviceEnumValues as $type) {
+            $enumClass = $seeder->getEnumClass('device');
+            $deviceClass = $seeder->getEntityClass('device');
+            $enum = $enumClass::from($type);
+            $d = $em->getRepository($deviceClass)->findOneBy(['type' => $enum]);
+            if (!$d) {
+                $d = (new $deviceClass())->addType($enum);
+                $em->persist($d);
+            }
+            $devices[$type] = $d;
+        }
+        $em->flush();
+
+        $faker = \Faker\Factory::create('en_US');
+        $pageClass = $seeder->getEntityClass('page');
+        $chanEnumClass = $seeder->getEnumClass('channel');
+        $gscChan = $chanEnumClass::google_search_console;
+
+        for ($s = 1; $s <= 10; $s++) {
+            $hostname = "blog" . $s . ".demo-agency.com";
+            $siteName = "Brand Blog $s ($hostname)";
+
+            $property = $em->getRepository($pageClass)->findOneBy(['platformId' => $hostname]);
+            if (!$property) {
+                $property = (new $pageClass())->addUrl("https://$hostname")->addTitle($siteName)->addHostname($hostname)->addPlatformId($hostname)->addCanonicalId($hostname);
+                $em->persist($property);
+                $em->flush();
+            }
+
+            $childUrls = [];
+            for ($i = 0; $i < 20; $i++) {
+                $childUrls[] = "https://$hostname/article-" . $faker->slug();
+            }
+
+            $queries = [];
+            for ($i = 0; $i < 30; $i++) {
+                $queries[] = $faker->words(rand(1, 4), true);
+            }
+
+            foreach ($dates as $date) {
+                for ($j = 0; $j < 8; $j++) {
+                    $url = $childUrls[array_rand($childUrls)];
+                    $qStr = $queries[array_rand($queries)];
+                    $code = $countryEnumValues[array_rand($countryEnumValues)];
+                    $type = $deviceEnumValues[array_rand($deviceEnumValues)];
+
+                    $country = $countries[$code];
+                    $device = $devices[$type];
+                    $appearance = $appearances[array_rand($appearances)];
+
+                    $dimensionSet = $dimManager->resolveDimensionSet([
+                        ['dimensionKey' => 'page', 'dimensionValue' => $url],
+                        ['dimensionKey' => 'query', 'dimensionValue' => $qStr],
+                        ['dimensionKey' => 'searchAppearance', 'dimensionValue' => $appearance],
+                    ]);
+                    $setId = $dimensionSet->getId();
+
+                    $imps = rand(10, 200);
+                    $clicks = (int)($imps * rand(1, 10) / 100);
+                    $pos = (float)rand(10, 80) / 10;
+                    $data = ['impressions' => $imps, 'clicks' => $clicks, 'ctr' => $imps > 0 ? $clicks / $imps : 0, 'position' => $pos, 'keys' => [$url, $qStr, $code, $type, $appearance]];
+
+                    foreach (['impressions', 'clicks', 'ctr', 'position'] as $name) {
+                        $seeder->queueMetric(
+                            channel: $gscChan,
+                            name: $name,
+                            date: $date,
+                            value: $data[$name],
+                            setId: $setId,
+                            pageId: $property->getId(),
+                            countryId: $country->getId(),
+                            deviceId: $device->getId(),
+                            data: json_encode($data),
+                            pageUrl: $property->getUrl(),
+                            countryPId: $code,
+                            devicePId: $type,
+                            setHash: $dimensionSet->getHash()
+                        );
+                    }
+                }
+            }
+            $em->clear();
+            $dimManager->clearCaches();
+            if ($output) $output->writeln("   - Site $hostname complete.");
+        }
     }
 }

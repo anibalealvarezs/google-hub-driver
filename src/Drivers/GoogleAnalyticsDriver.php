@@ -8,6 +8,7 @@ use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use DateTime;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
+use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
@@ -82,5 +83,13 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     public function validateConfig(array $config): array
     {
         return $config;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function seedDemoData(SeederInterface $seeder, array $config = []): void
+    {
+        // Placeholder for future implementation
     }
 }
