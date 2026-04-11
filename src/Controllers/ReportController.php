@@ -6,15 +6,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ReportController
 {
-    public function index(): Response
+    public function index(array $args = []): Response
     {
         $html = file_get_contents(__DIR__ . '/../Views/gsc-reports.html');
-        return $this->renderFacebookReport($html, 'google_search_console', '<!-- GSC_CONFIG_PLACEHOLDER -->');
+        return $this->renderFacebookReport($html, 'google_search_console', '<!-- GSC_CONFIG_PLACEHOLDER -->', $args);
     }
 
-    private function renderFacebookReport(string $html, string $channel, string $placeholder): Response
+    private function renderFacebookReport(string $html, string $channel, string $placeholder, array $args): Response
     {
-        $channelsConfig = \Helpers\Helpers::getChannelsConfig();
+        $channelsConfig = $args['channelsConfig'] ?? [];
         $config = $channelsConfig[$channel] ?? [];
         
         $configData = [
@@ -23,7 +23,7 @@ class ReportController
             'metrics_level' => $this->deriveMetricsLevel($config)
         ];
 
-        $isDemo = \Helpers\Helpers::isDemo();
+        $isDemo = $args['isDemo'] ?? false;
         $autoAuthScript = $isDemo ? "<script>localStorage.setItem('apis_hub_admin_auth', JSON.stringify({token: 'DEMO_BYPASS', timestamp: Date.now()})); window.AUTH_BYPASS = true;</script>" : "";
         
         $html = str_replace(
