@@ -630,8 +630,6 @@ class SearchConsoleDriver implements SyncDriverInterface
                     }
                 }
             }
-            $em->clear();
-            $dimManager->clearCaches();
             if ($output) $output->writeln("   - Site $hostname complete.");
         }
     }
