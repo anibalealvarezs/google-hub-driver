@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIs Hub | Google Search Console Insights</title>
+    <link rel="icon" type="image/png" href="/assets/images/apishub-favicon.png">
+    
+    <!-- Design System & Dependencies -->
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/assets/navbar.js"></script>
+    <script src="/assets/footer.js"></script>
+
+    <link rel="stylesheet" href="/assets/css/gsc-reports.css">
+</head>
+<body class="full-screen">
+
+    <div id="loader" class="loader-overlay-gsc">
+        <div class="spinner"></div>
+        <p class="loader-text">SYNCING PERFORMANCE DATA...</p>
+    </div>
+
+    <main>
+        <div class="gsc-header-row">
+            <div class="gsc-header-info">
+                <h1 class="gsc-header-title">
+                    <i data-lucide="search" style="color: #4285f4;"></i> Google Search Console
+                </h1>
+                <p class="gsc-header-subtitle">Performance on Google Search results</p>
+            </div>
+            <div class="controls-card gsc-header-controls">
+                <div class="control-group">
+                    <i data-lucide="globe" class="control-icon"></i>
+                    <select id="propertySelector" class="date-input property-selector" onchange="loadReport()"></select>
+                </div>
+                <div class="date-container">
+                    <i data-lucide="calendar"></i>
+                    <input type="text" id="reportRange" placeholder="Select Range" class="date-input">
+                </div>
+                <button class="btn btn-primary" onclick="loadReport()">
+                    <i data-lucide="refresh-cw"></i> Update
+                </button>
+                <button class="btn btn-outline btn-flush-cache" onclick="flushCache()" title="Clear Dashboard Cache">
+                    <i data-lucide="zap" style="width: 16px; height: 16px;"></i> FLUSH CACHE
+                </button>
+            </div>
+        </div>
+
+        <div class="metrics-grid-gsc">
+            <div class="card-stat-gsc active" data-metric="clicks" onclick="toggleMetric('clicks')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
+                <div class="gsc-label">Total Clicks</div>
+                <div class="card-metric-value" id="val-clicks">0</div>
+                <div class="card-metric-trend" id="trend-clicks">--</div>
+            </div>
+            <div class="card-stat-gsc active" data-metric="impressions" onclick="toggleMetric('impressions')" style="--color: #7e57c2; border-bottom-color: #7e57c2; opacity: 1;">
+                <div class="gsc-label">Total Impressions</div>
+                <div class="card-metric-value" id="val-impressions">0</div>
+                <div class="card-metric-trend" id="trend-impressions">--</div>
+            </div>
+            <div class="card-stat-gsc" data-metric="ctr" onclick="toggleMetric('ctr')" style="--color: #0097a7; border-bottom-color: transparent; opacity: 0.5;">
+                <div class="gsc-label">Average CTR</div>
+                <div class="card-metric-value" id="val-ctr">0.00%</div>
+                <div class="card-metric-trend" id="trend-ctr">--</div>
+            </div>
+            <div class="card-stat-gsc" data-metric="position" onclick="toggleMetric('position')" style="--color: #f4511e; border-bottom-color: transparent; opacity: 0.5;">
+                <div class="gsc-label">Average Position</div>
+                <div class="card-metric-value" id="val-position">0.0</div>
+                <div class="card-metric-trend" id="trend-position">--</div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-container-gsc">
+            <canvas id="mainChart"></canvas>
+        </div>
+
+        <!-- Breakdown Section -->
+        <div class="tab-section">
+            <div class="gsc-table-container">
+                <div class="tab-nav-gsc">
+                    <div class="tab-gsc active" data-tab="queries" onclick="switchTab(this, 'queries')">QUERIES</div>
+                    <div class="tab-gsc" data-tab="pages" onclick="switchTab(this, 'pages')">PAGES</div>
+                    <div class="tab-gsc" data-tab="countries" onclick="switchTab(this, 'countries')">COUNTRIES</div>
+                    <div class="tab-gsc" data-tab="devices" onclick="switchTab(this, 'devices')">DEVICES</div>
+                    <div class="tab-gsc" data-tab="appearances" onclick="switchTab(this, 'appearances')">SEARCH APPEARANCE</div>
+                </div>
+                
+                <div class="table-scroll-area">
+                    <table id="gsc-breakdown-table">
+                            <thead>
+                                <tr>
+                                    <th id="dim-header-label">Search Query</th>
+                                    <th onclick="sortTable('clicks')" style="cursor:pointer;">
+                                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                                            CLICKS <span class="sort-icon-wrapper"><i data-lucide="chevrons-up-down" class="sort-icon" style="width:14px; height:14px;"></i></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable('impressions')" style="cursor:pointer;">
+                                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                                            IMPRESSIONS <span class="sort-icon-wrapper"><i data-lucide="chevrons-up-down" class="sort-icon" style="width:14px; height:14px;"></i></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable('ctr')" style="cursor:pointer;">
+                                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                                            CTR <span class="sort-icon-wrapper"><i data-lucide="chevrons-up-down" class="sort-icon" style="width:14px; height:14px;"></i></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable('position')" style="cursor:pointer;">
+                                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                                            POSITION <span class="sort-icon-wrapper"><i data-lucide="chevrons-up-down" class="sort-icon" style="width:14px; height:14px;"></i></span>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                        <tbody id="breakdown-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- GSC_CONFIG_PLACEHOLDER -->
+    <script src="/assets/views/gsc-reports.js"></script>
+</body>
+</html>
