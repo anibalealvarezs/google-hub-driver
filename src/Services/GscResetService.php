@@ -63,8 +63,9 @@ class GscResetService
             $connection->executeStatement("
                 DELETE FROM pages 
                 WHERE account_id IN (SELECT id FROM channeled_accounts WHERE channel = ?)
-                OR data->>'source' = 'gsc_site'
             ", [$channelId], [\Doctrine\DBAL\ParameterType::INTEGER]);
+
+            $connection->executeStatement("DELETE FROM channeled_accounts WHERE channel = ?", [$channelId], [\Doctrine\DBAL\ParameterType::INTEGER]);
         }
 
         return ['cleared' => 0];
