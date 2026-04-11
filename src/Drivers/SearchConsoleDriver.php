@@ -81,14 +81,14 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public static function getRoutes(): array
     {
-        return [
+        return array_merge(\Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes::get(), [
             '/gsc-reports' => [
                 'httpMethod' => 'GET',
                 'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\ReportController())->index(),
                 'public' => ($_ENV['APP_ENV'] ?? '') === 'testing' || str_contains(strtolower($_ENV['PROJECT_NAME'] ?? ''), 'demo'),
                 'admin' => false
             ]
-        ];
+        ]);
     }
 
     /**
