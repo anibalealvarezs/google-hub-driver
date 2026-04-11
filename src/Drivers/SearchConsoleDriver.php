@@ -542,12 +542,16 @@ class SearchConsoleDriver implements SyncDriverInterface
         $chanAccountClass = $seeder->getEntityClass('channeled_account');
         $accTypeEnumClass = $seeder->getEnumClass('account_type');
 
-        $accRepo = $em->getRepository($accClass);
-        $gscAcc = $accRepo->findOneBy(['name' => 'Demo Agency GSC']) ?? (new $accClass())->addName('Demo Agency GSC');
-        $em->persist($gscAcc);
-        $em->flush();
-
         for ($s = 1; $s <= 10; $s++) {
+            // Re-fetch account if detached by $em->clear()
+            if (!$em->contains($gscAcc)) {
+                $gscAcc = $em->getRepository($accClass)->findOneBy(['name' => 'Demo Agency GSC']);
+                if (!$gscAcc) {
+                    $gscAcc = (new $accClass())->addName('Demo Agency GSC');
+                    $em->persist($gscAcc);
+                    $em->flush();
+                }
+            }
             $hostname = "blog" . $s . ".demo-agency.com";
             $siteName = "Brand Blog $s ($hostname)";
 
