@@ -163,7 +163,7 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public function updateConfiguration(array $newData, array $currentConfig): array
     {
-        $selectedSites = $newData['assets'] ?? [];
+        $selectedSites = $newData['assets']['gsc'] ?? [];
         $enabled = $newData['enabled'] ?? true;
         $historyRange = $newData['cache_history_range'] ?? null;
         $featureToggles = $newData['feature_toggles'] ?? [];
