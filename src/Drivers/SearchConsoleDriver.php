@@ -413,7 +413,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     public function getApi(array $config = []): SearchConsoleApi
     {
-        if (empty($config) && $this->authProvider) {
+        if (empty($config) && $this->authProvider && method_exists($this->authProvider, 'getConfig')) {
             $config = $this->authProvider->getConfig();
         }
         return $this->initializeApi($config);
