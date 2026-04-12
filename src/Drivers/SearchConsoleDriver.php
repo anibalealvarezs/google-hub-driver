@@ -755,5 +755,18 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         return [];
     }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getInstanceRules(): array
+    {
+        return [
+            'history_months' => 16,
+            'entities_sync' => false,
+            'recent_cron_hour' => 7,
+            'recent_cron_minute' => 0,
+        ];
+    }
 }
 
