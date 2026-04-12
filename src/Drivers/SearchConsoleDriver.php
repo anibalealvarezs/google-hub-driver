@@ -664,7 +664,8 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'prefix' => 'sc:',
                 'hostnames' => [],
                 'url_id_regex' => null,
-                'type' => 'gsc_site'
+                'type' => 'gsc_site',
+                'key' => 'sites'
             ]
         ];
     }
