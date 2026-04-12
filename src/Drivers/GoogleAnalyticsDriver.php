@@ -255,5 +255,26 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     {
         return ['cleared' => 0, 'mode' => $mode];
     }
+
+    /**
+     * @inheritdoc
+     */
+    public function getDateFilterMapping(): array
+    {
+        return [];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getInstanceRules(): array
+    {
+        return [
+            'history_months' => 6,
+            'entities_sync' => false,
+            'recent_cron_hour' => 10,
+            'recent_cron_minute' => 0,
+        ];
+    }
 }
 
