@@ -12,6 +12,7 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
+    use \Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
     public static function getCommonConfigKey(): ?string
     {
@@ -226,6 +227,16 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
                 'hostnames' => [],
                 'url_id_regex' => null
             ]
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getPageTypes(): array
+    {
+        return [
+            'google_business' => 'Google Business Profile'
         ];
     }
 

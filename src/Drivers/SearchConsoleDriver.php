@@ -19,6 +19,7 @@ use Anibalealvarezs\GoogleHubDriver\Services\GscInitializerService;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
+    use \Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
     public static function getCommonConfigKey(): ?string
     {
@@ -668,6 +669,34 @@ class SearchConsoleDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
+    public static function getPageTypes(): array
+    {
+        return [
+            'gsc_site' => 'GSC Site'
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getAccountTypes(): array
+    {
+        return [
+            'gsc_site' => 'GSC Site'
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getEntityPaths(): array
+    {
+        return [__DIR__ . '/../Entities'];
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function prepareUiConfig(array $channelConfig): array
     {
         $ui = [];
@@ -714,6 +743,13 @@ class SearchConsoleDriver implements SyncDriverInterface
 
         $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
         return $resetter->reset($this->getChannel(), $mode);
+    }
+    /**
+     * @inheritdoc
+     */
+    public function getDateFilterMapping(): array
+    {
+        return [];
     }
 }
 
