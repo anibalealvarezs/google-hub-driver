@@ -585,7 +585,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $ca = $em->getRepository($chanAccountClass)->findOneBy(['platformId' => $hostname, 'channel' => $gscChan->value]) ?? (new $chanAccountClass());
             $ca->addPlatformId($hostname)
                 ->addAccount($gscAcc)
-                ->addType($accTypeEnumClass::GSC_SITE)
+                ->addType('gsc_site')
                 ->addChannel($gscChan->value)
                 ->addName($siteName);
             $em->persist($ca);
