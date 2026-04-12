@@ -423,8 +423,8 @@ class SearchConsoleDriver implements SyncDriverInterface
 
         return new SearchConsoleApi(
             redirectUrl: $config['google_search_console']['redirect_uri'] ?? $config['google']['redirect_uri'] ?? '',
-            clientId: $config['google_search_console']['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? '',
-            clientSecret: $config['google_search_console']['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['FACEBOOK_APP_SECRET'] ?? '', // Fixed typo from env mapping if exists
+            clientId: $config['google_search_console']['client_id'] ?? $config['google']['client_id'] ?? '',
+            clientSecret: $config['google_search_console']['client_secret'] ?? $config['google']['client_secret'] ?? '',
             refreshToken: $config['google_search_console']['refresh_token'] ?? $config['google']['refresh_token'] ?? '',
             userId: $config['google_search_console']['user_id'] ?? $config['google']['user_id'] ?? 'default',
             scopes: $scopes,
