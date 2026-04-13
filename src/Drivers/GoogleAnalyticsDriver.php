@@ -190,7 +190,8 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
         $config = \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate(
             $this->getChannel(),
             'global',
-            $config
+            $config,
+            $this->getConfigSchema()
         );
 
         $envOverrides = [
