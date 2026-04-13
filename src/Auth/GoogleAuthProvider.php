@@ -8,6 +8,11 @@ use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
 
 class GoogleAuthProvider extends BaseAuthProvider
 {
+    public function getUserId(): string
+    {
+        return $this->data['google_auth']['user_id'] ?? "";
+    }
+
     public function getAccessToken(): string
     {
         return $this->data['google_auth']['access_token'] ?? "";
