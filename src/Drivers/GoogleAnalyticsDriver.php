@@ -91,7 +91,7 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    public function fetchAvailableAssets(): array
+    public function fetchAvailableAssets(bool $throwOnError = false): array
     {
         return [];
     }
