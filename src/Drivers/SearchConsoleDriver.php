@@ -96,7 +96,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             '/gsc-reports' => [
                 'httpMethod' => 'GET',
                 'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\ReportController())->index($args),
-                'public' => ($_ENV['APP_ENV'] ?? '') === 'testing' || str_contains(strtolower($_ENV['PROJECT_NAME'] ?? ''), 'demo'),
+                'public' => true,
                 'admin' => false,
                 'html' => true
             ]
