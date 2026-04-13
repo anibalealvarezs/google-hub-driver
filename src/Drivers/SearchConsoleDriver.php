@@ -106,7 +106,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    public function fetchAvailableAssets(): array
+    public function fetchAvailableAssets(bool $throwOnError = false): array
     {
         if (!$this->authProvider) {
             return [];
@@ -129,6 +129,10 @@ class SearchConsoleDriver implements SyncDriverInterface
             }
             return $assets;
         } catch (\Exception $e) {
+            if ($this->logger) $this->logger->error("SearchConsoleDriver: Error fetching available assets: " . $e->getMessage());
+            if ($throwOnError) {
+                throw $e;
+            }
             return [];
         }
     }
@@ -736,7 +740,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             throw new Exception("EntityManagerInterface required for SearchConsoleDriver entity initialization.");
         }
 
-        $assets = $this->fetchAvailableAssets();
+        $assets = $this->fetchAvailableAssets(throwOnError: true);
         $initializer = new GscInitializerService($entityManager, $this->logger);
         
         return $initializer->initialize($this->getChannel(), $config, $assets['gsc'] ?? []);
