@@ -164,7 +164,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     public function updateConfiguration(array $newData, array $currentConfig): array
     {
         $selectedSites = $newData['assets']['gsc'] ?? [];
-        $enabled = $newData['enabled'] ?? true;
+        $enabled = $newData['enabled'] ?? false;
         $historyRange = $newData['cache_history_range'] ?? null;
         $featureToggles = $newData['feature_toggles'] ?? [];
 
@@ -489,6 +489,12 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public function validateConfig(array $config): array
     {
+        $config = \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate(
+            $this->getChannel(),
+            'global',
+            $config
+        );
+
         $envOverrides = [
             'GOOGLE_CLIENT_ID' => 'client_id',
             'GOOGLE_CLIENT_SECRET' => 'client_secret',
@@ -705,7 +711,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         $ui = [];
         $ui['gsc_cache_history_range'] = $channelConfig['cache_history_range'] ?? '16 months';
-        $ui['gsc_enabled'] = $channelConfig['enabled'] ?? true;
+        $ui['gsc_enabled'] = $channelConfig['enabled'] ?? false;
         $ui['gsc_cron_recent_hour'] = $channelConfig['cron_recent_hour'] ?? 5;
         $ui['gsc_cron_recent_minute'] = $channelConfig['cron_recent_minute'] ?? 0;
         
