@@ -329,9 +329,12 @@ class SearchConsoleDriver implements SyncDriverInterface
             $sitesToProcess = $config['google_search_console']['sites'] ?? [];
             
             foreach ($sitesToProcess as $site) {
-                if (!($site['enabled'] ?? true)) continue;
+                $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Processing site data", ['site_data' => $site]);
+                $siteUrl = (string)($site['url'] ?? $site);
+                $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Resolved Site URL", ['url' => $siteUrl]);
+                
+                if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
-                $siteUrl = $site['url'];
                 if ($this->logger) {
                     $this->logger->info("Processing Google Search Console site: $siteUrl");
                 }
@@ -339,7 +342,11 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                 foreach ($period as $day) {
                     $dayStr = $day->format('Y-m-d');
+                    $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetching GSC data for $dayStr");
                     $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
+                    
+                    $rowCount = count($rows);
+                    $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetched $rowCount rows for $siteUrl");
                     
                     if (empty($rows)) continue;
 
@@ -425,6 +432,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     protected function initializeApi(array $config): SearchConsoleApi
     {
+        $this->logger?->info("DEBUG: SearchConsoleDriver::initializeApi - START");
         $scopes = $this->authProvider->getScopes();
         $token = $this->authProvider->getAccessToken();
 
@@ -436,7 +444,8 @@ class SearchConsoleDriver implements SyncDriverInterface
             userId: $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
             scopes: $scopes,
             token: $token,
-            tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? ""
+            tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? "",
+            logger: $this->logger
         );
     }
 
