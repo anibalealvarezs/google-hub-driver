@@ -27,7 +27,7 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
      */
     public static function storeCredentials(array $credentials): void
     {
-        $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getcwd() . '/storage/tokens/google_tokens.json';
+        $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd() . '/storage/tokens/google_tokens.json');
         $tokenKey = 'google_auth';
         
         if (!is_dir(dirname($tokenPath))) {

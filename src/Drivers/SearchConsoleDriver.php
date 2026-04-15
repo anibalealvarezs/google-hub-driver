@@ -34,7 +34,7 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public static function storeCredentials(array $credentials): void
     {
-        $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getcwd() . '/storage/tokens/google_tokens.json';
+        $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd() . '/storage/tokens/google_tokens.json');
         $tokenKey = 'google_auth';
         
         if (!is_dir(dirname($tokenPath))) {
@@ -457,13 +457,18 @@ class SearchConsoleDriver implements SyncDriverInterface
         $this->logger?->info("DEBUG: SearchConsoleDriver::initializeApi - START");
         $scopes = $this->authProvider->getScopes();
         $token = $this->authProvider->getAccessToken();
+        
+        $providerConfig = [];
+        if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider) {
+            $providerConfig = $this->authProvider->getConfig();
+        }
 
         return new SearchConsoleApi(
             redirectUrl: $config['redirect_uri'] ?? $config['google']['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '',
             clientId: $config['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '',
             clientSecret: $config['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '',
-            refreshToken: $config['google_auth']['refresh_token'] ?? $config['refresh_token'] ?? $config['google']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
-            userId: $config['google_auth']['user_id'] ?? $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
+            refreshToken: $providerConfig['google_auth']['refresh_token'] ?? $providerConfig['google']['refresh_token'] ?? $config['refresh_token'] ?? $config['google']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
+            userId: $providerConfig['google_auth']['user_id'] ?? $providerConfig['google']['user_id'] ?? $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
             scopes: $scopes,
             token: $token,
             tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
