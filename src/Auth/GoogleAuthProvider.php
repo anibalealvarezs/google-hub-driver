@@ -13,7 +13,7 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
     public function __construct(array|string $configOrPath = "")
     {
         if (!$configOrPath || (is_string($configOrPath) && empty($configOrPath))) {
-            $configOrPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "";
+            $configOrPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd() . '/storage/tokens/google_tokens.json');
         }
         parent::__construct($configOrPath);
     }
