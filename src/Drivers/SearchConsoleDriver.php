@@ -459,14 +459,14 @@ class SearchConsoleDriver implements SyncDriverInterface
         $token = $this->authProvider->getAccessToken();
 
         return new SearchConsoleApi(
-            redirectUrl: $config['redirect_uri'] ?? $config['google']['redirect_uri'] ?? '',
-            clientId: $config['client_id'] ?? $config['google']['client_id'] ?? '',
-            clientSecret: $config['client_secret'] ?? $config['google']['client_secret'] ?? '',
-            refreshToken: $config['refresh_token'] ?? $config['google']['refresh_token'] ?? '',
-            userId: $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
+            redirectUrl: $config['redirect_uri'] ?? $config['google']['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '',
+            clientId: $config['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '',
+            clientSecret: $config['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '',
+            refreshToken: $config['google_auth']['refresh_token'] ?? $config['refresh_token'] ?? $config['google']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
+            userId: $config['google_auth']['user_id'] ?? $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
             scopes: $scopes,
             token: $token,
-            tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? "",
+            tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
             logger: $this->logger
         );
     }
