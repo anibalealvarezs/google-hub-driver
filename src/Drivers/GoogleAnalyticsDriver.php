@@ -85,7 +85,28 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
      */
     public static function getRoutes(): array
     {
-        return [];
+        return array_merge(\Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes::get(), [
+            '/google-login' => [
+                'httpMethod' => 'GET',
+                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->login(),
+                'public' => true,
+                'admin' => false,
+                'html' => true
+            ],
+            '/google-auth-start' => [
+                'httpMethod' => 'GET',
+                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->start(),
+                'public' => true,
+                'admin' => false
+            ],
+            '/google-callback' => [
+                'httpMethod' => 'GET',
+                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->callback($args['request'] ?? \Symfony\Component\HttpFoundation\Request::createFromGlobals()),
+                'public' => true,
+                'admin' => false,
+                'html' => true
+            ]
+        ]);
     }
 
     /**
