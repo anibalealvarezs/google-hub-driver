@@ -348,7 +348,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $api = $this->initializeApi($config);
             $totalStats = ['metrics' => 0, 'rows' => 0, 'duplicates' => 0];
 
-            $sitesToProcess = $config['google_search_console']['sites'] ?? [];
+            $sitesToProcess = $config['sites'] ?? $config['google_search_console']['sites'] ?? [];
             
             foreach ($sitesToProcess as $site) {
                 $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Processing site data", ['site_data' => $site]);
