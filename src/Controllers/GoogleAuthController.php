@@ -133,11 +133,19 @@ class GoogleAuthController
             'scopes' => explode(' ', $response['scope'] ?? ''),
         ]);
 
+        $hasRefreshToken = !empty($response['refresh_token']);
+        $refreshTokenDisplay = $hasRefreshToken ? substr($response['refresh_token'], 0, 10) . '...' : '<b>NULL (Google no lo envió)</b>';
+
         return new Response("
             <div style='background: #0a0c10; color: #fff; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;'>
                 <div style='background: #161b22; border: 1px solid #30363d; padding: 40px; border-radius: 20px; max-width: 400px;'>
                     <h1 style='color: #238636;'>✓ Success!</h1>
                     <p style='color: #8b949e;'>Your Google credentials have been successfully updated and stored in APIs Hub.</p>
+                    <p style='color: #ff7b72; font-size: 13px; margin-top: 15px; text-align: left; background: #0a0c10; padding: 10px; border-radius: 5px; border: 1px solid #30363d;'>
+                        <b>Debug Info:</b><br>
+                        Access Token: received ✔<br>
+                        Refresh Token: {$refreshTokenDisplay}
+                    </p>
                     <a href='/' style='display: inline-block; margin-top: 20px; background: #58a6ff; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none;'>Back to Hub</a>
                 </div>
             </div>
