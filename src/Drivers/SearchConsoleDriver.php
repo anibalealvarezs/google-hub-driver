@@ -361,35 +361,37 @@ class SearchConsoleDriver implements SyncDriverInterface
                     $this->logger->info("Processing Google Search Console site: $siteUrl");
                 }
 
-                $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
-                foreach ($period as $day) {
-                    $dayStr = $day->format('Y-m-d');
-                    $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetching GSC data for $dayStr");
-                    $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
-                    
-                    $rowCount = count($rows);
-                    $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetched $rowCount rows for $siteUrl");
-                    
-                    if (empty($rows)) continue;
-
-                    // Convert raw data into metrics using the SDK
-                    // We pass the site URL as the "page" identifier; the host will resolve the entity if needed.
-                    $collection = GoogleSearchConsoleConvert::metrics(
-                        rows: $rows,
-                        siteUrl: $siteUrl,
-                        siteKey: $siteUrl,
-                        logger: $this->logger,
-                        page: $siteUrl 
-                    );
-
-                    // Persist converted collection in the host
-                    if ($this->dataProcessor && $collection->count() > 0) {
-                        $result = ($this->dataProcessor)($collection, $this->logger);
+                try {
+                    $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
+                    foreach ($period as $day) {
+                        $dayStr = $day->format('Y-m-d');
+                        $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetching GSC data for $dayStr");
+                        $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
                         
-                        $totalStats['metrics'] += $result['metrics'] ?? $collection->count();
-                        $totalStats['rows'] += $result['rows'] ?? count($rows);
-                        $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                        $rowCount = count($rows);
+                        $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetched $rowCount rows for $siteUrl");
+                        
+                        if (empty($rows)) continue;
+
+                        $collection = GoogleSearchConsoleConvert::metrics(
+                            rows: $rows,
+                            siteUrl: $siteUrl,
+                            siteKey: $siteUrl,
+                            logger: $this->logger,
+                            page: $siteUrl 
+                        );
+
+                        if ($this->dataProcessor && $collection->count() > 0) {
+                            $result = ($this->dataProcessor)($collection, $this->logger);
+                            
+                            $totalStats['metrics'] += $result['metrics'] ?? $collection->count();
+                            $totalStats['rows'] += $result['rows'] ?? count($rows);
+                            $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                        }
                     }
+                } catch (\Exception $e) {
+                    $this->logger?->error("Failed to sync GSC site '{$siteUrl}': " . $e->getMessage());
+                    continue;
                 }
             }
 
