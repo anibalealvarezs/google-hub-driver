@@ -19,11 +19,12 @@ class GoogleAuthController
     {
         $config = [];
         if (class_exists('\Helpers\Helpers')) {
-            $config = \Helpers\Helpers::getChannelsConfig()['google'] ?? [];
+            $allConfigs = \Helpers\Helpers::getChannelsConfig();
+            $config = $allConfigs['google'] ?? $allConfigs['google_search_console'] ?? $allConfigs['google_analytics'] ?? [];
         }
 
-        $this->clientId = $config['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? '';
-        $this->clientSecret = $config['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? '';
+        $this->clientId = $config['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '';
+        $this->clientSecret = $config['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '';
         
         $isHttps = (
             (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === 1)) ||
@@ -35,7 +36,7 @@ class GoogleAuthController
             $protocol = 'https';
         }
 
-        $this->redirectUri = $config['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? "$protocol://$_SERVER[HTTP_HOST]/google-callback";
+        $this->redirectUri = $config['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: "$protocol://$_SERVER[HTTP_HOST]/google-callback";
     }
 
     /**

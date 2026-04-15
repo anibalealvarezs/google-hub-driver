@@ -10,6 +10,14 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\OAuthProviderInterface;
 
 class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterface, OAuthProviderInterface
 {
+    public function __construct(array|string $configOrPath = "")
+    {
+        if (!$configOrPath || (is_string($configOrPath) && empty($configOrPath))) {
+            $configOrPath = getenv('GOOGLE_TOKEN_PATH') ?: "";
+        }
+        parent::__construct($configOrPath);
+    }
+
     /**
      * @inheritdoc
      */
