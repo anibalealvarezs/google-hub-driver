@@ -217,6 +217,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             if (isset($selectedMap[$normUrl])) {
                 $site['target_countries'] = $selectedMap[$normUrl]['target_countries'] ?? [];
                 $site['target_keywords'] = $selectedMap[$normUrl]['target_keywords'] ?? [];
+                $site['lost_access'] = filter_var($selectedMap[$normUrl]['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN);
                 $newSitesList[] = $site;
                 $processedNormUrls[] = $normUrl;
             }
@@ -232,6 +233,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                     'enabled' => true,
                     'target_countries' => $sel['target_countries'] ?? [],
                     'target_keywords' => $sel['target_keywords'] ?? [],
+                    'lost_access' => filter_var($sel['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 ];
             }
         }
@@ -484,6 +486,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'exclude_countries' => [],
                 'include_pages' => [],
                 'exclude_pages' => [],
+                'lost_access' => false,
             ],
             'metrics' => [
                 'clicks' => ['enabled' => true, 'format' => 'number', 'precision' => 0],
