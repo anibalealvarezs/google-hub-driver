@@ -32,6 +32,7 @@ class GscInitializerService
         if (!class_exists($pageClass)) return $stats;
 
         $pageRepository = $this->entityManager->getRepository($pageClass);
+        $processedPages = [];
 
         foreach ($sites as $site) {
             $siteUrl = $site['url'];
@@ -48,13 +49,21 @@ class GscInitializerService
             $canonicalId = \Helpers\Helpers::getCanonicalPageId($normalizedSiteUrl, null, 'website');
             $platformIdForAccount = md5($normalizedSiteUrl); // Unique id for THIS sc site
 
-            $pageEntity = $pageRepository->findOneBy(['canonicalId' => $canonicalId]);
-            $isNew = false;
-            if (!$pageEntity) {
-                $pageEntity = new $pageClass();
-                $pageEntity->addCanonicalId($canonicalId);
-                $isNew = true;
-                $this->logger?->info("Initializing new GSC Page: URL=$normalizedSiteUrl");
+            // 1. Check if we already processed this canonical ID in this loop
+            if (isset($processedPages[$canonicalId])) {
+                $pageEntity = $processedPages[$canonicalId];
+                $isNew = false;
+            } else {
+                // 2. Check if it exists in the database
+                $pageEntity = $pageRepository->findOneBy(['canonicalId' => $canonicalId]);
+                $isNew = false;
+                if (!$pageEntity) {
+                    $pageEntity = new $pageClass();
+                    $pageEntity->addCanonicalId($canonicalId);
+                    $isNew = true;
+                    $this->logger?->info("Initializing new GSC Page: URL=$normalizedSiteUrl");
+                }
+                $processedPages[$canonicalId] = $pageEntity;
             }
 
             $pageEntity->addUrl($normalizedSiteUrl)
