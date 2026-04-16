@@ -357,6 +357,8 @@ class SearchConsoleDriver implements SyncDriverInterface
                 try {
                     $period = \Carbon\Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                     foreach ($period as $day) {
+                        $this->checkJobStatus($config);
+                        
                         $dayStr = $day->format('Y-m-d');
                         $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Día: $dayStr)");
                         $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
