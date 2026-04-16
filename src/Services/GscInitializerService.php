@@ -45,9 +45,8 @@ class GscInitializerService
             $title = $site['title'] ?? $siteUrl;
             $hostname = $site['hostname'] ?? parse_url($siteUrl, PHP_URL_HOST) ?? str_replace('sc-domain:', '', $siteUrl);
 
-            $platformId = md5($normalizedSiteUrl);
-            $typeEnum = defined("$pageTypeClass::WEBSITE") ? constant("$pageTypeClass::WEBSITE") : 'WEBSITE';
-            $canonicalId = AssetRegistry::getCanonicalId($normalizedSiteUrl, null, $typeEnum);
+            $canonicalId = \Helpers\Helpers::getCanonicalPageId($normalizedSiteUrl, null, 'website');
+            $platformIdForAccount = md5($normalizedSiteUrl); // Unique id for THIS sc site
 
             $pageEntity = $pageRepository->findOneBy(['canonicalId' => $canonicalId]);
             $isNew = false;
@@ -61,7 +60,7 @@ class GscInitializerService
             $pageEntity->addUrl($normalizedSiteUrl)
                 ->addTitle($title)
                 ->addHostname($hostname)
-                ->addPlatformId($platformId)
+                ->addPlatformId($canonicalId) 
                 ->addData(['source' => 'gsc_site'])
                 ->addUpdatedAt(new DateTime());
 
@@ -75,17 +74,11 @@ class GscInitializerService
                 $chanAccountRepository = $this->entityManager->getRepository($chanAccountClass);
                 $accountRepository = $this->entityManager->getRepository($accountClass);
 
-                $ca = $chanAccountRepository->findOneBy([
-                    'platformId' => $platformId,
-                    'channel' => $this->channelEnum->value
-                ]);
-
-                if (!$ca) {
-                    $ca = new $chanAccountClass();
-                    $ca->addPlatformId($platformId)
-                       ->addChannel($this->channelEnum->value);
-                    
-                    // Resolve a parent Account
+                // Resolve specific account for this site, fallback to global
+                $siteSpecificAccountName = $site['account'] ?? $config['accounts_group_name'] ?? 'Google Search Console';
+                $parentAccount = $accountRepository->findOneBy(['name' => $siteSpecificAccountName]);
+                
+                if (!$parentAccount) {
                     $parentAccount = $accountRepository->findOneBy(['name' => 'Google Search Console']) 
                                    ?? $accountRepository->findOneBy([]) // Fallback to first available account
                                    ?? (new $accountClass())->addName('Google Search Console');
@@ -93,10 +86,25 @@ class GscInitializerService
                     if (!$parentAccount->getId()) {
                         $this->entityManager->persist($parentAccount);
                     }
-                    $ca->addAccount($parentAccount);
                 }
 
-                $ca->addName($title)
+                // Associate Page with Account as well
+                $pageEntity->addAccount($parentAccount);
+                $this->entityManager->persist($pageEntity);
+
+                $ca = $chanAccountRepository->findOneBy([
+                    'platformId' => $platformIdForAccount,
+                    'channel' => $this->channelEnum->value
+                ]);
+
+                if (!$ca) {
+                    $ca = new $chanAccountClass();
+                    $ca->addPlatformId($platformIdForAccount)
+                       ->addChannel($this->channelEnum->value);
+                }
+
+                $ca->addAccount($parentAccount)
+                   ->addName($title)
                    ->addType('gsc_site')
                    ->addUpdatedAt(new DateTime());
 

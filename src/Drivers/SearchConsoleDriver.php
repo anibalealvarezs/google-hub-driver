@@ -351,42 +351,51 @@ class SearchConsoleDriver implements SyncDriverInterface
             $sitesToProcess = $config['sites'] ?? $config['google_search_console']['sites'] ?? [];
             
             foreach ($sitesToProcess as $site) {
-                $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Processing site data", ['site_data' => $site]);
                 $siteUrl = (string)($site['url'] ?? $site);
-                $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Resolved Site URL", ['url' => $siteUrl]);
-                
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
-                if ($this->logger) {
-                    $this->logger->info("Processing Google Search Console site: $siteUrl");
-                }
-
                 try {
-                    $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
+                    $period = \Carbon\Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                     foreach ($period as $day) {
                         $dayStr = $day->format('Y-m-d');
-                        $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetching GSC data for $dayStr");
+                        $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Día: $dayStr)");
                         $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
                         
-                        $rowCount = count($rows);
-                        $this->logger?->info("DEBUG: SearchConsoleDriver::sync - Fetched $rowCount rows for $siteUrl");
+                        if (empty($rows)) {
+                            $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl (Día: $dayStr)");
+                            continue;
+                        }
+
+                        $platformId = md5(rtrim($siteUrl, '/'));
+                        $ca = $config['manager']->getRepository(\Entities\Analytics\Channeled\ChanneledAccount::class)->findOneBy([
+                            'platformId' => $platformId,
+                            'channel' => \Anibalealvarezs\ApiSkeleton\Enums\Channel::google_search_console->value
+                        ]);
                         
-                        if (empty($rows)) continue;
+                        $canonicalId = \Helpers\Helpers::getCanonicalPageId($siteUrl, null, 'website');
+                        $property = $config['manager']->getRepository(\Entities\Analytics\Page::class)->findOneBy(['canonicalId' => $canonicalId]);
 
                         $collection = GoogleSearchConsoleConvert::metrics(
                             rows: $rows,
                             siteUrl: $siteUrl,
                             siteKey: $siteUrl,
                             logger: $this->logger,
-                            page: $siteUrl 
+                            page: $property ?? $siteUrl,
+                            channeledAccount: $ca
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {
                             $result = ($this->dataProcessor)($collection, $this->logger);
                             
-                            $totalStats['metrics'] += $result['metrics'] ?? $collection->count();
-                            $totalStats['rows'] += $result['rows'] ?? count($rows);
-                            $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                            $metricsCount = $result['metrics'] ?? $collection->count();
+                            $processedRows = $result['rows'] ?? count($rows);
+                            $duplicates = $result['duplicates'] ?? 0;
+
+                            $totalStats['metrics'] += $metricsCount;
+                            $totalStats['rows'] += $processedRows;
+                            $totalStats['duplicates'] += $duplicates;
+
+                            $this->logger?->info("<<< EXITO: Sincronización completada para GSC Sitio: $siteUrl (Día: $dayStr). Métricas: $metricsCount | Filas base: $processedRows | Duplicados: $duplicates");
                         }
                     }
                 } catch (\Exception $e) {

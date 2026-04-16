@@ -30,6 +30,7 @@ class GoogleSearchConsoleConvert
         ?LoggerInterface $logger = null,
         object|string|null $page = null,
         object|string|null $period = 'daily',
+        object|null $channeledAccount = null,
     ): ArrayCollection {
         $startTime = microtime(true);
         $rowCount = count($rows);
@@ -140,6 +141,7 @@ class GoogleSearchConsoleConvert
                     'countryCode' => $data['dimensionValues']['country'] ?? 'UNK',
                     'deviceType' => $data['dimensionValues']['device'] ?? 'UNKNOWN',
                     'page' => $page,
+                    'channeledAccount' => $channeledAccount,
                 ],
             ], $logger);
 
