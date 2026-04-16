@@ -276,7 +276,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'message' => 'Authentication is valid.',
                 'details' => []
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -355,7 +355,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 try {
-                    $period = \Carbon\Carbon::instance($startDate)->toPeriod($endDate, '1 day');
+                    $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                     foreach ($period as $day) {
                         $this->checkJobStatus($config);
                         
@@ -400,7 +400,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                             $this->logger?->info("<<< EXITO: Sincronización completada para GSC Sitio: $siteUrl (Día: $dayStr). Métricas: $metricsCount | Filas base: $processedRows | Duplicados: $duplicates");
                         }
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->logger?->error("Failed to sync GSC site '{$siteUrl}': " . $e->getMessage());
                     continue;
                 }
