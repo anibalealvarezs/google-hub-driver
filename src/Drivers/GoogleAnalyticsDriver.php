@@ -288,9 +288,14 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
      * @inheritdoc
      */
     public function reset(string $mode = 'all', array $config = []): array
-
     {
-        return ['cleared' => 0, 'mode' => $mode];
+        $entityManager = $config['manager'] ?? null;
+        if (!$entityManager instanceof \Doctrine\ORM\EntityManagerInterface) {
+            throw new \Exception("EntityManagerInterface required for GoogleAnalyticsDriver reset.");
+        }
+
+        $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
+        return $resetter->reset($this->getChannel(), $mode);
     }
 
     /**
