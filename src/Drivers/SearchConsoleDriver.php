@@ -809,7 +809,13 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public function reset(string $mode = 'all', array $config = []): array
     {
-        return ['action' => 'reset', 'mode' => $mode, 'channel' => $this->getChannel()];
+        $entityManager = $config['manager'] ?? null;
+        if (!$entityManager instanceof \Doctrine\ORM\EntityManagerInterface) {
+            throw new \Exception("EntityManagerInterface required for SearchConsoleDriver reset.");
+        }
+
+        $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
+        return $resetter->reset($this->getChannel(), $mode);
     }
     /**
      * @inheritdoc
