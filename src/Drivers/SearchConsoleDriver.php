@@ -16,9 +16,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Anibalealvarezs\GoogleHubDriver\Services\GscInitializerService;
+use Anibalealvarezs\ApiDriverCore\Enums\HierarchyType;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
+    use \Anibalealvarezs\ApiDriverCore\Traits\HasHierarchicalValidationTrait;
     use \Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
     public static function getCommonConfigKey(): ?string
@@ -330,8 +332,13 @@ class SearchConsoleDriver implements SyncDriverInterface
         $this->dataProcessor = $processor;
     }
 
-    public function sync(DateTime $startDate, DateTime $endDate, array $config = []): Response
-    {
+    public function sync(
+        DateTime $startDate,
+        DateTime $endDate,
+        array $config = [],
+        ?callable $shouldContinue = null,
+        ?callable $identityMapper = null
+    ): Response {
         if (!$this->authProvider) {
             throw new Exception("AuthProvider not set for SearchConsoleDriver");
         }
@@ -340,25 +347,42 @@ class SearchConsoleDriver implements SyncDriverInterface
             throw new Exception("DataProcessor not set for SearchConsoleDriver");
         }
 
-        if ($this->logger) {
-            $this->logger->info("Starting SearchConsoleDriver sync (Modular)...");
-        }
-
         try {
             $api = $this->initializeApi($config);
             $totalStats = ['metrics' => 0, 'rows' => 0, 'duplicates' => 0];
 
             $sitesToProcess = $config['sites'] ?? $config['google_search_console']['sites'] ?? [];
             
+            // 1. Batch Resolve Identities via Oracle
+            $pageMap = [];
+            $caMap = [];
+            if ($identityMapper && !empty($sitesToProcess)) {
+                $urls = [];
+                $caPlatformIds = [];
+                foreach ($sitesToProcess as $site) {
+                    $u = (string)($site['url'] ?? $site);
+                    $urls[] = $u;
+                    $caPlatformIds[] = md5(rtrim($u, '/'));
+                }
+                $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
+                $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
+            }
+
             foreach ($sitesToProcess as $site) {
                 $siteUrl = (string)($site['url'] ?? $site);
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
+                $caPlatformId = md5(rtrim($siteUrl, '/'));
+                $caId = $caMap[$caPlatformId]['id'] ?? $siteUrl;
+                $pageId = $pageMap[$siteUrl]['id'] ?? $siteUrl;
+                $siteKey = $pageMap[$siteUrl]['canonical_id'] ?? $siteUrl;
+
                 try {
                     $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
                     foreach ($period as $day) {
-                        $this->checkJobStatus($config);
-                        
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new Exception("Sync aborted by the orchestrator.");
+                        }
                         $dayStr = $day->format('Y-m-d');
                         $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Día: $dayStr)");
                         $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
@@ -368,50 +392,40 @@ class SearchConsoleDriver implements SyncDriverInterface
                             continue;
                         }
 
-                        $platformId = md5(rtrim($siteUrl, '/'));
-                        $ca = $config['manager']->getRepository(\Entities\Analytics\Channeled\ChanneledAccount::class)->findOneBy([
-                            'platformId' => $platformId,
-                            'channel' => \Anibalealvarezs\ApiSkeleton\Enums\Channel::google_search_console->value
-                        ]);
-                        
-                        $canonicalId = \Helpers\Helpers::getCanonicalPageId($siteUrl, null, 'website');
-                        $property = $config['manager']->getRepository(\Entities\Analytics\Page::class)->findOneBy(['canonicalId' => $canonicalId]);
-
                         $collection = GoogleSearchConsoleConvert::metrics(
                             rows: $rows,
                             siteUrl: $siteUrl,
-                            siteKey: $siteUrl,
+                            siteKey: $siteKey,
                             logger: $this->logger,
-                            page: $property ?? $siteUrl,
-                            channeledAccount: $ca
+                            page: $pageId,
+                            channeledAccount: $caId
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {
+                            $this->validateHierarchicalIntegrity(collection: $collection, type: HierarchyType::PAGE);
+
                             $result = ($this->dataProcessor)($collection, $this->logger);
                             
-                            $metricsCount = $result['metrics'] ?? $collection->count();
-                            $processedRows = $result['rows'] ?? count($rows);
-                            $duplicates = $result['duplicates'] ?? 0;
+                            $totalStats['metrics'] += $result['metrics'] ?? 0;
+                            $totalStats['rows'] += $rowCount = count($rows);
+                            $totalStats['duplicates'] += $result['duplicates'] ?? 0;
 
-                            $totalStats['metrics'] += $metricsCount;
-                            $totalStats['rows'] += $processedRows;
-                            $totalStats['duplicates'] += $duplicates;
-
-                            $this->logger?->info("<<< EXITO: Sincronización completada para GSC Sitio: $siteUrl (Día: $dayStr). Métricas: $metricsCount | Filas base: $processedRows | Duplicados: $duplicates");
+                            $this->logger?->info("+++ ÉXITO: Sincronizados $rowCount registros GSC para $siteUrl el $dayStr");
                         }
                     }
                 } catch (Exception $e) {
-                    $this->logger?->error("Failed to sync GSC site '{$siteUrl}': " . $e->getMessage());
-                    continue;
+                    $this->logger?->error("!!! ERROR: Fallo al sincronizar GSC para $siteUrl: " . $e->getMessage());
                 }
             }
 
-            return new Response(json_encode(['status' => 'success', 'data' => $totalStats]));
+            return new Response(json_encode([
+                'status' => 'success',
+                'message' => 'Search Console sync completed',
+                'stats' => $totalStats
+            ]));
 
         } catch (Exception $e) {
-            if ($this->logger) {
-                $this->logger->error("SearchConsoleDriver error: " . $e->getMessage());
-            }
+            $this->logger?->critical("!!!! ERROR CRÍTICO: SearchConsoleDriver falló: " . $e->getMessage());
             throw $e;
         }
     }
@@ -785,29 +799,17 @@ class SearchConsoleDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    public function initializeEntities(mixed $entityManager, array $config = []): array
+    public function initializeEntities(array $config = []): array
     {
-        if (!$entityManager instanceof EntityManagerInterface) {
-            throw new Exception("EntityManagerInterface required for SearchConsoleDriver entity initialization.");
-        }
-
-        $assets = $this->fetchAvailableAssets(throwOnError: true);
-        $initializer = new GscInitializerService($entityManager, $this->logger);
-        
-        return $initializer->initialize($this->getChannel(), $config, $assets['gsc'] ?? []);
+        return $this->fetchAvailableAssets(throwOnError: true);
     }
 
     /**
      * @inheritdoc
      */
-    public function reset(mixed $entityManager, string $mode = 'all', array $config = []): array
+    public function reset(string $mode = 'all', array $config = []): array
     {
-        if (!$entityManager instanceof EntityManagerInterface) {
-            throw new Exception("EntityManagerInterface required for SearchConsoleDriver reset.");
-        }
-
-        $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
-        return $resetter->reset($this->getChannel(), $mode);
+        return ['action' => 'reset', 'mode' => $mode, 'channel' => $this->getChannel()];
     }
     /**
      * @inheritdoc
