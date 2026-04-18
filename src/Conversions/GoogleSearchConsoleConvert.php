@@ -146,9 +146,11 @@ class GoogleSearchConsoleConvert
             ], $logger);
 
             foreach ($rowMetrics as $metric) {
-                $metric->metadata = $data['metadata'];
-                $metric->dimensions = $data['dimensions'];
-                $collection->add($metric);
+                if ($metric) {
+                    $metric->metadata = $data['metadata'];
+                    $metric->dimensions = $data['dimensions'];
+                    $collection->add($metric);
+                }
             }
         }
 
