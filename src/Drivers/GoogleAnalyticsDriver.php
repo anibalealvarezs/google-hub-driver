@@ -9,6 +9,8 @@ use DateTime;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
 
 class GoogleAnalyticsDriver implements SyncDriverInterface
 {
@@ -148,7 +150,7 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
 
     public function getChannel(): string
     {
-        return 'google_analytics';
+        return GoogleChannel::ANALYTICS->value;
     }
 
     public function setAuthProvider(AuthProviderInterface $provider): void
@@ -260,7 +262,8 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
             'google_business' => [
                 'prefix' => 'gb:location',
                 'hostnames' => [],
-                'url_id_regex' => null
+                'url_id_regex' => null,
+                'type' => GoogleEntityType::LOCATION->value
             ]
         ];
     }
@@ -271,7 +274,7 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     public static function getPageTypes(): array
     {
         return [
-            'google_business' => 'Google Business Profile'
+            GoogleEntityType::LOCATION->value => 'Google Business Profile'
         ];
     }
 

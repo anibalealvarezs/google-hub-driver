@@ -8,6 +8,8 @@ use Anibalealvarezs\ApiDriverCore\Conversions\UniversalMetricConverter;
 use Anibalealvarezs\ApiDriverCore\Classes\KeyGenerator;
 use Doctrine\Common\Collections\ArrayCollection;
 use Psr\Log\LoggerInterface;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 use Carbon\Carbon;
 
 /**
@@ -122,16 +124,16 @@ class GoogleSearchConsoleConvert
             $data['metrics']['platform_id'] = $platformId;
 
             $rowMetrics = UniversalMetricConverter::convert([$data['metrics']], [
-                'channel' => 'google_search_console',
+                'channel' => GoogleChannel::SEARCH_CONSOLE->value,
                 'period' => $periodValue,
                 'platform_id_field' => 'platform_id',
                 'fallback_platform_id' => $platformId,
                 'date_field' => 'date',
                 'metrics' => [
-                    'clicks' => 'clicks',
-                    'impressions' => 'impressions',
-                    'ctr' => 'ctr',
-                    'position' => 'position'
+                    GoogleFeature::CLICKS->value => GoogleFeature::CLICKS->value,
+                    GoogleFeature::IMPRESSIONS->value => GoogleFeature::IMPRESSIONS->value,
+                    GoogleFeature::CTR->value => GoogleFeature::CTR->value,
+                    GoogleFeature::POSITION->value => GoogleFeature::POSITION->value,
                 ],
                 'dimensions' => $data['dimensions'],
                 'context' => [

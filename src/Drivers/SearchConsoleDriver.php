@@ -17,6 +17,9 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Anibalealvarezs\GoogleHubDriver\Services\GscInitializerService;
 use Anibalealvarezs\ApiDriverCore\Enums\HierarchyType;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
+use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
@@ -194,18 +197,19 @@ class SearchConsoleDriver implements SyncDriverInterface
         $historyRange = $newData['cache_history_range'] ?? null;
         $featureToggles = $newData['feature_toggles'] ?? [];
 
-        if (!isset($currentConfig['channels']['google_search_console'])) {
-            $currentConfig['channels']['google_search_console'] = [];
+        if (!isset($currentConfig['channels'][GoogleChannel::SEARCH_CONSOLE->value])) {
+            $currentConfig['channels'][GoogleChannel::SEARCH_CONSOLE->value] = [];
         }
         
-        $chanCfg = &$currentConfig['channels']['google_search_console'];
+        $chanCfg = &$currentConfig['channels'][GoogleChannel::SEARCH_CONSOLE->value];
 
         if ($historyRange) {
             $chanCfg['cache_history_range'] = $historyRange;
         }
         
         // Cron settings
-        foreach (['cron_entities_hour', 'cron_entities_minute', 'cron_recent_hour', 'cron_recent_minute'] as $key) {
+        foreach (GoogleFeature::cron() as $feature) {
+            $key = $feature->value;
             if (isset($featureToggles[$key])) {
                 $chanCfg[$key] = (int)$featureToggles[$key];
             }
@@ -220,7 +224,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $chanCfg['cache_aggregations'] = $newValue;
             
             if ($prevValue && !$newValue && class_exists('\Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService')) {
-                \Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService::clearChannel('google_search_console');
+                \Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService::clearChannel(GoogleChannel::SEARCH_CONSOLE->value);
             }
         }
 
@@ -314,7 +318,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     public function getChannel(): string
     {
-        return 'google_search_console';
+        return GoogleChannel::SEARCH_CONSOLE->value;
     }
 
     public function setAuthProvider(AuthProviderInterface $provider): void
@@ -351,7 +355,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $api = $this->initializeApi($config);
             $totalStats = ['metrics' => 0, 'rows' => 0, 'duplicates' => 0];
 
-            $sitesToProcess = $config['sites'] ?? $config['google_search_console']['sites'] ?? [];
+            $sitesToProcess = $config['sites'] ?? $config[GoogleChannel::SEARCH_CONSOLE->value]['sites'] ?? [];
             
             // 1. Batch Resolve Identities via Oracle
             $pageMap = [];
@@ -432,7 +436,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     private function fetchGSCDailyData(SearchConsoleApi $api, string $siteUrl, string $dayStr, array $config): array
     {
-        $rowLimit = $config['google_search_console']['row_limit'] ?? 25000;
+        $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
         $allFetchedData = [];
 
         $dimensionsSubsets = $this->getAllSubsets(self::$optionalDimensions);
@@ -633,7 +637,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         $faker = \Faker\Factory::create('en_US');
         $pageClass = $seeder->getEntityClass('page');
         $chanEnumClass = $seeder->getEnumClass('channel');
-        $gscChan = $chanEnumClass::google_search_console;
+        $gscChan = GoogleChannel::SEARCH_CONSOLE;
 
         $accClass = $seeder->getEntityClass('account');
         $chanAccountClass = $seeder->getEntityClass('channeled_account');
@@ -663,7 +667,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $ca = $em->getRepository($chanAccountClass)->findOneBy(['platformId' => $hostname, 'channel' => $gscChan->value]) ?? (new $chanAccountClass());
             $ca->addPlatformId($hostname)
                 ->addAccount($gscAcc)
-                ->addType('gsc_site')
+                ->addType(GoogleEntityType::SITE->value)
                 ->addChannel($gscChan->value)
                 ->addName($siteName);
             $em->persist($ca);
@@ -739,7 +743,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'prefix' => 'sc',
                 'hostnames' => [],
                 'url_id_regex' => null,
-                'type' => 'gsc_site',
+                'type' => GoogleEntityType::SITE->value,
                 'key' => 'sites'
             ]
         ];
@@ -751,7 +755,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     public static function getPageTypes(): array
     {
         return [
-            'gsc_site' => 'GSC Site'
+            GoogleEntityType::SITE->value => 'GSC Site'
         ];
     }
 
@@ -761,7 +765,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     public static function getAccountTypes(): array
     {
         return [
-            'gsc_site' => 'GSC Site'
+            GoogleEntityType::SITE->value => 'GSC Site'
         ];
     }
 
