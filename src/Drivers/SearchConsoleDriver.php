@@ -424,7 +424,8 @@ class SearchConsoleDriver implements SyncDriverInterface
                             siteKey: $siteKey,
                             logger: $this->logger,
                             page: $page,
-                            channeledAccount: $ca
+                            channeledAccount: $ca,
+                            account: is_object($ca) && method_exists($ca, 'getAccount') ? $ca->getAccount() : ($ca->getContext()['account'] ?? null)
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {

@@ -39,7 +39,7 @@ class GscInitializerService
 
         // 1. Batch Resolve Identities
         $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
-        $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
+        $caMap = $identityMapper('channeled_accounts', ['platform_ids' => array_merge($urls, $caPlatformIds)]) ?? [];
         $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console']]) ?? [];
 
         $parentAccount = $accountMap['Google Search Console'] ?? null;
@@ -50,7 +50,7 @@ class GscInitializerService
             $canonicalId = \Anibalealvarezs\ApiDriverCore\Classes\AssetRegistry::getCanonicalId($siteUrl, null, 'website');
 
             $page = $pageMap[$siteUrl] ?? null;
-            $ca = $caMap[$platformIdForAccount] ?? null;
+            $ca = $caMap[$platformIdForAccount] ?? ($caMap[$siteUrl] ?? null);
 
             $isNew = false;
             $toPersist = new \Doctrine\Common\Collections\ArrayCollection();
