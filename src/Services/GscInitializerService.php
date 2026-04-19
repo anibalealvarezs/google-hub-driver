@@ -40,9 +40,12 @@ class GscInitializerService
         // 1. Batch Resolve Identities
         $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
         $caMap = $identityMapper('channeled_accounts', ['platform_ids' => array_merge($urls, $caPlatformIds)]) ?? [];
-        $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console']]) ?? [];
+        $defaultGroupName = \Anibalealvarezs\GoogleHubDriver\Drivers\SearchConsoleDriver::getChannelLabel();
+        $groupName = $config['accounts_group_name'] ?? $defaultGroupName;
 
-        $parentAccount = $accountMap['Google Search Console'] ?? null;
+        $accountNames = array_unique([$groupName, $defaultGroupName, 'Google Search Console']);
+        $accountMap = $identityMapper('accounts', ['names' => $accountNames]) ?? [];
+        $parentAccount = $accountMap[$groupName] ?? ($accountMap[$defaultGroupName] ?? ($accountMap['Google Search Console'] ?? null));
 
         foreach ($sites as $site) {
             $siteUrl = rtrim($site['url'], '/');

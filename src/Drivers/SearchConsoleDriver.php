@@ -791,7 +791,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             return $resetCallback($this->getChannel(), $mode);
         }
 
-        throw new Exception("Reset callback not provided for " . $this->getChannel()->name);
+        throw new Exception("Reset callback not provided for " . $this->getChannel());
     }
     /**
      * @inheritdoc
