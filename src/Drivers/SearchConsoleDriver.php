@@ -364,10 +364,9 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $caPlatformIds = [];
                 foreach ($sitesToProcess as $site) {
                     $u = (string)($site['url'] ?? $site);
-                    $urls[] = $u;
-                    $caPlatformIds[] = $u;
+                    $caPlatformIds[] = md5(rtrim($u, '/'));
                 }
-                $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
+                $pageMap = $identityMapper('pages', ['platform_ids' => $caPlatformIds]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
             }
 
@@ -375,14 +374,14 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $siteUrl = (string)($site['url'] ?? $site);
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
-                $caPlatformId = (string)($site['url'] ?? $site);
+                $caPlatformId = md5(rtrim($siteUrl, '/'));
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
                     $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
                 }
-                $page = $pageMap[$siteUrl] ?? null;
+                $page = $pageMap[$caPlatformId] ?? null;
                 if (!is_object($page)) {
-                    $page = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($siteUrl);
+                    $page = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
                 }
                 $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : (is_object($page) ? $page->getPlatformId() : $siteUrl);
 

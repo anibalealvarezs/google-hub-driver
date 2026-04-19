@@ -58,7 +58,7 @@ class GscInitializerService
             // 1. Resolve/Create Page
             if (!$page) {
                 $page = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
-                $page->setPlatformId($canonicalId)
+                $page->setPlatformId($platformIdForAccount)
                     ->setCanonicalId($canonicalId)
                     ->setTitle($site['title'] ?? $siteUrl)
                     ->setUrl($siteUrl)
