@@ -71,6 +71,9 @@ class GscInitializerService
                 
                 $toPersist->add($page);
                 $isNew = true;
+            } elseif ($page->getPlatformId() !== $platformIdForAccount) {
+                $page->setPlatformId($platformIdForAccount);
+                $toPersist->add($page);
             }
 
             // 2. Resolve/Create ChanneledAccount
@@ -92,6 +95,9 @@ class GscInitializerService
                     $ca->setContext($context);
                 }
 
+                $toPersist->add($ca);
+            } elseif ($ca->getPlatformId() !== $platformIdForAccount) {
+                $ca->setPlatformId($platformIdForAccount);
                 $toPersist->add($ca);
             }
 
