@@ -82,7 +82,8 @@ class GscInitializerService
                 $ca->setPlatformId($platformIdForAccount)
                     ->setChannel($channel)
                     ->setType('gsc_site')
-                    ->setTitle($site['title'] ?? $siteUrl);
+                    ->setTitle($site['title'] ?? $siteUrl)
+                    ->setData(['permissionLevel' => $site['permissionLevel'] ?? 'siteRestrictedUser']);
                 
                 if ($parentAccount) {
                     $ca->setContext(['account' => $parentAccount]);
@@ -96,8 +97,11 @@ class GscInitializerService
                 }
 
                 $toPersist->add($ca);
-            } elseif ($ca->getPlatformId() !== $platformIdForAccount) {
+            } elseif ($ca->getPlatformId() !== $platformIdForAccount || ($ca->getData()['permissionLevel'] ?? null) !== ($site['permissionLevel'] ?? null)) {
                 $ca->setPlatformId($platformIdForAccount);
+                $data = $ca->getData() ?? [];
+                $data['permissionLevel'] = $site['permissionLevel'] ?? 'siteRestrictedUser';
+                $ca->setData($data);
                 $toPersist->add($ca);
             }
 

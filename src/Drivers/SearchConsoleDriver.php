@@ -148,6 +148,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                         'url' => $url,
                         'title' => $this->deriveTitleFromUrl($url),
                         'hostname' => $this->deriveHostnameFromUrl($url),
+                        'permissionLevel' => $entry['permissionLevel'] ?? 'siteRestrictedUser',
                     ];
                 }
             }
@@ -374,10 +375,27 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $siteUrl = (string)($site['url'] ?? $site);
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
+                $pLevel = $site['permissionLevel'] ?? null;
+                if (!$pLevel && is_array($site)) {
+                    // Try to find it in the resolved channeled account later
+                }
+                if ($pLevel && in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
+                    $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel)");
+                    continue;
+                }
+
                 $caPlatformId = md5(rtrim($siteUrl, '/'));
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
                     $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                }
+
+                if (!$pLevel && is_object($ca) && method_exists($ca, 'getData')) {
+                    $pLevel = $ca->getData()['permissionLevel'] ?? null;
+                    if ($pLevel && in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
+                        $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel) [from metadata]");
+                        continue;
+                    }
                 }
                 $page = $pageMap[$caPlatformId] ?? null;
                 if (!is_object($page)) {
