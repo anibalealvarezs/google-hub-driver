@@ -418,6 +418,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                             continue;
                         }
 
+                        $mainAccount = $accountMap['Google Search Console'] ?? null;
                         $collection = GoogleSearchConsoleConvert::metrics(
                             rows: $rows,
                             siteUrl: $siteUrl,
@@ -425,7 +426,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                             logger: $this->logger,
                             page: $page,
                             channeledAccount: $ca,
-                            account: is_object($ca) && method_exists($ca, 'getAccount') ? $ca->getAccount() : ($ca->getContext()['account'] ?? null)
+                            account: is_object($ca) && method_exists($ca, 'getAccount') ? $ca->getAccount() : ($ca->getContext()['account'] ?? $mainAccount)
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {
