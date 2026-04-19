@@ -74,9 +74,19 @@ class SearchConsoleDriver implements SyncDriverInterface
      * 
      * @return string
      */
-    public static function getChannelLabel(): string
+    public function getChannel(): string
     {
-        return 'GoogleSearchConsole';
+        return 'google_search_console';
+    }
+
+    public static function getProviderLabel(): string
+    {
+        return 'Google';
+    }
+
+    public static function getProviderName(): string
+    {
+        return 'google';
     }
 
     /**
