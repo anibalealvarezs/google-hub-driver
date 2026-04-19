@@ -376,9 +376,9 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $caPlatformId = md5(rtrim($siteUrl, '/'));
-                $ca = $caMap[$caPlatformId] ?? $siteUrl;
-                $page = $pageMap[$siteUrl] ?? $siteUrl;
-                $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : $siteUrl;
+                $ca = $caMap[$caPlatformId] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                $page = $pageMap[$siteUrl] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($siteUrl);
+                $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : (is_object($page) ? $page->getPlatformId() : $siteUrl);
 
                 try {
                     $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
