@@ -119,8 +119,8 @@ class GoogleSearchConsoleConvert
 
         // 2. Standardized Conversion via UniversalMetricConverter
         $collection = new ArrayCollection();
-        $channeledAccountPlatformId = is_object($channeledAccount) && method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string) $channeledAccount;
-        $accountId = is_object($account) && method_exists($account, 'getId') ? $account->getId() : (string) $account;
+        $channeledAccountPlatformId = is_object($channeledAccount) && method_exists($channeledAccount, 'getPlatformId') ? (string) $channeledAccount->getPlatformId() : (string) $channeledAccount;
+        $accountId = is_object($account) && method_exists($account, 'getId') ? (string) $account->getId() : (string) $account;
 
         foreach ($aggregatedData as $groupKey => $data) {
             $platformId = "gsc_{$siteKey}_{$groupKey}";
@@ -140,18 +140,21 @@ class GoogleSearchConsoleConvert
                     GoogleFeature::POSITION->value => GoogleFeature::POSITION->value,
                 ],
                 'dimensions' => $data['dimensions'],
-                'context' => [
+                'context' => UniversalMetricConverter::getUniversalContext([
+                    'account' => $account,
+                    'accountPlatformId' => $accountId,
+                    'channeledAccount' => $channeledAccount,
+                    'channeledAccountId' => $channeledAccountPlatformId,
+                    'channeledAccountPlatformId' => $channeledAccountPlatformId,
+                    'page' => $page,
+                    'pagePlatformId' => is_object($page) && method_exists($page, 'getPlatformId') ? (string) $page->getPlatformId() : (string) $page,
                     'platform_id' => $platformId,
                     'date' => $data['date'],
                     'query' => $data['dimensionValues']['query'] ?? null,
                     'countryCode' => $data['dimensionValues']['country'] ?? 'UNK',
                     'deviceType' => $data['dimensionValues']['device'] ?? 'UNKNOWN',
-                    'page' => $page,
-                    'channeledAccount' => $channeledAccount,
-                    'channeledAccountPlatformId' => $channeledAccountPlatformId,
-                    'account' => $account,
-                    'accountPlatformId' => $accountId,
-                ],
+                ]),
+                'row_key_fields' => [], 
             ], $logger);
 
             foreach ($rowMetrics as $metric) {

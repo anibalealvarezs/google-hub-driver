@@ -419,14 +419,17 @@ class SearchConsoleDriver implements SyncDriverInterface
                         }
 
                         $mainAccount = $accountMap['Google Search Console'] ?? null;
+                        $caObject = is_object($ca) ? $ca : (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId)->setContext(['account' => $mainAccount]);
+                        $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($caObject->getContext()['account'] ?? $mainAccount);
+
                         $collection = GoogleSearchConsoleConvert::metrics(
                             rows: $rows,
                             siteUrl: $siteUrl,
                             siteKey: $siteKey,
                             logger: $this->logger,
                             page: $page,
-                            channeledAccount: $ca,
-                            account: is_object($ca) && method_exists($ca, 'getAccount') ? $ca->getAccount() : ($ca->getContext()['account'] ?? $mainAccount)
+                            channeledAccount: $caObject,
+                            account: $accObject
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {
