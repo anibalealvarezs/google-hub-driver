@@ -14,8 +14,7 @@ use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
-use Doctrine\ORM\EntityManagerInterface;
-use Anibalealvarezs\GoogleHubDriver\Services\GscInitializerService;
+
 use Anibalealvarezs\ApiDriverCore\Enums\HierarchyType;
 use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
 use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
@@ -377,9 +376,9 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $caPlatformId = md5(rtrim($siteUrl, '/'));
-                $caId = $caMap[$caPlatformId]['id'] ?? $siteUrl;
-                $pageId = $pageMap[$siteUrl]['id'] ?? $siteUrl;
-                $siteKey = $pageMap[$siteUrl]['canonical_id'] ?? $siteUrl;
+                $ca = $caMap[$caPlatformId] ?? $siteUrl;
+                $page = $pageMap[$siteUrl] ?? $siteUrl;
+                $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : $siteUrl;
 
                 try {
                     $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
@@ -401,8 +400,8 @@ class SearchConsoleDriver implements SyncDriverInterface
                             siteUrl: $siteUrl,
                             siteKey: $siteKey,
                             logger: $this->logger,
-                            page: $pageId,
-                            channeledAccount: $caId
+                            page: $page,
+                            channeledAccount: $ca
                         );
 
                         if ($this->dataProcessor && $collection->count() > 0) {
@@ -598,7 +597,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         $output = $config['output'] ?? null;
         if ($output) $output->writeln("🔍 GSC (10 Sites, 6 Months, Correct Universal SEO Domain Model)...");
 
-        $em = $seeder->getEntityManager();
+
         
         $dates = $seeder->getDates(180);
         $countryEnumValues = ['USA', 'ESP', 'MEX', 'COL'];
@@ -607,126 +606,73 @@ class SearchConsoleDriver implements SyncDriverInterface
 
         $dimManager = $seeder->getDimensionManager();
 
-        // Pre-fetch Universal Entities
+        // Pre-fetch Universal Entities via Seeder
         $countries = [];
         foreach ($countryEnumValues as $code) {
-            $enumClass = $seeder->getEnumClass('country');
-            $countryClass = $seeder->getEntityClass('country');
-            $enum = $enumClass::from($code);
-            $c = $em->getRepository($countryClass)->findOneBy(['code' => $enum]);
-            if (!$c) {
-                $c = (new $countryClass())->addCode($enum)->addName($code);
-                $em->persist($c);
-            }
-            $countries[$code] = $c;
+            $countries[$code] = $seeder->resolveEntity('country', ['code' => $code, 'name' => $code]);
         }
         $devices = [];
         foreach ($deviceEnumValues as $type) {
-            $enumClass = $seeder->getEnumClass('device');
-            $deviceClass = $seeder->getEntityClass('device');
-            $enum = $enumClass::from($type);
-            $d = $em->getRepository($deviceClass)->findOneBy(['type' => $enum]);
-            if (!$d) {
-                $d = (new $deviceClass())->addType($enum);
-                $em->persist($d);
-            }
-            $devices[$type] = $d;
+            $devices[$type] = $seeder->resolveEntity('device', ['type' => $type]);
         }
-        $em->flush();
 
         $faker = \Faker\Factory::create('en_US');
-        $pageClass = $seeder->getEntityClass('page');
-        $chanEnumClass = $seeder->getEnumClass('channel');
         $gscChan = GoogleChannel::SEARCH_CONSOLE;
 
-        $accClass = $seeder->getEntityClass('account');
-        $chanAccountClass = $seeder->getEntityClass('channeled_account');
-        $accTypeEnumClass = $seeder->getEnumClass('account_type');
-
-        $gscAcc = $em->getRepository($accClass)->findOneBy(['name' => 'Demo Agency GSC']) ?? (new $accClass())->addName('Demo Agency GSC');
-        $em->persist($gscAcc);
-        $em->flush();
+        $gscAcc = $seeder->resolveEntity('account', ['name' => 'Demo Agency GSC']);
 
         for ($s = 1; $s <= 10; $s++) {
-            $hostname = "blog" . $s . ".demo-agency.com";
-            $siteName = "Brand Blog $s ($hostname)";
+            $sitePId = "https://demo-site-$s.com/";
+            $site = $seeder->resolveEntity('page', [
+                'platformId' => $sitePId,
+                'account' => $gscAcc,
+                'title' => "Demo Site $s",
+                'url' => $sitePId,
+                'canonicalId' => $sitePId
+            ]);
 
-            $property = $em->getRepository($pageClass)->findOneBy(['platformId' => $hostname]);
-            if (!$property) {
-                $property = (new $pageClass())
-                    ->addUrl("https://$hostname")
-                    ->addTitle($siteName)
-                    ->addHostname($hostname)
-                    ->addPlatformId($hostname)
-                    ->addCanonicalId($hostname)
-                    ->addAccount($gscAcc);
-                $em->persist($property);
-                $em->flush();
-            }
-
-            $ca = $em->getRepository($chanAccountClass)->findOneBy(['platformId' => $hostname, 'channel' => $gscChan->value]) ?? (new $chanAccountClass());
-            $ca->addPlatformId($hostname)
-                ->addAccount($gscAcc)
-                ->addType(GoogleEntityType::SITE->value)
-                ->addChannel($gscChan->value)
-                ->addName($siteName);
-            $em->persist($ca);
-            $em->flush();
-
-            $childUrls = [];
-            for ($i = 0; $i < 20; $i++) {
-                $childUrls[] = "https://$hostname/article-" . $faker->slug();
-            }
-
-            $queries = [];
-            for ($i = 0; $i < 30; $i++) {
-                $queries[] = $faker->words(rand(1, 4), true);
-            }
+            $ca = $seeder->resolveEntity('channeled_account', [
+                'platformId' => $sitePId,
+                'account' => $gscAcc,
+                'type' => GoogleEntityType::SITE->value,
+                'channel' => GoogleChannel::SEARCH_CONSOLE->value,
+                'name' => "Demo Site $s"
+            ]);
 
             foreach ($dates as $date) {
-                for ($j = 0; $j < 8; $j++) {
-                    $url = $childUrls[array_rand($childUrls)];
-                    $qStr = $queries[array_rand($queries)];
-                    $code = $countryEnumValues[array_rand($countryEnumValues)];
-                    $type = $deviceEnumValues[array_rand($deviceEnumValues)];
+                foreach ($countryEnumValues as $code) {
+                    foreach ($deviceEnumValues as $type) {
+                        $country = $countries[$code];
+                        $device = $devices[$type];
 
-                    $country = $countries[$code];
-                    $device = $devices[$type];
-                    $appearance = $appearances[array_rand($appearances)];
+                        $dimSet = $dimManager->resolveDimensionSet([
+                            ['dimensionKey' => 'country', 'dimensionValue' => $code],
+                            ['dimensionKey' => 'device', 'dimensionValue' => $type],
+                        ]);
 
-                    $dimensionSet = $dimManager->resolveDimensionSet([
-                        ['dimensionKey' => 'page', 'dimensionValue' => $url],
-                        ['dimensionKey' => 'query', 'dimensionValue' => $qStr],
-                        ['dimensionKey' => 'searchAppearance', 'dimensionValue' => $appearance],
-                    ]);
-                    $setId = $dimensionSet->getId();
-
-                    $imps = rand(10, 200);
-                    $clicks = (int)($imps * rand(1, 10) / 100);
-                    $pos = (float)rand(10, 80) / 10;
-                    $data = ['impressions' => $imps, 'clicks' => $clicks, 'ctr' => $imps > 0 ? $clicks / $imps : 0, 'position' => $pos, 'keys' => [$url, $qStr, $code, $type, $appearance]];
-
-                    foreach (['impressions', 'clicks', 'ctr', 'position'] as $name) {
-                        $seeder->queueMetric(
-                            channel: $gscChan,
-                            name: $name,
-                            date: $date,
-                            value: $data[$name],
-                            setId: $setId,
-                            pageId: $property->getId(),
-                            caId: $ca->getId(),
-                            countryId: $country->getId(),
-                            deviceId: $device->getId(),
-                            data: json_encode($data),
-                            pageUrl: $property->getUrl(),
-                            countryPId: $code,
-                            devicePId: $type,
-                            setHash: $dimensionSet->getHash()
-                        );
+                        $imps = rand(10, 100);
+                        $clicks = (int)($imps * rand(1, 5) / 100);
+                        
+                        foreach (['impressions' => $imps, 'clicks' => $clicks] as $name => $val) {
+                            if ($val <= 0) continue;
+                            $seeder->queueMetric(
+                                channel: $gscChan,
+                                name: $name,
+                                date: $date,
+                                value: $val,
+                                setId: $dimSet->id,
+                                caId: $ca->id,
+                                gAccId: $gscAcc->id,
+                                pageId: $site->id,
+                                accName: $gscAcc->getTitle(),
+                                caPId: $sitePId,
+                                pageUrl: $sitePId,
+                                data: json_encode(['raw' => $val])
+                            );
+                        }
                     }
                 }
             }
-            if ($output) $output->writeln("   - Site $hostname complete.");
         }
     }
     public function boot(): void
@@ -813,13 +759,12 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public function reset(string $mode = 'all', array $config = []): array
     {
-        $entityManager = $config['manager'] ?? null;
-        if (!$entityManager instanceof \Doctrine\ORM\EntityManagerInterface) {
-            throw new \Exception("EntityManagerInterface required for SearchConsoleDriver reset.");
+        $resetCallback = $config['resetCallback'] ?? null;
+        if ($resetCallback instanceof \Closure) {
+            return $resetCallback($this->getChannel(), $mode);
         }
 
-        $resetter = new \Anibalealvarezs\GoogleHubDriver\Services\GscResetService($entityManager);
-        return $resetter->reset($this->getChannel(), $mode);
+        throw new Exception("Reset callback not provided for " . $this->getChannel()->name);
     }
     /**
      * @inheritdoc

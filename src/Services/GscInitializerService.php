@@ -4,126 +4,104 @@ declare(strict_types=1);
 
 namespace Anibalealvarezs\GoogleHubDriver\Services;
 
-use Anibalealvarezs\ApiDriverCore\Classes\AssetRegistry;
-use DateTime;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class GscInitializerService
 {
-    private EntityManagerInterface $entityManager;
     private ?LoggerInterface $logger;
-    private \Anibalealvarezs\ApiSkeleton\Enums\Channel $channelEnum;
 
-    public function __construct(EntityManagerInterface $entityManager, ?LoggerInterface $logger = null)
+    public function __construct(?LoggerInterface $logger = null)
     {
-        $this->entityManager = $entityManager;
         $this->logger = $logger;
-        $this->channelEnum = \Anibalealvarezs\ApiSkeleton\Enums\Channel::google_search_console;
     }
 
-    public function initialize(string $channel, array $config, array $sites): array
-    {
+    /**
+     * Initializes GSC assets by resolving identities and persisting them via callbacks.
+     *
+     * @param string $channel
+     * @param array $config
+     * @param array $sites
+     * @param callable $identityMapper Callback to resolve existing entities
+     * @param callable $dataProcessor Callback to persist new/updated entities
+     * @return array
+     */
+    public function initialize(
+        string $channel,
+        array $config,
+        array $sites,
+        callable $identityMapper,
+        callable $dataProcessor
+    ): array {
         $stats = ['initialized' => 0, 'skipped' => 0];
         
-        $pageClass = '\Entities\Analytics\Page';
-        $pageTypeClass = '\Enums\PageType';
+        $urls = array_map(fn($s) => rtrim($s['url'], '/'), $sites);
+        $caPlatformIds = array_map(fn($u) => md5($u), $urls);
 
-        if (!class_exists($pageClass)) return $stats;
+        // 1. Batch Resolve Identities
+        $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
+        $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
+        $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console']]) ?? [];
 
-        $pageRepository = $this->entityManager->getRepository($pageClass);
-        $processedPages = [];
+        $parentAccount = $accountMap['Google Search Console'] ?? null;
 
         foreach ($sites as $site) {
-            $siteUrl = $site['url'];
-            $normalizedSiteUrl = rtrim($siteUrl, '/');
+            $siteUrl = rtrim($site['url'], '/');
+            $platformIdForAccount = md5($siteUrl);
+            $canonicalId = \Anibalealvarezs\ApiDriverCore\Classes\AssetRegistry::getCanonicalId($siteUrl, null, 'website');
 
-            if (\Anibalealvarezs\ApiDriverCore\Helpers\Helpers::isAssetFiltered($normalizedSiteUrl, $config)) {
-                $this->logger?->info("Skipping filtered GSC site: $normalizedSiteUrl");
-                continue;
-            }
+            $page = $pageMap[$siteUrl] ?? null;
+            $ca = $caMap[$platformIdForAccount] ?? null;
 
-            $title = $site['title'] ?? $siteUrl;
-            $hostname = $site['hostname'] ?? parse_url($siteUrl, PHP_URL_HOST) ?? str_replace('sc-domain:', '', $siteUrl);
+            $isNew = false;
+            $toPersist = new \Doctrine\Common\Collections\ArrayCollection();
 
-            $canonicalId = \Helpers\Helpers::getCanonicalPageId($normalizedSiteUrl, null, 'website');
-            $platformIdForAccount = md5($normalizedSiteUrl); // Unique id for THIS sc site
-
-            // 1. Check if we already processed this canonical ID in this loop
-            if (isset($processedPages[$canonicalId])) {
-                $pageEntity = $processedPages[$canonicalId];
-                $isNew = false;
-            } else {
-                // 2. Check if it exists in the database
-                $pageEntity = $pageRepository->findOneBy(['canonicalId' => $canonicalId]);
-                $isNew = false;
-                if (!$pageEntity) {
-                    $pageEntity = new $pageClass();
-                    $pageEntity->addCanonicalId($canonicalId);
-                    $isNew = true;
-                    $this->logger?->info("Initializing new GSC Page: URL=$normalizedSiteUrl");
-                }
-                $processedPages[$canonicalId] = $pageEntity;
-            }
-
-            $pageEntity->addUrl($normalizedSiteUrl)
-                ->addTitle($title)
-                ->addHostname($hostname)
-                ->addPlatformId($canonicalId) 
-                ->addData(['source' => 'gsc_site'])
-                ->addUpdatedAt(new DateTime());
-
-            $this->entityManager->persist($pageEntity);
-
-            // Initialize ChanneledAccount for cross-reference in monitoring/analytics
-            $chanAccountClass = '\Entities\Analytics\Channeled\ChanneledAccount';
-            $accountClass = '\Entities\Analytics\Account';
-
-            if (class_exists($chanAccountClass) && class_exists($accountClass)) {
-                $chanAccountRepository = $this->entityManager->getRepository($chanAccountClass);
-                $accountRepository = $this->entityManager->getRepository($accountClass);
-
-                // Resolve specific account for this site, fallback to global
-                $siteSpecificAccountName = $site['account'] ?? $config['accounts_group_name'] ?? 'Google Search Console';
-                $parentAccount = $accountRepository->findOneBy(['name' => $siteSpecificAccountName]);
+            // 1. Resolve/Create Page
+            if (!$page) {
+                $page = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                $page->setPlatformId($canonicalId)
+                    ->setCanonicalId($canonicalId)
+                    ->setTitle($site['title'] ?? $siteUrl)
+                    ->setUrl($siteUrl)
+                    ->setHostname($site['hostname'] ?? parse_url($siteUrl, PHP_URL_HOST))
+                    ->setData(['source' => 'gsc_site']);
                 
-                if (!$parentAccount) {
-                    $parentAccount = $accountRepository->findOneBy(['name' => 'Google Search Console']) 
-                                   ?? $accountRepository->findOneBy([]) // Fallback to first available account
-                                   ?? (new $accountClass())->addName('Google Search Console');
-                    
-                    if (!$parentAccount->getId()) {
-                        $this->entityManager->persist($parentAccount);
-                    }
+                if ($parentAccount) {
+                    $page->setContext(['account' => $parentAccount]);
+                }
+                
+                $toPersist->add($page);
+                $isNew = true;
+            }
+
+            // 2. Resolve/Create ChanneledAccount
+            if (!$ca) {
+                $ca = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                $ca->setPlatformId($platformIdForAccount)
+                    ->setChannel($channel)
+                    ->setType('gsc_site')
+                    ->setTitle($site['title'] ?? $siteUrl);
+                
+                if ($parentAccount) {
+                    $ca->setContext(['account' => $parentAccount]);
+                }
+                
+                if ($page) {
+                    // Associate with page (link context)
+                    $context = $ca->getContext();
+                    $context['page'] = $page;
+                    $ca->setContext($context);
                 }
 
-                // Associate Page with Account as well
-                $pageEntity->addAccount($parentAccount);
-                $this->entityManager->persist($pageEntity);
+                $toPersist->add($ca);
+            }
 
-                $ca = $chanAccountRepository->findOneBy([
-                    'platformId' => $platformIdForAccount,
-                    'channel' => $this->channelEnum->value
-                ]);
-
-                if (!$ca) {
-                    $ca = new $chanAccountClass();
-                    $ca->addPlatformId($platformIdForAccount)
-                       ->addChannel($this->channelEnum->value);
-                }
-
-                $ca->addAccount($parentAccount)
-                   ->addName($title)
-                   ->addType('gsc_site')
-                   ->addUpdatedAt(new DateTime());
-
-                $this->entityManager->persist($ca);
+            if ($toPersist->count() > 0) {
+                $dataProcessor($toPersist, 'initialization');
             }
 
             if ($isNew) $stats['initialized']++; else $stats['skipped']++;
         }
 
-        $this->entityManager->flush();
         return $stats;
     }
 }
