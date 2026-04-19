@@ -72,8 +72,13 @@ class GscInitializerService
                 $toPersist->add($page);
                 $isNew = true;
             } elseif ($page->getPlatformId() !== $platformIdForAccount) {
+                // Correct Platform ID via direct SQL to avoid Upsert issues if it was a key
+                $manager->getConnection()->executeStatement(
+                    "UPDATE pages SET platform_id = ? WHERE canonical_id = ?",
+                    [$platformIdForAccount, $canonicalId]
+                );
+                // Also update the object in memory for downstream use
                 $page->setPlatformId($platformIdForAccount);
-                $toPersist->add($page);
             }
 
             // 2. Resolve/Create ChanneledAccount
@@ -97,12 +102,24 @@ class GscInitializerService
                 }
 
                 $toPersist->add($ca);
-            } elseif ($ca->getPlatformId() !== $platformIdForAccount || ($ca->getData()['permissionLevel'] ?? null) !== ($site['permissionLevel'] ?? null)) {
-                $ca->setPlatformId($platformIdForAccount);
+            } else {
+                $oldPlatformId = $ca->getPlatformId();
+                if ($oldPlatformId !== $platformIdForAccount) {
+                    // CRITICAL: Update Platform ID via direct SQL because it is part of the UNIQUE KEY for Upsert
+                    // If we use Upsert, it will create a DUPLICATE instead of updating.
+                    $manager->getConnection()->executeStatement(
+                        "UPDATE channeled_accounts SET platform_id = ? WHERE platform_id = ? AND channel = ?",
+                        [$platformIdForAccount, $oldPlatformId, $channel]
+                    );
+                    $ca->setPlatformId($platformIdForAccount);
+                }
+                // Always sync metadata
                 $data = $ca->getData() ?? [];
-                $data['permissionLevel'] = $site['permissionLevel'] ?? 'siteRestrictedUser';
-                $ca->setData($data);
-                $toPersist->add($ca);
+                if (($data['permissionLevel'] ?? null) !== ($site['permissionLevel'] ?? null)) {
+                    $data['permissionLevel'] = $site['permissionLevel'] ?? 'siteRestrictedUser';
+                    $ca->setData($data);
+                    $toPersist->add($ca);
+                }
             }
 
             if ($toPersist->count() > 0) {

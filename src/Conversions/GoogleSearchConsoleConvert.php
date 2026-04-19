@@ -119,6 +119,9 @@ class GoogleSearchConsoleConvert
 
         // 2. Standardized Conversion via UniversalMetricConverter
         $collection = new ArrayCollection();
+        $channeledAccountPlatformId = is_object($channeledAccount) && method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string) $channeledAccount;
+        $accountId = is_object($account) && method_exists($account, 'getId') ? $account->getId() : (string) $account;
+
         foreach ($aggregatedData as $groupKey => $data) {
             $platformId = "gsc_{$siteKey}_{$groupKey}";
             $data['metrics']['date'] = $data['date'];
@@ -145,7 +148,9 @@ class GoogleSearchConsoleConvert
                     'deviceType' => $data['dimensionValues']['device'] ?? 'UNKNOWN',
                     'page' => $page,
                     'channeledAccount' => $channeledAccount,
+                    'channeledAccountPlatformId' => $channeledAccountPlatformId,
                     'account' => $account,
+                    'accountPlatformId' => $accountId,
                 ],
             ], $logger);
 
