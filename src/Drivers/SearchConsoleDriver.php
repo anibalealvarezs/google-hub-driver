@@ -361,13 +361,12 @@ class SearchConsoleDriver implements SyncDriverInterface
             $pageMap = [];
             $caMap = [];
             if ($identityMapper && !empty($sitesToProcess)) {
-                $urls = [];
-                $caPlatformIds = [];
                 foreach ($sitesToProcess as $site) {
                     $u = (string)($site['url'] ?? $site);
+                    $urls[] = $u;
                     $caPlatformIds[] = md5(rtrim($u, '/'));
                 }
-                $pageMap = $identityMapper('pages', ['platform_ids' => $caPlatformIds]) ?? [];
+                $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
             }
 
