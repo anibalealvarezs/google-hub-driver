@@ -376,8 +376,14 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $caPlatformId = md5(rtrim($siteUrl, '/'));
-                $ca = $caMap[$caPlatformId] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
-                $page = $pageMap[$siteUrl] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($siteUrl);
+                $ca = $caMap[$caPlatformId] ?? null;
+                if (!is_object($ca)) {
+                    $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                }
+                $page = $pageMap[$siteUrl] ?? null;
+                if (!is_object($page)) {
+                    $page = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($siteUrl);
+                }
                 $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : (is_object($page) ? $page->getPlatformId() : $siteUrl);
 
                 try {
