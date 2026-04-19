@@ -365,7 +365,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 foreach ($sitesToProcess as $site) {
                     $u = (string)($site['url'] ?? $site);
                     $urls[] = $u;
-                    $caPlatformIds[] = md5(rtrim($u, '/'));
+                    $caPlatformIds[] = $u;
                 }
                 $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
@@ -375,7 +375,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $siteUrl = (string)($site['url'] ?? $site);
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
-                $caPlatformId = md5(rtrim($siteUrl, '/'));
+                $caPlatformId = (string)($site['url'] ?? $site);
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
                     $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
