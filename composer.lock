@@ -12,13 +12,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-client-skeleton.git",
-                "reference": "9c6f2bb82052a88d46a05980a5a0f36ed74bf75d"
+                "reference": "2539607f24d21f2684d3e7baa7a01e9e8144fc91"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-client-skeleton/anibalealvarezs-api-client-skeleton-9c6f2bb82052a88d46a05980a5a0f36ed74bf75d-zip-94db2b.zip",
-                "reference": "9c6f2bb82052a88d46a05980a5a0f36ed74bf75d",
-                "shasum": "c10e1b551ed06654ce3b061b077af946808f8099"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-client-skeleton/anibalealvarezs-api-client-skeleton-2539607f24d21f2684d3e7baa7a01e9e8144fc91-zip-5d0272.zip",
+                "reference": "2539607f24d21f2684d3e7baa7a01e9e8144fc91",
+                "shasum": "b640d2460e5d16cd818a36afa155d33a47b01854"
             },
             "require": {
                 "anibalealvarezs/oauth-v1": "@dev",
@@ -67,7 +67,7 @@
             "support": {
                 "issues": "https://github.com/anibalealvarezs/api-client-skeleton/issues"
             },
-            "time": "2026-04-17T22:38:18+00:00"
+            "time": "2026-04-19T23:14:45+00:00"
         },
         {
             "name": "anibalealvarezs/api-driver-core",
@@ -75,13 +75,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-driver-core.git",
-                "reference": "cd43a5786ea18b5e620d97605b4fe6fe8e1c1e9f"
+                "reference": "8db25099aee139c7251b134cb7314dc9da9b5ddf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-cd43a5786ea18b5e620d97605b4fe6fe8e1c1e9f-zip-6d46ed.zip",
-                "reference": "cd43a5786ea18b5e620d97605b4fe6fe8e1c1e9f",
-                "shasum": "db1f9f4c67687c66d04526f544f2af6bed57d7f4"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-8db25099aee139c7251b134cb7314dc9da9b5ddf-zip-0a7101.zip",
+                "reference": "8db25099aee139c7251b134cb7314dc9da9b5ddf",
+                "shasum": "caf5959f00c0f064ac78659d3066a313467ca316"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "dev-main",
@@ -111,7 +111,7 @@
                 }
             ],
             "description": "Core interfaces and orchestration logic for APIs Hub drivers.",
-            "time": "2026-04-17T22:44:09+00:00"
+            "time": "2026-04-19T23:21:04+00:00"
         },
         {
             "name": "anibalealvarezs/google-api",
@@ -119,13 +119,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/google-api.git",
-                "reference": "961d61417ffcba0b9644a00221625e3244803422"
+                "reference": "0c51a4816e1f030ef93afec1b726d97b770835fe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-961d61417ffcba0b9644a00221625e3244803422-zip-752fa6.zip",
-                "reference": "961d61417ffcba0b9644a00221625e3244803422",
-                "shasum": "defd3f1cb4b995ff9a4183eba1a0b3d214183257"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-0c51a4816e1f030ef93afec1b726d97b770835fe-zip-c75dd3.zip",
+                "reference": "0c51a4816e1f030ef93afec1b726d97b770835fe",
+                "shasum": "fff703e123e0ff1188d5cb015e1cff104fdae351"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "dev-main",
@@ -181,7 +181,7 @@
             "support": {
                 "issues": "https://github.com/anibalealvarezs/google-api/issues"
             },
-            "time": "2026-04-17T22:39:06+00:00"
+            "time": "2026-04-19T23:18:55+00:00"
         },
         {
             "name": "anibalealvarezs/oauth-v1",
@@ -1566,12 +1566,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "9b04563ba6a3fc04ed46d63c5718223d3900e88e"
+                "reference": "7a342129e15e7568ff888bb2a5017b9c1c5a5805"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/9b04563ba6a3fc04ed46d63c5718223d3900e88e",
-                "reference": "9b04563ba6a3fc04ed46d63c5718223d3900e88e",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/7a342129e15e7568ff888bb2a5017b9c1c5a5805",
+                "reference": "7a342129e15e7568ff888bb2a5017b9c1c5a5805",
                 "shasum": ""
             },
             "require": {
@@ -1664,7 +1664,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-15T06:07:03+00:00"
+            "time": "2026-04-18T11:02:08+00:00"
         },
         {
             "name": "predis/predis",
@@ -2146,12 +2146,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/clock.git",
-                "reference": "7e0614c699e44c7739a5270ffe1087448ec1027d"
+                "reference": "6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/clock/zipball/7e0614c699e44c7739a5270ffe1087448ec1027d",
-                "reference": "7e0614c699e44c7739a5270ffe1087448ec1027d",
+                "url": "https://api.github.com/repos/symfony/clock/zipball/6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab",
+                "reference": "6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab",
                 "shasum": ""
             },
             "require": {
@@ -2216,7 +2216,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-07T06:26:27+00:00"
+            "time": "2026-04-18T13:52:23+00:00"
         },
         {
             "name": "symfony/console",
@@ -2224,12 +2224,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/console.git",
-                "reference": "7b22a27e2e391808a4233b940ba8957bcdd15bde"
+                "reference": "ad665e88b844414e81707b0a33dfe757c65393f7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/console/zipball/7b22a27e2e391808a4233b940ba8957bcdd15bde",
-                "reference": "7b22a27e2e391808a4233b940ba8957bcdd15bde",
+                "url": "https://api.github.com/repos/symfony/console/zipball/ad665e88b844414e81707b0a33dfe757c65393f7",
+                "reference": "ad665e88b844414e81707b0a33dfe757c65393f7",
                 "shasum": ""
             },
             "require": {
@@ -2316,7 +2316,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-07T17:13:21+00:00"
+            "time": "2026-04-18T13:52:23+00:00"
         },
         {
             "name": "symfony/deprecation-contracts",
@@ -2396,12 +2396,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-foundation.git",
-                "reference": "aa41a9f517203bdccbf70c4af96358d1b2d74a07"
+                "reference": "a762b60b37023abc3fb0d870adbdaa523606a7af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/aa41a9f517203bdccbf70c4af96358d1b2d74a07",
-                "reference": "aa41a9f517203bdccbf70c4af96358d1b2d74a07",
+                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/a762b60b37023abc3fb0d870adbdaa523606a7af",
+                "reference": "a762b60b37023abc3fb0d870adbdaa523606a7af",
                 "shasum": ""
             },
             "require": {
@@ -2470,7 +2470,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-17T05:48:46+00:00"
+            "time": "2026-04-18T13:18:21+00:00"
         },
         {
             "name": "symfony/polyfill-ctype",
@@ -3074,12 +3074,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/string.git",
-                "reference": "4a6758902eb83aedafc5f831a3ac5684b6b5f13e"
+                "reference": "0d4a029a9aac902aef699d1b56b2a9af8307139c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/string/zipball/4a6758902eb83aedafc5f831a3ac5684b6b5f13e",
-                "reference": "4a6758902eb83aedafc5f831a3ac5684b6b5f13e",
+                "url": "https://api.github.com/repos/symfony/string/zipball/0d4a029a9aac902aef699d1b56b2a9af8307139c",
+                "reference": "0d4a029a9aac902aef699d1b56b2a9af8307139c",
                 "shasum": ""
             },
             "require": {
@@ -3157,7 +3157,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-17T05:56:38+00:00"
+            "time": "2026-04-18T13:52:23+00:00"
         },
         {
             "name": "symfony/translation",
@@ -3165,12 +3165,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/translation.git",
-                "reference": "28fa43662c45cfbdc701676952b96ded47d8d181"
+                "reference": "c560e854172f432389119cd8868f8f20794461d6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/translation/zipball/28fa43662c45cfbdc701676952b96ded47d8d181",
-                "reference": "28fa43662c45cfbdc701676952b96ded47d8d181",
+                "url": "https://api.github.com/repos/symfony/translation/zipball/c560e854172f432389119cd8868f8f20794461d6",
+                "reference": "c560e854172f432389119cd8868f8f20794461d6",
                 "shasum": ""
             },
             "require": {
@@ -3251,7 +3251,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-13T15:52:40+00:00"
+            "time": "2026-04-18T13:52:23+00:00"
         },
         {
             "name": "symfony/translation-contracts",
@@ -3342,12 +3342,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/var-exporter.git",
-                "reference": "00e82341af7948f5f729e3005cc1d15ff547b07b"
+                "reference": "2f6f809f2d31969a5fc54d65b0ec03b48d95584e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/var-exporter/zipball/00e82341af7948f5f729e3005cc1d15ff547b07b",
-                "reference": "00e82341af7948f5f729e3005cc1d15ff547b07b",
+                "url": "https://api.github.com/repos/symfony/var-exporter/zipball/2f6f809f2d31969a5fc54d65b0ec03b48d95584e",
+                "reference": "2f6f809f2d31969a5fc54d65b0ec03b48d95584e",
                 "shasum": ""
             },
             "require": {
@@ -3417,7 +3417,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-16T11:02:55+00:00"
+            "time": "2026-04-18T13:52:23+00:00"
         },
         {
             "name": "symfony/yaml",
@@ -3425,12 +3425,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "3750da161cfc25687c25bc2a87b0ca5e92e0697c"
+                "reference": "563e765f912f7bbf939c1ceb472b2564ede7873d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/3750da161cfc25687c25bc2a87b0ca5e92e0697c",
-                "reference": "3750da161cfc25687c25bc2a87b0ca5e92e0697c",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/563e765f912f7bbf939c1ceb472b2564ede7873d",
+                "reference": "563e765f912f7bbf939c1ceb472b2564ede7873d",
                 "shasum": ""
             },
             "require": {
@@ -3493,7 +3493,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-13T14:28:23+00:00"
+            "time": "2026-04-18T13:18:21+00:00"
         }
     ],
     "packages-dev": [],
