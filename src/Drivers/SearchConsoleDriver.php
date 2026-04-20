@@ -154,6 +154,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                         'title' => $this->deriveTitleFromUrl($url),
                         'hostname' => $this->deriveHostnameFromUrl($url),
                         'permissionLevel' => $entry['permissionLevel'] ?? 'siteRestrictedUser',
+                        'data' => $entry
                     ];
                 }
             }
@@ -249,6 +250,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $site['target_countries'] = $selectedMap[$normUrl]['target_countries'] ?? [];
                 $site['target_keywords'] = $selectedMap[$normUrl]['target_keywords'] ?? [];
                 $site['lost_access'] = filter_var($selectedMap[$normUrl]['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $site['data'] = $selectedMap[$normUrl]['data'] ?? $site['data'] ?? [];
                 $newSitesList[] = $site;
                 $processedNormUrls[] = $normUrl;
             }
@@ -265,6 +267,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                     'target_countries' => $sel['target_countries'] ?? [],
                     'target_keywords' => $sel['target_keywords'] ?? [],
                     'lost_access' => filter_var($sel['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'data' => $sel['data'] ?? []
                 ];
             }
         }
