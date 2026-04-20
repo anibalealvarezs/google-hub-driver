@@ -260,6 +260,7 @@ class GoogleAnalyticsDriver implements SyncDriverInterface
     {
         return [
             'google_business' => [
+                'key' => 'locations',
                 'prefix' => 'gb:location',
                 'hostnames' => [],
                 'url_id_regex' => null,

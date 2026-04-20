@@ -718,12 +718,34 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         return [
             'gsc' => [
-                'prefix' => 'site:domain',
-                'hostnames' => [],
-                'url_id_regex' => null,
-                'type' => GoogleEntityType::SITE->value,
-                'key' => 'sites'
-            ]
+                'key' => 'sites',
+                'channeled_account' => [
+                    'platform_id' => [
+                        'type' => 'md5',
+                        'key' => 'url'
+                    ],
+                    'platform_created_at_key' => 'created_time',
+                    'name_key' => 'title',
+                    'type' => GoogleEntityType::SITE->value,
+                    'data_key' => 'data'
+                ],
+                'page' => [
+                    'canonical_id' => [
+                        'preffix' => 'gsc:domain',
+                        'field' => 'hostname'
+                    ],
+                    'platform_id' => [
+                        'type' => 'md5',
+                        'key' => 'url'
+                    ],
+                    'title_key' => 'title',
+                    'url' => [
+                        'type' => 'default'
+                    ],
+                    'hostname_key' => 'hostname',
+                    'data_key' => 'data'
+                ]
+            ],
         ];
     }
 
