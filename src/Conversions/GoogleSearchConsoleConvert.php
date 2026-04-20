@@ -27,8 +27,8 @@ class GoogleSearchConsoleConvert
      */
     public static function metrics(
         array $rows,
-        string $siteUrl,
-        string $siteKey,
+        ?string $siteUrl = null,
+        ?string $siteKey = null,
         ?LoggerInterface $logger = null,
         object|string|null $page = null,
         object|string|null $period = 'daily',
@@ -119,8 +119,8 @@ class GoogleSearchConsoleConvert
 
         // 2. Standardized Conversion via UniversalMetricConverter
         $collection = new ArrayCollection();
-        $channeledAccountPlatformId = is_object($channeledAccount) && method_exists($channeledAccount, 'getPlatformId') ? (string) $channeledAccount->getPlatformId() : (string) $channeledAccount;
-        $accountId = is_object($account) && method_exists($account, 'getId') ? (string) $account->getId() : (string) $account;
+        $channeledAccountPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? (string) $channeledAccount->getPlatformId() : (method_exists($channeledAccount, 'getId') ? (string) $channeledAccount->getId() : (string) $channeledAccount)) : (string) $channeledAccount;
+        $accountId = is_object($account) ? (method_exists($account, 'getId') ? (string) $account->getId() : (string) $account) : (string) $account;
 
         foreach ($aggregatedData as $groupKey => $data) {
             $platformId = "gsc_{$siteKey}_{$groupKey}";

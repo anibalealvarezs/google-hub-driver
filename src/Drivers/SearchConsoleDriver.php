@@ -408,7 +408,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!is_object($page)) {
                     $page = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
                 }
-                $siteKey = is_object($page) && method_exists($page, 'getCanonicalId') ? $page->getCanonicalId() : (is_object($page) ? $page->getPlatformId() : $siteUrl);
+                $siteKey = is_object($page) ? ($page->getCanonicalId() ?? $page->getPlatformId() ?? $siteUrl) : $siteUrl;
 
                 try {
                     $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
