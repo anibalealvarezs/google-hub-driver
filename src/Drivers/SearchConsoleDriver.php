@@ -718,7 +718,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         return [
             'gsc' => [
-                'prefix' => 'sc-domain',
+                'prefix' => 'site:domain',
                 'hostnames' => [],
                 'url_id_regex' => null,
                 'type' => GoogleEntityType::SITE->value,
