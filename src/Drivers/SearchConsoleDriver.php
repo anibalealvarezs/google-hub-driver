@@ -368,7 +368,10 @@ class SearchConsoleDriver implements SyncDriverInterface
             // 1. Batch Resolve Identities via Oracle
             $pageMap = [];
             $caMap = [];
+            $accountMap = [];
             if ($identityMapper && !empty($sitesToProcess)) {
+                $urls = [];
+                $caPlatformIds = [];
                 foreach ($sitesToProcess as $site) {
                     $u = (string)($site['url'] ?? $site);
                     $urls[] = $u;
@@ -376,6 +379,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 }
                 $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
+                $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console']]) ?? [];
             }
 
             foreach ($sitesToProcess as $site) {
