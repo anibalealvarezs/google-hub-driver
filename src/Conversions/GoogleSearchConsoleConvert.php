@@ -32,8 +32,8 @@ class GoogleSearchConsoleConvert
         ?LoggerInterface $logger = null,
         object|string|null $page = null,
         object|string|null $period = 'daily',
-        object|null $channeledAccount = null,
-        object|null $account = null,
+        object|string|null $channeledAccount = null,
+        object|string|null $account = null,
     ): ArrayCollection {
         $startTime = microtime(true);
         $rowCount = count($rows);
