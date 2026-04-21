@@ -375,7 +375,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 foreach ($sitesToProcess as $site) {
                     $u = (string)($site['url'] ?? $site);
                     $urls[] = $u;
-                    $caPlatformIds[] = md5(rtrim($u, '/'));
+                    $caPlatformIds[] = md5($u);
                 }
                 $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
@@ -395,7 +395,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                     continue;
                 }
 
-                $caPlatformId = md5(rtrim($siteUrl, '/'));
+                $caPlatformId = md5($siteUrl);
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
                     $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
@@ -429,8 +429,11 @@ class SearchConsoleDriver implements SyncDriverInterface
                             continue;
                         }
 
-                        $mainAccount = $accountMap['Google Search Console'] ?? null;
-                        $caObject = is_object($ca) ? $ca : (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId)->setContext(['account' => $mainAccount]);
+                        $mainAccount = $accountMap['Google Search Console'] ?? ($config['accounts_group_name'] ?? 'Default');
+                        $caObject = is_object($ca) ? $ca : (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                        if (is_object($caObject) && !($caObject->getContext()['account'] ?? null)) {
+                            $caObject->setContext(array_merge($caObject->getContext(), ['account' => $mainAccount]));
+                        }
                         $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($caObject->getContext()['account'] ?? $mainAccount);
 
                         $collection = GoogleSearchConsoleConvert::metrics(
