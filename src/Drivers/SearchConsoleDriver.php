@@ -373,7 +373,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $urls = [];
                 $caPlatformIds = [];
                 foreach ($sitesToProcess as $site) {
-                    $u = (string)($site['url'] ?? $site);
+                    $u = rtrim((string)($site['url'] ?? $site), '/');
                     $urls[] = $u;
                     $caPlatformIds[] = md5($u);
                 }
@@ -383,7 +383,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             }
 
             foreach ($sitesToProcess as $site) {
-                $siteUrl = (string)($site['url'] ?? $site);
+                $siteUrl = rtrim((string)($site['url'] ?? $site), '/');
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $pLevel = $site['permissionLevel'] ?? null;
