@@ -803,7 +803,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     // PAGE FIELDS
 
     public static function getPagePlatformId(array $asset): string {
-        return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+        return isset($asset['url']) && $asset['url'] ? md5(FieldsNormalizerHelper::getCleanString($asset['url'])) : '';
     }
 
     public static function getPageCanonicalId(array $asset): string {
@@ -811,15 +811,15 @@ class SearchConsoleDriver implements SyncDriverInterface
     }
 
     public static function getPageHostname(array $asset): string {
-        return FieldsNormalizerHelper::getCleanString($asset['hostname']);
+        return isset($asset['hostname']) && $asset['hostname'] ? FieldsNormalizerHelper::getCleanString($asset['hostname']) : '';
     }
 
     public static function getPageTitle(array $asset): string {
-        return FieldsNormalizerHelper::getCleanString($asset['title']);
+        return isset($asset['title']) && $asset['title'] ? FieldsNormalizerHelper::getCleanString($asset['title']) : '';
     }
 
     public static function getPageUrl(array $asset): string {
-        return FieldsNormalizerHelper::getCleanString($asset['url']);
+        return isset($asset['url']) && $asset['url'] ? FieldsNormalizerHelper::getCleanString($asset['url']) : '';
     }
 
     public static function getPageData(array $asset): array {
@@ -829,15 +829,15 @@ class SearchConsoleDriver implements SyncDriverInterface
     // CHANNELED ACCOUNT FIELDS
 
     public static function getChanneledAccountPlatformId(array $asset): string {
-        return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+        return isset($asset['url']) && $asset['url'] ? md5(FieldsNormalizerHelper::getCleanString($asset['url'])) : '';
     }
 
     public static function getChanneledAccountPlatformCreatedAt(array $asset): string {
-        return FieldsNormalizerHelper::getCleanString($asset['created_time']);
+        return isset($asset['created_time']) && $asset['created_time'] ? FieldsNormalizerHelper::getCleanString($asset['created_time']) : '';
     }
 
     public static function getChanneledAccountName(array $asset): string {
-        return FieldsNormalizerHelper::getCleanString($asset['title']);
+        return isset($asset['title']) && $asset['title'] ? FieldsNormalizerHelper::getCleanString($asset['title']) : '';
     }
 
     public static function getChanneledAccountType(string|GoogleEntityType $entityType = GoogleEntityType::SITE): string {
