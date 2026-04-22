@@ -2,16 +2,26 @@
 
 namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-use Anibalealvarezs\ApiDriverCore\Helpers\DateHelper;
+use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
+use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
+use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
+use Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService;
+use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
+use Anibalealvarezs\ApiDriverCore\Traits\HasHierarchicalValidationTrait;
 use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
+use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
+use Anibalealvarezs\GoogleHubDriver\Controllers\ReportController;
 use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleSearchConsoleConvert;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 
@@ -22,8 +32,8 @@ use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
 class SearchConsoleDriver implements SyncDriverInterface
 {
-    use \Anibalealvarezs\ApiDriverCore\Traits\HasHierarchicalValidationTrait;
-    use \Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
+    use HasHierarchicalValidationTrait;
+    use SyncDriverTrait;
 
     public static function getCommonConfigKey(): ?string
     {
@@ -101,30 +111,30 @@ class SearchConsoleDriver implements SyncDriverInterface
      */
     public static function getRoutes(): array
     {
-        return array_merge(\Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes::get(), [
+        return array_merge(AssetRoutes::get(), [
             '/google-login' => [
                 'httpMethod' => 'GET',
-                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->login(),
+                'callable' => fn(...$args) => (new GoogleAuthController())->login(),
                 'public' => true,
                 'admin' => false,
                 'html' => true
             ],
             '/google-auth-start' => [
                 'httpMethod' => 'GET',
-                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->start(),
+                'callable' => fn(...$args) => (new GoogleAuthController())->start(),
                 'public' => true,
                 'admin' => false
             ],
             '/google-callback' => [
                 'httpMethod' => 'GET',
-                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController())->callback($args['request'] ?? \Symfony\Component\HttpFoundation\Request::createFromGlobals()),
+                'callable' => fn(...$args) => (new GoogleAuthController())->callback($args['request'] ?? Request::createFromGlobals()),
                 'public' => true,
                 'admin' => false,
                 'html' => true
             ],
             '/gsc-reports' => [
                 'httpMethod' => 'GET',
-                'callable' => fn(...$args) => (new \Anibalealvarezs\GoogleHubDriver\Controllers\ReportController())->index($args),
+                'callable' => fn(...$args) => (new ReportController())->index($args),
                 'public' => true,
                 'admin' => false,
                 'html' => true
@@ -134,6 +144,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     /**
      * @inheritdoc
+     * @throws Exception
      */
     public function fetchAvailableAssets(bool $throwOnError = false): array
     {
@@ -160,7 +171,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             }
             return $assets;
         } catch (\Exception $e) {
-            if ($this->logger) $this->logger->error("SearchConsoleDriver: Error fetching available assets: " . $e->getMessage());
+            $this->logger?->error("SearchConsoleDriver: Error fetching available assets: " . $e->getMessage());
             if ($throwOnError) {
                 throw $e;
             }
@@ -230,7 +241,7 @@ class SearchConsoleDriver implements SyncDriverInterface
             $chanCfg['cache_aggregations'] = $newValue;
             
             if ($prevValue && !$newValue && class_exists('\Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService')) {
-                \Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService::clearChannel(GoogleChannel::SEARCH_CONSOLE->value);
+                CacheStrategyService::clearChannel(GoogleChannel::SEARCH_CONSOLE->value);
             }
         }
 
@@ -307,8 +318,8 @@ class SearchConsoleDriver implements SyncDriverInterface
         'GOOGLE_CLIENT_SECRET'
     ];
 
-    private ?AuthProviderInterface $authProvider = null;
-    private ?LoggerInterface $logger = null;
+    private ?AuthProviderInterface $authProvider;
+    private ?LoggerInterface $logger;
     /** @var callable|null */
     private $dataProcessor = null;
 
@@ -344,6 +355,9 @@ class SearchConsoleDriver implements SyncDriverInterface
         $this->dataProcessor = $processor;
     }
 
+    /**
+     * @throws Exception
+     */
     public function sync(
         DateTime $startDate,
         DateTime $endDate,
@@ -390,7 +404,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 if (!$pLevel && is_array($site)) {
                     // Try to find it in the resolved channeled account later
                 }
-                if ($pLevel && in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
+                if (in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
                     $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel)");
                     continue;
                 }
@@ -398,7 +412,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $caPlatformId = md5($siteUrl);
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
-                    $ca = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                    $ca = (new UniversalEntity())->setPlatformId($caPlatformId);
                 }
 
                 if (!$pLevel && is_object($ca) && method_exists($ca, 'getData')) {
@@ -410,7 +424,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 }
                 $page = $pageMap[$caPlatformId] ?? null;
                 if (!is_object($page)) {
-                    $page = (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                    $page = (new UniversalEntity())->setPlatformId($caPlatformId);
                 }
                 $siteKey = is_object($page) ? ($page->getCanonicalId() ?? $page->getPlatformId() ?? $siteUrl) : $siteUrl;
 
@@ -430,7 +444,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                         }
 
                         $mainAccount = $accountMap['Google Search Console'] ?? ($config['accounts_group_name'] ?? 'Default');
-                        $caObject = is_object($ca) ? $ca : (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($caPlatformId);
+                        $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
                         if (is_object($caObject) && !($caObject->getContext()['account'] ?? null)) {
                             $caObject->setContext(array_merge($caObject->getContext(), ['account' => $mainAccount]));
                         }
@@ -518,12 +532,15 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     public function getApi(array $config = []): SearchConsoleApi
     {
-        if (empty($config) && $this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider) {
+        if (empty($config) && $this->authProvider instanceof BaseAuthProvider) {
             $config = $this->authProvider->getConfig();
         }
         return $this->initializeApi($config);
     }
 
+    /**
+     * @throws Exception
+     */
     protected function initializeApi(array $config): SearchConsoleApi
     {
         $this->logger?->info("DEBUG: SearchConsoleDriver::initializeApi - START");
@@ -531,7 +548,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         $token = $this->authProvider->getAccessToken();
         
         $providerConfig = [];
-        if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider) {
+        if ($this->authProvider instanceof BaseAuthProvider) {
             $providerConfig = $this->authProvider->getConfig();
         }
 
@@ -597,12 +614,9 @@ class SearchConsoleDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    /**
-     * @inheritdoc
-     */
     public function validateConfig(array $config): array
     {
-        $config = \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate(
+        $config = ConfigSchemaRegistryService::hydrate(
             $this->getChannel(),
             'global',
             $config,
@@ -759,6 +773,81 @@ class SearchConsoleDriver implements SyncDriverInterface
         ];
     }
 
+    public static function getPages(array $asset): array {
+        return [
+            // GSC Site
+            [
+                'platformId' => self::getPagePlatformId(asset: $asset),
+                'canonicalId' => self::getPageCanonicalId(asset: $asset),
+                'hostname' => self::getPageHostname(asset: $asset),
+                'title' => self::getPageTitle(asset: $asset),
+                'url' => self::getPageUrl(asset: $asset),
+                'data' => self::getPageData(asset: $asset)
+            ]
+        ];
+    }
+
+    public static function getChanneledAccounts(array $asset): array {
+        return [
+            // GSC Site
+            [
+                'platformId' => self::getChanneledAccountPlatformId(asset: $asset),
+                'platformCreatedAt' => self::getChanneledAccountPlatformCreatedAt(asset: $asset),
+                'name' => self::getChanneledAccountName(asset: $asset),
+                'type' => self::getChanneledAccountType(),
+                'data' => self::getChanneledAccountData(asset: $asset)
+            ]
+        ];
+    }
+
+    // PAGE FIELDS
+
+    public static function getPagePlatformId(array $asset): string {
+        return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+    }
+
+    public static function getPageCanonicalId(array $asset): string {
+        return 'gsc:domain'.self::getPageHostname($asset);
+    }
+
+    public static function getPageHostname(array $asset): string {
+        return FieldsNormalizerHelper::getCleanString($asset['hostname']);
+    }
+
+    public static function getPageTitle(array $asset): string {
+        return FieldsNormalizerHelper::getCleanString($asset['title']);
+    }
+
+    public static function getPageUrl(array $asset): string {
+        return FieldsNormalizerHelper::getCleanString($asset['url']);
+    }
+
+    public static function getPageData(array $asset): array {
+        return FieldsNormalizerHelper::getCleanArray($asset['data']);
+    }
+
+    // CHANNELED ACCOUNT FIELDS
+
+    public static function getChanneledAccountPlatformId(array $asset): string {
+        return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+    }
+
+    public static function getChanneledAccountPlatformCreatedAt(array $asset): string {
+        return FieldsNormalizerHelper::getCleanString($asset['created_time']);
+    }
+
+    public static function getChanneledAccountName(array $asset): string {
+        return FieldsNormalizerHelper::getCleanString($asset['title']);
+    }
+
+    public static function getChanneledAccountType(string|GoogleEntityType $entityType = GoogleEntityType::SITE): string {
+        return $entityType instanceof GoogleEntityType ? $entityType->value : $entityType;
+    }
+
+    public static function getChanneledAccountData(array $asset): array {
+        return FieldsNormalizerHelper::getCleanArray($asset['data']);
+    }
+
     /**
      * @inheritdoc
      */
@@ -802,7 +891,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         foreach (($channelConfig['sites'] ?? []) as $site) {
             $url = $site['url'];
             if (class_exists('\Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService')) {
-                $ui['gsc'][$url] = \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate('google_search_console', 'entity', $site);
+                $ui['gsc'][$url] = ConfigSchemaRegistryService::hydrate('google_search_console', 'entity', $site);
             } else {
                 $ui['gsc'][$url] = $site;
             }
@@ -812,6 +901,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     /**
      * @inheritdoc
+     * @throws Exception
      */
     public function initializeEntities(array $config = []): array
     {
@@ -820,6 +910,7 @@ class SearchConsoleDriver implements SyncDriverInterface
 
     /**
      * @inheritdoc
+     * @throws Exception
      */
     public function reset(string $mode = 'all', array $config = []): array
     {
