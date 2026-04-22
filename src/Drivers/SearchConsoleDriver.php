@@ -741,7 +741,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 ],
                 'page' => [
                     'canonical_id' => [
-                        'preffix' => 'gsc:domain',
+                        'prefix' => 'gsc:domain',
                         'field' => 'hostname'
                     ],
                     'platform_id' => [
