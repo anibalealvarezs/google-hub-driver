@@ -807,7 +807,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     }
 
     public static function getPageCanonicalId(array $asset): string {
-        return 'gsc:domain'.self::getPageHostname($asset);
+        return 'gsc:domain:'.self::getPageHostname($asset);
     }
 
     public static function getPageHostname(array $asset): string {
