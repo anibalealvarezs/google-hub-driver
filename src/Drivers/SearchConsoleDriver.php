@@ -852,22 +852,36 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
     public static function getCanonicalId(array $asset, AssetCategory $category, string $context): string
     {
-        return match ($category) {
-            AssetCategory::PAGEABLE => 'gsc:domain:' . self::deriveSearchConsoleHostname($asset),
-            default => self::getPlatformId($asset, $category, $context)
-        };
+        if ($category !== AssetCategory::PAGEABLE) {
+            return self::getPlatformId($asset, $category, $context);
+        }
+
+        $patterns = self::getAssetPatterns();
+        $prefix = $patterns[$context]['page']['canonical_id']['prefix'] ?? 'gsc:domain';
+        
+        $pId = self::deriveSearchConsoleHostname($asset);
+        if (!$pId) return '';
+        
+        return str_starts_with($pId, $prefix . ':') ? $pId : $prefix . ':' . $pId;
     }
 
     private static function deriveSearchConsoleId(array $asset): string
     {
-        $id = $asset['url'] ?? $asset['id'] ?? null;
-        return $id ? md5(FieldsNormalizerHelper::getCleanString($id)) : '';
+        if (isset($asset['url'])) {
+            return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+        }
+        return isset($asset['id']) ? (string) $asset['id'] : '';
     }
 
     private static function deriveSearchConsoleHostname(array $asset): string
     {
         $id = $asset['hostname'] ?? $asset['url'] ?? $asset['id'] ?? null;
-        return $id ? FieldsNormalizerHelper::getCleanString($id) : '';
+        if (!$id) return '';
+        $id = FieldsNormalizerHelper::getCleanString($id);
+        if (str_starts_with($id, 'gsc:domain:')) {
+            return str_replace('gsc:domain:', '', $id);
+        }
+        return $id;
     }
 
     // CHANNELED ACCOUNT FIELDS
