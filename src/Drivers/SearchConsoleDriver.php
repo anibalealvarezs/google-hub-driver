@@ -860,14 +860,14 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
     private static function deriveSearchConsoleId(array $asset): string
     {
-        $idKey = 'url';
-        return isset($asset[$idKey]) && $asset[$idKey] ? md5(FieldsNormalizerHelper::getCleanString($asset[$idKey])) : '';
+        $id = $asset['url'] ?? $asset['id'] ?? null;
+        return $id ? md5(FieldsNormalizerHelper::getCleanString($id)) : '';
     }
 
     private static function deriveSearchConsoleHostname(array $asset): string
     {
-        $idKey = 'hostname';
-        return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+        $id = $asset['hostname'] ?? $asset['url'] ?? $asset['id'] ?? null;
+        return $id ? FieldsNormalizerHelper::getCleanString($id) : '';
     }
 
     // CHANNELED ACCOUNT FIELDS
