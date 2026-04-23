@@ -157,12 +157,12 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         try {
             $api = $this->getApi();
             $sitesResponse = $api->getSites();
-            $assets = ['gsc' => []];
+            $assets = ['sites' => []];
             
             if (isset($sitesResponse['siteEntry'])) {
                 foreach ($sitesResponse['siteEntry'] as $entry) {
                     $url = $entry['siteUrl'];
-                    $assets['gsc'][] = [
+                    $assets['sites'][] = [
                         'url' => $url,
                         'title' => $this->deriveTitleFromUrl($url),
                         'hostname' => $this->deriveHostnameFromUrl($url),
