@@ -778,9 +778,6 @@ class SearchConsoleDriver implements SyncDriverInterface
     }
 
     public static function getPages(array $asset): array {
-        if (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) === 'siteUnverifiedUser') {
-            return [];
-        }
         return [
             // GSC Site
             [
@@ -789,15 +786,13 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'hostname' => self::getPageHostname(asset: $asset),
                 'title' => self::getPageTitle(asset: $asset),
                 'url' => self::getPageUrl(asset: $asset),
+                'enabled' => ($asset['enabled'] ?? true) && (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
                 'data' => self::getPageData(asset: $asset)
             ]
         ];
     }
 
     public static function getChanneledAccounts(array $asset): array {
-        if (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) === 'siteUnverifiedUser') {
-            return [];
-        }
         return [
             // GSC Site
             [
@@ -805,6 +800,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                 'platformCreatedAt' => self::getChanneledAccountPlatformCreatedAt(asset: $asset),
                 'name' => self::getChanneledAccountName(asset: $asset),
                 'type' => self::getChanneledAccountType(),
+                'enabled' => ($asset['enabled'] ?? true) && (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
                 'data' => self::getChanneledAccountData(asset: $asset)
             ]
         ];
