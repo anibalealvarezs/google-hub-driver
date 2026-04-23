@@ -4,6 +4,7 @@ namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
 use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
 use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
+use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
 use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
@@ -747,6 +748,7 @@ class SearchConsoleDriver implements SyncDriverInterface
     {
         return [
             'gsc' => [
+                'category' => [AssetCategory::IDENTITY, AssetCategory::PAGEABLE],
                 'key' => 'sites',
                 'channeled_account' => [
                     'platform_id' => [
@@ -782,8 +784,8 @@ class SearchConsoleDriver implements SyncDriverInterface
         return [
             // GSC Site
             [
-                'platformId' => self::getPagePlatformId(asset: $asset),
-                'canonicalId' => self::getPageCanonicalId(asset: $asset),
+                'platformId' => self::getPlatformId($asset, AssetCategory::PAGEABLE, 'gsc'),
+                'canonicalId' => self::getCanonicalId($asset, AssetCategory::PAGEABLE, 'gsc'),
                 'hostname' => self::getPageHostname(asset: $asset),
                 'title' => self::getPageTitle(asset: $asset),
                 'url' => self::getPageUrl(asset: $asset),
@@ -797,7 +799,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         return [
             // GSC Site
             [
-                'platformId' => self::getChanneledAccountPlatformId(asset: $asset),
+                'platformId' => self::getPlatformId($asset, AssetCategory::IDENTITY, 'gsc'),
                 'platformCreatedAt' => self::getChanneledAccountPlatformCreatedAt(asset: $asset),
                 'name' => self::getChanneledAccountName(asset: $asset),
                 'type' => self::getChanneledAccountType(),
@@ -838,15 +840,31 @@ class SearchConsoleDriver implements SyncDriverInterface
         return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanArray($asset[$idKey]) : [];
     }
 
-    // CHANNELED ACCOUNT FIELDS
+    public static function getPlatformId(array $asset, AssetCategory $category, string $context): string
+    {
+        return match ($category) {
+            AssetCategory::IDENTITY, AssetCategory::PAGEABLE => self::deriveSearchConsoleId($asset),
+            default => (string) ($asset['id'] ?? '')
+        };
+    }
 
-    public static function getChanneledAccountPlatformId(array $asset, ?string $key = null): string {
-        $idKey = $key ?: 'url';
+    public static function getCanonicalId(array $asset, AssetCategory $category, string $context): string
+    {
+        return match ($category) {
+            AssetCategory::PAGEABLE => 'gsc:domain:' . self::deriveSearchConsoleHostname($asset),
+            default => self::getPlatformId($asset, $category, $context)
+        };
+    }
+
+    private static function deriveSearchConsoleId(array $asset): string
+    {
+        $idKey = 'url';
         return isset($asset[$idKey]) && $asset[$idKey] ? md5(FieldsNormalizerHelper::getCleanString($asset[$idKey])) : '';
     }
 
-    public static function getChanneledAccountPlatformCreatedAt(array $asset, ?string $key = null): string {
-        $idKey = $key ?: 'created_time';
+    private static function deriveSearchConsoleHostname(array $asset): string
+    {
+        $idKey = 'hostname';
         return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
     }
 
