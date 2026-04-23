@@ -998,5 +998,22 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
             'recent_cron_minute' => 0,
         ];
     }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getEnvMapping(): array
+    {
+        return [
+            'google' => [
+                'GOOGLE_CLIENT_ID' => 'client_id',
+                'GOOGLE_CLIENT_SECRET' => 'client_secret',
+                'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
+                'GOOGLE_USER_ID' => 'user_id',
+                'GOOGLE_REDIRECT_URI' => 'redirect_uri',
+                'GOOGLE_TOKEN_PATH' => 'token_path',
+            ]
+        ];
+    }
 }
 
