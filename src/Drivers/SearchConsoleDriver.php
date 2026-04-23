@@ -7,6 +7,8 @@ use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
 use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
 use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
 use Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService;
@@ -31,7 +33,7 @@ use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
 use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
 use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
-class SearchConsoleDriver implements SyncDriverInterface
+class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface
 {
     use HasHierarchicalValidationTrait;
     use SyncDriverTrait;
@@ -865,6 +867,17 @@ class SearchConsoleDriver implements SyncDriverInterface
     private static function deriveSearchConsoleHostname(array $asset): string
     {
         $idKey = 'hostname';
+        return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+    }
+
+    // CHANNELED ACCOUNT FIELDS
+
+    public static function getChanneledAccountPlatformId(array $asset, ?string $key = null): string {
+        return self::getPlatformId($asset, AssetCategory::IDENTITY, 'gsc');
+    }
+
+    public static function getChanneledAccountPlatformCreatedAt(array $asset, ?string $key = null): string {
+        $idKey = $key ?: 'created_time';
         return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
     }
 
