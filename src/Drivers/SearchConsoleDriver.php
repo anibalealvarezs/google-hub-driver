@@ -746,7 +746,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
     /**
      * @inheritdoc
      */
-    public function getAssetPatterns(): array
+    public static function getAssetPatterns(): array
     {
         return [
             'gsc' => [
