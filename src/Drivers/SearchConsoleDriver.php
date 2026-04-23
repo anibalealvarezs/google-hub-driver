@@ -14,7 +14,6 @@ use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
 use Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService;
 use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
 use Anibalealvarezs\ApiDriverCore\Traits\HasHierarchicalValidationTrait;
-use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
@@ -173,7 +172,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                 }
             }
             return $assets;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->logger?->error("SearchConsoleDriver: Error fetching available assets: " . $e->getMessage());
             if ($throwOnError) {
                 throw $e;
@@ -317,7 +316,6 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
             ];
         }
     }
-    use HasUpdatableCredentials;
 
     public array $updatableCredentials = [
         'GOOGLE_REFRESH_TOKEN',
