@@ -482,6 +482,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                     }
                 } catch (Exception $e) {
                     $this->logger?->error("!!! ERROR: Fallo al sincronizar GSC para $siteUrl: " . $e->getMessage());
+                    throw $e;
                 }
             }
 
