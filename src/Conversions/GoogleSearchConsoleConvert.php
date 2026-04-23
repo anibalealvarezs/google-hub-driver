@@ -147,7 +147,7 @@ class GoogleSearchConsoleConvert
                     'channeledAccountId' => $channeledAccountPlatformId,
                     'channeledAccountPlatformId' => $channeledAccountPlatformId,
                     'page' => \Anibalealvarezs\GoogleHubDriver\Drivers\SearchConsoleDriver::getCanonicalId(['url' => $pageUrl ?? $siteUrl], \Anibalealvarezs\ApiDriverCore\Enums\AssetCategory::PAGEABLE, 'gsc'),
-                    'pagePlatformId' => \Anibalealvarezs\GoogleHubDriver\Drivers\SearchConsoleDriver::getPlatformId(['url' => is_object($page) && method_exists($page, 'getPlatformId') ? (string) $page->getPlatformId() : (string) $page], \Anibalealvarezs\ApiDriverCore\Enums\AssetCategory::PAGEABLE, 'gsc'),
+                    'pagePlatformId' => \Anibalealvarezs\GoogleHubDriver\Drivers\SearchConsoleDriver::getPlatformId(['url' => $pageUrl ?? $siteUrl], \Anibalealvarezs\ApiDriverCore\Enums\AssetCategory::PAGEABLE, 'gsc'),
                     'platform_id' => $platformId,
                     'date' => $data['date'],
                     'query' => $data['dimensionValues']['query'] ?? null,

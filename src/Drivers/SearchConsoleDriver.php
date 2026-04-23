@@ -197,14 +197,6 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         return parse_url(str_replace('sc-domain:', 'http://', $url), PHP_URL_HOST) ?? $url;
     }
 
-    /**
-     * Normalize a GSC site URL for comparison.
-     */
-    public function normalizeGscUrl(?string $url): string
-    {
-        if (!$url) return '';
-        return rtrim(strtolower($url), '/');
-    }
 
     /**
      * @inheritdoc
@@ -274,7 +266,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         }
 
         foreach ($selectedSites as $sel) {
-            $normUrl = $this->normalizeGscUrl($sel['url']);
+            $normUrl = FieldsNormalizerHelper::getCleanString($sel['url']);
             if (!in_array($normUrl, $processedNormUrls)) {
                 $siteData = $sel['data'] ?? [];
                 $newSitesList[] = [
@@ -393,17 +385,17 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                 $urls = [];
                 $caPlatformIds = [];
                 foreach ($sitesToProcess as $site) {
-                    $u = rtrim((string)($site['url'] ?? $site), '/');
+                    $u = (string)($site['url'] ?? $site);
                     $urls[] = $u;
-                    $caPlatformIds[] = md5($u);
+                    $caPlatformIds[] = self::getPlatformId(['url' => $u], AssetCategory::IDENTITY, 'gsc');
                 }
                 $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                 $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
-                $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console']]) ?? [];
+                $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console', 'Google', 'google']]) ?? [];
             }
 
             foreach ($sitesToProcess as $site) {
-                $siteUrl = rtrim((string)($site['url'] ?? $site), '/');
+                $siteUrl = (string)($site['url'] ?? $site);
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $pLevel = $site['permissionLevel'] ?? null;
@@ -415,7 +407,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                     continue;
                 }
 
-                $caPlatformId = md5($siteUrl);
+                $caPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                 $ca = $caMap[$caPlatformId] ?? null;
                 if (!is_object($ca)) {
                     $ca = (new UniversalEntity())->setPlatformId($caPlatformId);
@@ -815,8 +807,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
     // PAGE FIELDS
 
     public static function getPagePlatformId(array $asset, ?string $key = null): string {
-        $idKey = $key ?: 'url';
-        return isset($asset[$idKey]) && $asset[$idKey] ? md5(FieldsNormalizerHelper::getCleanString($asset[$idKey])) : '';
+        return self::getPlatformId($asset, AssetCategory::PAGEABLE, 'gsc');
     }
 
     public static function getPageCanonicalId(array $asset, ?string $key = null): string {
