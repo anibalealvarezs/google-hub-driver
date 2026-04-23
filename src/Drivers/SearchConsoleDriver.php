@@ -449,7 +449,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                             continue;
                         }
 
-                        $mainAccount = $accountMap['Google Search Console'] ?? ($config['accounts_group_name'] ?? 'Default');
+                        $mainAccount = $accountMap['Google Search Console'] ?? $accountMap['Google'] ?? $accountMap['google'] ?? ($config['accounts_group_name'] ?? 'Default');
                         $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
                         if (is_object($caObject) && method_exists($caObject, 'getContext') && !($caObject->getContext()['account'] ?? null)) {
                             if (method_exists($caObject, 'setContext')) {
@@ -867,11 +867,11 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
     private static function deriveSearchConsoleId(array $asset): string
     {
-        $url = $asset['url'] ?? null;
-        if ($url && (str_starts_with($url, 'http') || str_contains($url, '/'))) {
-            return md5(FieldsNormalizerHelper::getCleanString($url));
+        $id = $asset['id'] ?? $asset['url'] ?? null;
+        if ($id && (str_starts_with($id, 'http') || str_contains($id, '/') || str_starts_with($id, 'sc-domain:'))) {
+            return md5(FieldsNormalizerHelper::getCleanString($id));
         }
-        return isset($asset['id']) ? (string) $asset['id'] : ($url ? (string) $url : '');
+        return $id ? (string) $id : '';
     }
 
     private static function deriveSearchConsoleHostname(array $asset): string
