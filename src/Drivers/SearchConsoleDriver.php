@@ -258,6 +258,7 @@ class SearchConsoleDriver implements SyncDriverInterface
         foreach ($currentSites as $site) {
             $normUrl = $this->normalizeGscUrl($site['url']);
             if (isset($selectedMap[$normUrl])) {
+                $site['enabled'] = filter_var($selectedMap[$normUrl]['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
                 $site['target_countries'] = $selectedMap[$normUrl]['target_countries'] ?? [];
                 $site['target_keywords'] = $selectedMap[$normUrl]['target_keywords'] ?? [];
                 $site['lost_access'] = filter_var($selectedMap[$normUrl]['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -278,7 +279,7 @@ class SearchConsoleDriver implements SyncDriverInterface
                     'url' => $sel['url'],
                     'title' => $this->deriveTitleFromUrl($sel['url']),
                     'hostname' => $this->deriveHostnameFromUrl($sel['url']),
-                    'enabled' => (($siteData['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
+                    'enabled' => filter_var($sel['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN) && (($siteData['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
                     'target_countries' => $sel['target_countries'] ?? [],
                     'target_keywords' => $sel['target_keywords'] ?? [],
                     'lost_access' => filter_var($sel['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
