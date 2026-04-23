@@ -453,10 +453,12 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
                         $mainAccount = $accountMap['Google Search Console'] ?? ($config['accounts_group_name'] ?? 'Default');
                         $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
-                        if (is_object($caObject) && !($caObject->getContext()['account'] ?? null)) {
-                            $caObject->setContext(array_merge($caObject->getContext(), ['account' => $mainAccount]));
+                        if (is_object($caObject) && method_exists($caObject, 'getContext') && !($caObject->getContext()['account'] ?? null)) {
+                            if (method_exists($caObject, 'setContext')) {
+                                $caObject->setContext(array_merge($caObject->getContext(), ['account' => $mainAccount]));
+                            }
                         }
-                        $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($caObject->getContext()['account'] ?? $mainAccount);
+                        $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : (method_exists($caObject, 'getContext') ? ($caObject->getContext()['account'] ?? $mainAccount) : $mainAccount);
 
                         $collection = GoogleSearchConsoleConvert::metrics(
                             rows: $rows,
@@ -867,10 +869,11 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
     private static function deriveSearchConsoleId(array $asset): string
     {
-        if (isset($asset['url'])) {
-            return md5(FieldsNormalizerHelper::getCleanString($asset['url']));
+        $url = $asset['url'] ?? null;
+        if ($url && (str_starts_with($url, 'http') || str_contains($url, '/'))) {
+            return md5(FieldsNormalizerHelper::getCleanString($url));
         }
-        return isset($asset['id']) ? (string) $asset['id'] : '';
+        return isset($asset['id']) ? (string) $asset['id'] : ($url ? (string) $url : '');
     }
 
     private static function deriveSearchConsoleHostname(array $asset): string
@@ -879,7 +882,10 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         if (!$id) return '';
         $id = FieldsNormalizerHelper::getCleanString($id);
         if (str_starts_with($id, 'gsc:domain:')) {
-            return str_replace('gsc:domain:', '', $id);
+            $id = str_replace('gsc:domain:', '', $id);
+        }
+        if (str_starts_with($id, 'http')) {
+            return parse_url($id, PHP_URL_HOST) ?: $id;
         }
         return $id;
     }
