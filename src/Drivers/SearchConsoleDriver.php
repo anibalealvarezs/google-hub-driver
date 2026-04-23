@@ -262,6 +262,9 @@ class SearchConsoleDriver implements SyncDriverInterface
                 $site['target_keywords'] = $selectedMap[$normUrl]['target_keywords'] ?? [];
                 $site['lost_access'] = filter_var($selectedMap[$normUrl]['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN);
                 $site['data'] = $selectedMap[$normUrl]['data'] ?? $site['data'] ?? [];
+                if (($site['data']['permissionLevel'] ?? null) === 'siteUnverifiedUser') {
+                    $site['enabled'] = false;
+                }
                 $newSitesList[] = $site;
                 $processedNormUrls[] = $normUrl;
             }
@@ -270,15 +273,16 @@ class SearchConsoleDriver implements SyncDriverInterface
         foreach ($selectedSites as $sel) {
             $normUrl = $this->normalizeGscUrl($sel['url']);
             if (!in_array($normUrl, $processedNormUrls)) {
+                $siteData = $sel['data'] ?? [];
                 $newSitesList[] = [
                     'url' => $sel['url'],
                     'title' => $this->deriveTitleFromUrl($sel['url']),
                     'hostname' => $this->deriveHostnameFromUrl($sel['url']),
-                    'enabled' => true,
+                    'enabled' => (($siteData['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
                     'target_countries' => $sel['target_countries'] ?? [],
                     'target_keywords' => $sel['target_keywords'] ?? [],
                     'lost_access' => filter_var($sel['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                    'data' => $sel['data'] ?? []
+                    'data' => $siteData
                 ];
             }
         }
