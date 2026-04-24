@@ -798,6 +798,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                 'platformCreatedAt' => self::getChanneledAccountPlatformCreatedAt(asset: $asset),
                 'name' => self::getChanneledAccountName(asset: $asset),
                 'type' => self::getChanneledAccountType(),
+                'account' => self::getChannelLabel(),
                 'enabled' => ($asset['enabled'] ?? true) && (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
                 'data' => self::getChanneledAccountData(asset: $asset)
             ]
