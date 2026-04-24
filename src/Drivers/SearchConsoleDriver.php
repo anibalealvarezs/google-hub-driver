@@ -244,13 +244,13 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         $newSitesList = [];
         $selectedMap = [];
         foreach ($selectedSites as $sel) {
-            $normUrl = $this->normalizeGscUrl($sel['url']);
+            $normUrl = FieldsNormalizerHelper::getCleanString($sel['url']);
             $selectedMap[$normUrl] = $sel;
         }
 
         $processedNormUrls = [];
         foreach ($currentSites as $site) {
-            $normUrl = $this->normalizeGscUrl($site['url']);
+            $normUrl = FieldsNormalizerHelper::getCleanString($site['url']);
             if (isset($selectedMap[$normUrl])) {
                 $site['enabled'] = filter_var($selectedMap[$normUrl]['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN);
                 $site['target_countries'] = $selectedMap[$normUrl]['target_countries'] ?? [];
