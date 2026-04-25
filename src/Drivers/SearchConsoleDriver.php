@@ -19,9 +19,12 @@ use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
 use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
 use Anibalealvarezs\GoogleHubDriver\Controllers\ReportController;
 use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleSearchConsoleConvert;
+use Anibalealvarezs\GoogleHubDriver\Helpers\Helpers;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
+use Faker\Factory;
+use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -146,7 +149,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
     /**
      * @inheritdoc
-     * @throws Exception
+     * @throws Exception|GuzzleException
      */
     public function fetchAvailableAssets(bool $throwOnError = false): array
     {
@@ -194,7 +197,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
      */
     public function deriveHostnameFromUrl(string $url): string
     {
-        return parse_url(str_replace('sc-domain:', 'http://', $url), PHP_URL_HOST) ?? $url;
+        return parse_url(str_replace('sc-domain:', 'https://', $url), PHP_URL_HOST) ?? $url;
     }
 
 
@@ -399,9 +402,6 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                 if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                 $pLevel = $site['permissionLevel'] ?? null;
-                if (!$pLevel && is_array($site)) {
-                    // Try to find it in the resolved channeled account later
-                }
                 if (in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
                     $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel)");
                     continue;
@@ -415,7 +415,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
 
                 if (!$pLevel && is_object($ca) && method_exists($ca, 'getData')) {
                     $pLevel = $ca->getData()['permissionLevel'] ?? null;
-                    if ($pLevel && in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
+                    if (in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
                         $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel) [from metadata]");
                         continue;
                     }
@@ -434,7 +434,14 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                         }
                         $dayStr = $day->format('Y-m-d');
                         $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Día: $dayStr)");
-                        $rows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $config);
+                        $rows = $this->fetchGSCDailyData(
+                            api: $api,
+                            siteUrl: $siteUrl,
+                            dayStr: $dayStr,
+                            config: $config,
+                            targetKeywords: $site['target_keywords'] ?? [],
+                            targetCountries: $site['target_countries'] ?? []
+                        );
                         
                         if (empty($rows)) {
                             $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl (Día: $dayStr)");
@@ -490,10 +497,18 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         }
     }
 
-    private function fetchGSCDailyData(SearchConsoleApi $api, string $siteUrl, string $dayStr, array $config): array
+    private function fetchGSCDailyData(
+        SearchConsoleApi $api,
+        string $siteUrl,
+        string $dayStr,
+        array $config,
+        array $targetKeywords,
+        array $targetCountries,
+    ): array
     {
         $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
-        $allFetchedData = [];
+        $subsetRows = [];
+        $allRows = [];
 
         $dimensionsSubsets = $this->getAllSubsets(self::$optionalDimensions);
         foreach ($dimensionsSubsets as $dimensionsSubset) {
@@ -515,7 +530,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
                     
                     if (!empty($rows['rows'])) {
                         foreach ($rows['rows'] as $row) {
-                            $allFetchedData[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
+                            $subsetRows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
                         }
                     }
                     $fetched = true;
@@ -527,7 +542,19 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
             }
         }
 
-        return $allFetchedData;
+        foreach($subsetRows as $rows) {
+            foreach ($rows as $row) {
+                foreach($row as $element) {
+                    if (is_string($element)) {
+                        continue;
+                    }
+                    $element['subset'] = $rows['subset'];
+                    $allRows[] = $element;
+                }
+            }
+        }
+
+        return Helpers::getFinalRecords($allRows, $targetKeywords, $targetCountries, self::$allDimensions);
     }
 
 
@@ -659,7 +686,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
         $dates = $seeder->getDates(180);
         $countryEnumValues = ['USA', 'ESP', 'MEX', 'COL'];
         $deviceEnumValues = ['desktop', 'mobile', 'tablet'];
-        $appearances = ['AMP_TOP_STORIES', 'PRODUCT_SNIPPETS', 'REVIEW_SNIPPET', 'VIDEO', 'ORGANIC_SHOPPING'];
+        // $appearances = ['AMP_TOP_STORIES', 'PRODUCT_SNIPPETS', 'REVIEW_SNIPPET', 'VIDEO', 'ORGANIC_SHOPPING'];
 
         $dimManager = $seeder->getDimensionManager();
 
@@ -673,7 +700,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
             $devices[$type] = $seeder->resolveEntity('device', ['type' => $type]);
         }
 
-        $faker = \Faker\Factory::create('en_US');
+        $faker = Factory::create('en_US');
         $gscChan = GoogleChannel::SEARCH_CONSOLE;
 
         $gscAcc = $seeder->resolveEntity('account', ['name' => 'Demo Agency GSC']);
@@ -960,6 +987,7 @@ class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, Cha
     /**
      * @inheritdoc
      * @throws Exception
+     * @throws GuzzleException
      */
     public function initializeEntities(array $config = []): array
     {
