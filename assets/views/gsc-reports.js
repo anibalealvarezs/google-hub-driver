@@ -15,10 +15,6 @@ const GSC_COLORS = {
 
 let currentTabData = [];
 let currentSort = { key: "clicks", direction: "desc" };
-const GSC_CHANNEL_SLUG = "google_search_console";
-
-let resolvedChannelId = null;
-let resolvingChannelPromise = null;
 
 const CHART_CONFIG = {
   responsive: true,
@@ -112,56 +108,6 @@ function getAuthHeaders(includeJsonContentType = false) {
     ...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
     ...(auth ? { Authorization: "Bearer " + JSON.parse(auth).token } : {}),
   };
-}
-
-function normalizeText(value) {
-  return String(value ?? "").trim().toLowerCase();
-}
-
-function pickChannelIdFromResponse(payload) {
-  const rows = Array.isArray(payload?.data) ? payload.data : [];
-  if (!rows.length) return null;
-
-  const match = rows.find((row) => {
-    const probes = [row?.name, row?.slug, row?.channel, row?.key, row?.code, row?.driver];
-    return probes.some((probe) => normalizeText(probe) === GSC_CHANNEL_SLUG);
-  });
-
-  const candidate = match ?? (rows.length === 1 ? rows[0] : null);
-  const id = candidate?.id;
-  return Number.isInteger(Number(id)) ? Number(id) : null;
-}
-
-async function resolveChannelId() {
-  if (resolvedChannelId) return resolvedChannelId;
-  if (resolvingChannelPromise) return resolvingChannelPromise;
-
-  resolvingChannelPromise = (async () => {
-    const headers = getAuthHeaders();
-    const endpoints = ["/google_search_console/channel", "/api/channel"];
-
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint, { headers });
-        if (!response.ok) continue;
-
-        const payload = await response.json();
-        const channelId = pickChannelIdFromResponse(payload);
-        if (channelId) {
-          resolvedChannelId = channelId;
-          return channelId;
-        }
-      } catch (error) {
-        console.warn("Channel resolution failed for", endpoint, error);
-      }
-    }
-
-    return null;
-  })();
-
-  const channelId = await resolvingChannelPromise;
-  resolvingChannelPromise = null;
-  return channelId;
 }
 
 function initPropertySelector() {
@@ -268,16 +214,14 @@ async function loadReport() {
 
 async function fetchAggregation(metrics, groupBy, filters, start, end) {
   const headers = getAuthHeaders(true);
-  const channelId = await resolveChannelId();
   const cleanFilters = { ...filters };
 
   // BaseRepository treats non-numeric relation filters as no-match (1=0).
   if (cleanFilters.page === "" || cleanFilters.page == null) {
     delete cleanFilters.page;
   }
-  if (channelId) {
-    cleanFilters.channel = channelId;
-  }
+  // Channel is injected server-side from the /google_search_console/* route context.
+  delete cleanFilters.channel;
 
   const body = {
     aggregations: {},
