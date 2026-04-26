@@ -15,6 +15,10 @@ const GSC_COLORS = {
 
 let currentTabData = [];
 let currentSort = { key: "clicks", direction: "desc" };
+const GSC_CHANNEL_SLUG = "google_search_console";
+
+let resolvedChannelId = null;
+let resolvingChannelPromise = null;
 
 const CHART_CONFIG = {
   responsive: true,
@@ -99,17 +103,70 @@ async function flushCache() {
 document.addEventListener("DOMContentLoaded", () => {
   initPropertySelector();
   initDateRange();
-  loadReport();
   lucide.createIcons();
 });
 
+function getAuthHeaders(includeJsonContentType = false) {
+  const auth = localStorage.getItem("apis_hub_admin_auth");
+  return {
+    ...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
+    ...(auth ? { Authorization: "Bearer " + JSON.parse(auth).token } : {}),
+  };
+}
+
+function normalizeText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function pickChannelIdFromResponse(payload) {
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  if (!rows.length) return null;
+
+  const match = rows.find((row) => {
+    const probes = [row?.name, row?.slug, row?.channel, row?.key, row?.code, row?.driver];
+    return probes.some((probe) => normalizeText(probe) === GSC_CHANNEL_SLUG);
+  });
+
+  const candidate = match ?? (rows.length === 1 ? rows[0] : null);
+  const id = candidate?.id;
+  return Number.isInteger(Number(id)) ? Number(id) : null;
+}
+
+async function resolveChannelId() {
+  if (resolvedChannelId) return resolvedChannelId;
+  if (resolvingChannelPromise) return resolvingChannelPromise;
+
+  resolvingChannelPromise = (async () => {
+    const headers = getAuthHeaders();
+    const endpoints = ["/google_search_console/channel", "/api/channel"];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, { headers });
+        if (!response.ok) continue;
+
+        const payload = await response.json();
+        const channelId = pickChannelIdFromResponse(payload);
+        if (channelId) {
+          resolvedChannelId = channelId;
+          return channelId;
+        }
+      } catch (error) {
+        console.warn("Channel resolution failed for", endpoint, error);
+      }
+    }
+
+    return null;
+  })();
+
+  const channelId = await resolvingChannelPromise;
+  resolvingChannelPromise = null;
+  return channelId;
+}
+
 function initPropertySelector() {
   const sel = document.getElementById("propertySelector");
-  // Ensure we have a token for local API calls if in demo
-  const auth = localStorage.getItem("apis_hub_admin_auth");
-  const headers = auth
-    ? { Authorization: "Bearer " + JSON.parse(auth).token }
-    : {};
+  const headers = getAuthHeaders();
 
   // Use /google_search_console/page to list sites linked to GSC
   fetch("/google_search_console/page", { headers })
@@ -210,16 +267,22 @@ async function loadReport() {
 }
 
 async function fetchAggregation(metrics, groupBy, filters, start, end) {
-  const auth = localStorage.getItem("apis_hub_admin_auth");
-  const headers = {
-    "Content-Type": "application/json",
-    ...(auth ? { Authorization: "Bearer " + JSON.parse(auth).token } : {}),
-  };
+  const headers = getAuthHeaders(true);
+  const channelId = await resolveChannelId();
+  const cleanFilters = { ...filters };
+
+  // BaseRepository treats non-numeric relation filters as no-match (1=0).
+  if (cleanFilters.page === "" || cleanFilters.page == null) {
+    delete cleanFilters.page;
+  }
+  if (channelId) {
+    cleanFilters.channel = channelId;
+  }
 
   const body = {
     aggregations: {},
     groupBy: groupBy,
-    filters: { ...filters, channel: 8 },
+    filters: cleanFilters,
     startDate: start,
     endDate: end,
   };
