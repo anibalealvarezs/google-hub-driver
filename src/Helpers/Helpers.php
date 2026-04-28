@@ -53,6 +53,8 @@ class Helpers
             return (count($record['subset']) === count($allDimensions)) || (!empty($record['synthetic']));
         }));
 
+        $finalRecords = self::normalizeRecords($finalRecords);
+
         return self::fillWithNullsAndFilter($finalRecords, $targetKeywords, $targetCountries);
     }
 
@@ -67,7 +69,13 @@ class Helpers
             $impressionDiff = $record['impressions_difference'] ?? 0;
             $clicksDiff = $record['clicks_difference'] ?? 0;
 
-            if ($impressionDiff > 0 || $clicksDiff > 0) {
+            $impressionAlloc = max(0, (int)$impressionDiff);
+            $clicksAlloc = max(0, (int)$clicksDiff);
+            if ($impressionAlloc > 0 && $clicksAlloc > $impressionAlloc) {
+                $clicksAlloc = $impressionAlloc;
+            }
+
+            if ($impressionAlloc > 0 || $clicksAlloc > 0) {
                 $newKeys = $record['keys'];
                 $subset = $record['subset'];
 
@@ -86,9 +94,9 @@ class Helpers
 
                     $syntheticRecord = [
                         'keys' => $newKeys,
-                        'clicks' => $clicksDiff,
-                        'impressions' => $impressionDiff,
-                        'ctr' => ($impressionDiff > 0) ? $clicksDiff / $impressionDiff : 0,
+                        'clicks' => $clicksAlloc,
+                        'impressions' => $impressionAlloc,
+                        'ctr' => ($impressionAlloc > 0) ? $clicksAlloc / $impressionAlloc : 0,
                         'position' => null,
                         'subset' => $newSubset,
                         'impressions_difference' => 0,
@@ -161,8 +169,11 @@ class Helpers
             }
         }
 
-        $remainingImpressions = $allImpressions - $fiveDImpressions - $partialImpressions;
-        $remainingClicks = $allClicks - $fiveDClicks - $partialClicks;
+        $remainingImpressions = max(0, $allImpressions - $fiveDImpressions - $partialImpressions);
+        $remainingClicks = max(0, $allClicks - $fiveDClicks - $partialClicks);
+        if ($remainingImpressions > 0 && $remainingClicks > $remainingImpressions) {
+            $remainingClicks = $remainingImpressions;
+        }
 
         $allPositionAvg = ($allPositionCount > 0) ? ($allPositionWeightedSum / $allPositionCount) : null;
         $remainingPositionWeightedSum = $allPositionWeightedSum - $fiveDPositionWeightedSum - $partialPositionWeightedSum;
@@ -226,12 +237,7 @@ class Helpers
             $parentIndexInChild[] = $childSubsetIndex[$dimName];
         }
 
-        $prevIdx = -1;
         foreach ($parentIndexInChild as $i => $childIdx) {
-            if ($childIdx <= $prevIdx) {
-                return false;
-            }
-            $prevIdx = $childIdx;
             if ($parentDims[$i] !== $childDims[$childIdx]) {
                 return false;
             }
@@ -293,18 +299,15 @@ class Helpers
 
             if ($impressionDiff < 0 || $clicksDiff < 0) {
                 if ($scaleNegative) {
-                    $scaleFactorImpr = $childrenImpressions > 0 ? $record['impressions'] / $childrenImpressions : 0;
-                    $scaleFactorClicks = $childrenClicks > 0 ? $record['clicks'] / $childrenClicks : 0;
-
-                    $record['original_impressions'] = $record['impressions'];
-                    $record['original_clicks'] = $record['clicks'];
-                    $record['original_differences'] = ['impressions' => $impressionDiff, 'clicks' => $clicksDiff];
-
-                    $record['impressions'] = round($childrenImpressions * $scaleFactorImpr);
-                    $record['clicks'] = round($childrenClicks * $scaleFactorClicks);
-                    $record['scaled'] = true;
-                    $record['note'] = 'scaled down to match parent metrics';
-                    $record['ctr'] = $record['impressions'] > 0 ? $record['clicks'] / $record['impressions'] : 0;
+                    // Keep original values untouched; mark for diagnostics.
+                    // Scaling parent rows from children can introduce instability in reconciliation.
+                    $record['scaled'] = false;
+                    $record['flagged'] = true;
+                    $record['note'] = 'negative residual detected; skipped scaling for safety';
+                    $record['children_sum'] = [
+                        'impressions' => $childrenImpressions,
+                        'clicks' => $childrenClicks,
+                    ];
                 } else {
                     $record['flagged'] = true;
                     $record['note'] = 'exceeds parent; likely misattributed';
@@ -318,11 +321,44 @@ class Helpers
     public static function calculateDifferences(array $records, array $childrenSums): array
     {
         foreach ($records as $index => &$record) {
+            $record['children_sum'] = [
+                'impressions' => (int)($childrenSums[$index]['impressions'] ?? 0),
+                'clicks' => (int)($childrenSums[$index]['clicks'] ?? 0),
+            ];
             $record['impressions_difference'] = ($record['impressions'] ?? 0) - ($childrenSums[$index]['impressions'] ?? 0);
             $record['clicks_difference'] = ($record['clicks'] ?? 0) - ($childrenSums[$index]['clicks'] ?? 0);
         }
         return $records;
     }
+
+    /**
+     * Enforces metric invariants before returning final reconciled rows.
+     *
+     * @param array $records
+     * @return array
+     */
+    protected static function normalizeRecords(array $records): array
+    {
+        foreach ($records as &$record) {
+            $impressions = max(0, (int)($record['impressions'] ?? 0));
+            $clicks = max(0, (int)($record['clicks'] ?? 0));
+
+            if ($impressions > 0 && $clicks > $impressions) {
+                $clicks = $impressions;
+            }
+
+            $record['impressions'] = $impressions;
+            $record['clicks'] = $clicks;
+            $record['ctr'] = $impressions > 0 ? $clicks / $impressions : 0;
+
+            if (array_key_exists('position', $record) && $record['position'] !== null && $record['position'] < 0) {
+                $record['position'] = null;
+            }
+        }
+
+        return $records;
+    }
+
 
     public static function computeChildrenSum(array $records): array
     {
