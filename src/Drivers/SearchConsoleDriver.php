@@ -4,10 +4,12 @@
 
     use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
     use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
+    use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
@@ -35,7 +37,7 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
-    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface
+    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface
     {
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait;
@@ -82,6 +84,27 @@
         public static function getPublicResources(): array
         {
             return ['metrics' => 'gsc_metrics'];
+        }
+
+        public static function getMetricProfiles(): array
+        {
+            return [
+                MetricProfileTemplates::pageTotals(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_site_totals',
+                    label: 'GSC Site Totals'
+                ),
+                MetricProfileTemplates::pageQueryBreakdown(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_site_query_breakdown',
+                    label: 'GSC Site Query Breakdown'
+                ),
+                MetricProfileTemplates::pageGeoDeviceBreakdown(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_site_geo_device_breakdown',
+                    label: 'GSC Site Country Device Breakdown'
+                ),
+            ];
         }
 
         public static function getChannelLabel(): string
@@ -615,7 +638,7 @@
                 'global'  => [
                     'enabled'             => false,
                     'cache_history_range' => '16 months',
-                    'cache_aggregations'  => false,
+                    'cache_aggregations'  => true,
                 ],
                 'entity'  => [
                     'url'               => '',
