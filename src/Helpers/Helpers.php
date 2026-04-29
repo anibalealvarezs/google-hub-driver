@@ -79,6 +79,12 @@ class Helpers
                 $newKeys = $record['keys'];
                 $subset = $record['subset'];
 
+                // Only create synthetic records for 1D marginals (base + 1 extra dimension)
+                // to prevent double-counting missing attribution across overlapping hypercube branches.
+                if (count($subset) !== 3) {
+                    continue;
+                }
+
                 $missingDimension = null;
                 foreach ($dimensionNames as $dim) {
                     if (!in_array($dim, $subset)) {
@@ -365,12 +371,21 @@ class Helpers
         $n = count($records);
         $childrenSums = array_fill(0, $n, ['impressions' => 0, 'clicks' => 0]);
 
+        $maxSubsetCount = 0;
+        foreach ($records as $r) {
+            $maxSubsetCount = max($maxSubsetCount, count($r['subset'] ?? []));
+        }
+
         for ($i = 0; $i < $n; $i++) {
             $parentSubset = $records[$i]['subset'];
             $parentDims = $records[$i]['keys'];
 
             for ($j = 0; $j < $n; $j++) {
                 if ($i === $j) continue;
+                
+                // Only sum the fully granular leaf nodes to prevent double-counting overlaps
+                if (count($records[$j]['subset'] ?? []) !== $maxSubsetCount) continue;
+
                 if (self::isParentOf($parentSubset, $parentDims, $records[$j]['subset'], $records[$j]['keys'])) {
                     $childrenSums[$i]['impressions'] += $records[$j]['impressions'] ?? 0;
                     $childrenSums[$i]['clicks'] += $records[$j]['clicks'] ?? 0;
