@@ -37,8 +37,13 @@ class Helpers
             $allDimensions
         );
 
-        $allocateFinalDifference = self::addGlobalRemainderSynthetic(
+        $cappedDifferences = self::capSyntheticsPerMarginal(
             $allocatedDifferences,
+            $allDimensions
+        );
+
+        $allocateFinalDifference = self::addGlobalRemainderSynthetic(
+            $cappedDifferences,
             $allDimensions
         );
 
@@ -141,6 +146,97 @@ class Helpers
         }
 
         return $extendedRecords;
+    }
+
+    /**
+     * Caps synthetic impressions per 3D marginal dimension value.
+     * When overlapping 4D subset types create independent synthetics for
+     * the same dimension value (e.g. country=USA), the total can exceed the
+     * actual gap between the 3D marginal and the 5D leaf sum.
+     * This method scales them down proportionally to fit the budget.
+     */
+    public static function capSyntheticsPerMarginal(
+        array $records,
+        array $allDimensions,
+        array $parentSubset = ['date', 'page']
+    ): array {
+        $optionalDims = array_values(array_diff($allDimensions, $parentSubset));
+        $dimCount = count($allDimensions);
+        $marginalLevel = count($parentSubset) + 1; // 3D
+
+        // Build marginal totals and 5D leaf sums per optional dimension per value
+        $marginalTotals = [];  // dimName => value => impressions
+        $leafSums = [];        // dimName => value => impressions
+
+        foreach ($records as $rec) {
+            $subset = $rec['subset'] ?? [];
+            $subsetCount = count($subset);
+
+            // 3D marginals
+            if ($subsetCount === $marginalLevel && empty($rec['synthetic'])) {
+                foreach ($optionalDims as $dim) {
+                    if (in_array($dim, $subset)) {
+                        $dimIdx = array_search($dim, $subset);
+                        $val = $rec['keys'][$dimIdx] ?? null;
+                        if ($val !== null) {
+                            $marginalTotals[$dim][$val] = (int)($rec['impressions'] ?? 0);
+                        }
+                    }
+                }
+            }
+
+            // 5D leaves
+            if ($subsetCount === $dimCount && empty($rec['synthetic'])) {
+                foreach ($optionalDims as $dim) {
+                    $dimIdx = array_search($dim, $allDimensions);
+                    $val = $rec['keys'][$dimIdx] ?? null;
+                    if ($val !== null) {
+                        if (!isset($leafSums[$dim][$val])) {
+                            $leafSums[$dim][$val] = 0;
+                        }
+                        $leafSums[$dim][$val] += (int)($rec['impressions'] ?? 0);
+                    }
+                }
+            }
+        }
+
+        // Compute per-dimension per-value budget (gap) and synthetic totals
+        // Then scale if needed
+        foreach ($optionalDims as $dim) {
+            if (empty($marginalTotals[$dim])) continue;
+            $dimIdx = array_search($dim, $allDimensions);
+
+            foreach ($marginalTotals[$dim] as $val => $marginalImpr) {
+                $leafImpr = $leafSums[$dim][$val] ?? 0;
+                $budget = max(0, $marginalImpr - $leafImpr);
+
+                // Sum synthetics attributed to this dimension value
+                $synTotal = 0;
+                foreach ($records as $rec) {
+                    if (empty($rec['synthetic'])) continue;
+                    if (($rec['keys'][$dimIdx] ?? null) === $val) {
+                        $synTotal += (int)($rec['impressions'] ?? 0);
+                    }
+                }
+
+                if ($synTotal > $budget && $synTotal > 0) {
+                    $scale = $budget / $synTotal;
+                    foreach ($records as &$rec) {
+                        if (empty($rec['synthetic'])) continue;
+                        if (($rec['keys'][$dimIdx] ?? null) !== $val) continue;
+                        $rec['impressions'] = (int)round(((int)($rec['impressions'] ?? 0)) * $scale);
+                        $rec['clicks'] = (int)round(((int)($rec['clicks'] ?? 0)) * $scale);
+                        if ($rec['impressions'] > 0 && $rec['clicks'] > $rec['impressions']) {
+                            $rec['clicks'] = $rec['impressions'];
+                        }
+                        $rec['ctr'] = ($rec['impressions'] > 0) ? $rec['clicks'] / $rec['impressions'] : 0;
+                    }
+                    unset($rec);
+                }
+            }
+        }
+
+        return $records;
     }
 
     public static function addGlobalRemainderSynthetic(
