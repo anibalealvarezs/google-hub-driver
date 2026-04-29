@@ -1022,6 +1022,7 @@
             $ui['gsc_enabled'] = $channelConfig['enabled'] ?? false;
             $ui['gsc_cron_recent_hour'] = $channelConfig['cron_recent_hour'] ?? 5;
             $ui['gsc_cron_recent_minute'] = $channelConfig['cron_recent_minute'] ?? 0;
+            $ui['gsc_calculate_synthetics'] = filter_var($channelConfig['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
             $ui['gsc'] = [];
             foreach (($channelConfig['sites'] ?? []) as $site) {
