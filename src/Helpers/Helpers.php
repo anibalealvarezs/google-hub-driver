@@ -616,6 +616,10 @@ class Helpers
             return self::$defaultValues['query'];
         }
         $queryTerm = ($row['keys'][$dimensionsIndex['query']]);
+        // Truncate to fit DB column (varchar 512) with safety margin
+        if (mb_strlen($queryTerm) > 500) {
+            $queryTerm = mb_substr($queryTerm, 0, 500);
+        }
         return empty($targetKeywords) || CoreHelpers::str_contains_any($queryTerm, $targetKeywords) ? $queryTerm :
             ($queryTerm == self::$defaultValues['query'] ? self::$defaultValues['query'] : 'others');
     }
