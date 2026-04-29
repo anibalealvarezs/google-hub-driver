@@ -594,7 +594,8 @@
                 foreach ($rows as $row) {
                     // Manually prepend the date to keys to simulate a 'date' dimension response
                     $row['keys'] = array_merge([$dayStr], $row['keys'] ?? []);
-                    $pass1Rows[] = array_merge($row, ['subset' => array_merge(['date'], $dimensionsSubset)]);
+                    // Ensure the subset metadata matches the physical order of keys
+                    $pass1Rows[] = array_merge($row, ['subset' => array_merge(['date'], $actualDimensionsSubset)]);
                 }
             }
 

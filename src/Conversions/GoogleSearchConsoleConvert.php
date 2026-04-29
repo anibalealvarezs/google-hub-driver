@@ -21,7 +21,7 @@
      */
     class GoogleSearchConsoleConvert
     {
-        private static array $allDimensions = ['date', 'query', 'country', 'page', 'device'];
+        private static array $allDimensions = ['date', 'query', 'country', 'page', 'device', 'searchAppearance'];
 
         /**
          * Converts GSC API rows into a collection of metric objects.
@@ -54,6 +54,7 @@
                             'date' => Carbon::now()->toDateString(),
                             'query', 'device' => 'unknown',
                             'country' => 'UNK',
+                            'searchAppearance' => 'standard',
                             default => null,
                         };
                     }
@@ -65,7 +66,7 @@
                     ['dimensionKey' => 'query', 'dimensionValue' => $dimensionValues['query'] ?? null],
                     ['dimensionKey' => 'country', 'dimensionValue' => $dimensionValues['country'] ?? 'UNK'],
                     ['dimensionKey' => 'device', 'dimensionValue' => strtolower((string)($dimensionValues['device'] ?? 'unknown'))],
-                    ['dimensionKey' => 'searchAppearance', 'dimensionValue' => $searchAppearance],
+                    ['dimensionKey' => 'searchAppearance', 'dimensionValue' => $dimensionValues['searchAppearance'] ?? 'standard'],
                 ];
                 $dimensionsHash = KeyGenerator::generateDimensionsHash($dimensions);
 
