@@ -185,10 +185,11 @@ class Helpers
                 }
             }
 
-            // 5D leaves
+            // 5D leaves — use each record's own subset for key lookup
             if ($subsetCount === $dimCount && empty($rec['synthetic'])) {
                 foreach ($optionalDims as $dim) {
-                    $dimIdx = array_search($dim, $allDimensions);
+                    $dimIdx = array_search($dim, $subset);
+                    if ($dimIdx === false) continue;
                     $val = $rec['keys'][$dimIdx] ?? null;
                     if ($val !== null) {
                         if (!isset($leafSums[$dim][$val])) {
@@ -200,40 +201,51 @@ class Helpers
             }
         }
 
-        // Compute per-dimension per-value budget (gap) and synthetic totals
-        // Then scale if needed
-        foreach ($optionalDims as $dim) {
-            if (empty($marginalTotals[$dim])) continue;
-            $dimIdx = array_search($dim, $allDimensions);
+        // Iterative convergence: scaling for one dimension can affect another's totals,
+        // so repeat until no more scaling is needed (typically 2-3 iterations).
+        $maxIterations = 5;
+        for ($iter = 0; $iter < $maxIterations; $iter++) {
+            $anyScaled = false;
 
-            foreach ($marginalTotals[$dim] as $val => $marginalImpr) {
-                $leafImpr = $leafSums[$dim][$val] ?? 0;
-                $budget = max(0, $marginalImpr - $leafImpr);
+            foreach ($optionalDims as $dim) {
+                if (empty($marginalTotals[$dim])) continue;
 
-                // Sum synthetics attributed to this dimension value
-                $synTotal = 0;
-                foreach ($records as $rec) {
-                    if (empty($rec['synthetic'])) continue;
-                    if (($rec['keys'][$dimIdx] ?? null) === $val) {
-                        $synTotal += (int)($rec['impressions'] ?? 0);
-                    }
-                }
+                foreach ($marginalTotals[$dim] as $val => $marginalImpr) {
+                    $leafImpr = $leafSums[$dim][$val] ?? 0;
+                    $budget = max(0, $marginalImpr - $leafImpr);
 
-                if ($synTotal > $budget && $synTotal > 0) {
-                    $scale = $budget / $synTotal;
-                    foreach ($records as &$rec) {
+                    // Sum synthetics attributed to this dimension value
+                    $synTotal = 0;
+                    foreach ($records as $rec) {
                         if (empty($rec['synthetic'])) continue;
-                        if (($rec['keys'][$dimIdx] ?? null) !== $val) continue;
-                        $rec['impressions'] = (int)round(((int)($rec['impressions'] ?? 0)) * $scale);
-                        $rec['clicks'] = (int)round(((int)($rec['clicks'] ?? 0)) * $scale);
-                        if ($rec['impressions'] > 0 && $rec['clicks'] > $rec['impressions']) {
-                            $rec['clicks'] = $rec['impressions'];
+                        $recDimIdx = array_search($dim, $rec['subset'] ?? []);
+                        if ($recDimIdx === false) continue;
+                        if (($rec['keys'][$recDimIdx] ?? null) === $val) {
+                            $synTotal += (int)($rec['impressions'] ?? 0);
                         }
-                        $rec['ctr'] = ($rec['impressions'] > 0) ? $rec['clicks'] / $rec['impressions'] : 0;
                     }
-                    unset($rec);
+
+                    if ($synTotal > $budget && $synTotal > 0) {
+                        $scale = $budget / $synTotal;
+                        foreach ($records as &$rec) {
+                            if (empty($rec['synthetic'])) continue;
+                            $recDimIdx = array_search($dim, $rec['subset'] ?? []);
+                            if ($recDimIdx === false) continue;
+                            if (($rec['keys'][$recDimIdx] ?? null) !== $val) continue;
+                            $rec['impressions'] = (int)round(((int)($rec['impressions'] ?? 0)) * $scale);
+                            $rec['clicks'] = (int)round(((int)($rec['clicks'] ?? 0)) * $scale);
+                            if ($rec['impressions'] > 0 && $rec['clicks'] > $rec['impressions']) {
+                                $rec['clicks'] = $rec['impressions'];
+                            }
+                            $rec['ctr'] = ($rec['impressions'] > 0) ? $rec['clicks'] / $rec['impressions'] : 0;
+                        }
+                        unset($rec);
+                        $anyScaled = true;
+                    }
                 }
             }
+
+            if (!$anyScaled) break;
         }
 
         return $records;
