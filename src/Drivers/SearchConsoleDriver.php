@@ -577,28 +577,32 @@
                 $finalRows = Helpers::fillWithNullsAndFilter($pass1Rows, $targetKeywords, $targetCountries);
             }
 
-            // --- PASS 2: Search Appearance Data (Non-Additive Attributes) ---
-            // Subset: 3D (date, page, searchAppearance)
-            // Note: These rows will have 'unknown' for query, country and device.
+            // --- PASS 2: Search Appearance Data (Property-Level) ---
+            // Subset: 1D (searchAppearance)
+            // Note: GSC API does not allow combining searchAppearance with other dimensions.
+            // We attribute these results to the site root URL.
             
-            $appearanceSubset = ['searchAppearance'];
-            $requestedDimensions = array_merge(['date', 'page'], $appearanceSubset);
-            $actualDimensionsSubset = [];
-            foreach (self::$allDimensions as $dim) {
-                if (in_array($dim, $requestedDimensions)) {
-                    $actualDimensionsSubset[] = $dim;
-                }
-            }
-
+            $actualDimensionsSubset = ['searchAppearance'];
             $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
-            $processedAppearanceRows = [];
-            foreach ($appearanceRows as $row) {
-                $processedAppearanceRows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
-            }
 
-            if (!empty($processedAppearanceRows)) {
-                $finalAppearanceRows = Helpers::fillWithNullsAndFilter($processedAppearanceRows, $targetKeywords, $targetCountries);
-                $finalRows = array_merge($finalRows, $finalAppearanceRows);
+            foreach ($appearanceRows as $row) {
+                // Manual 6D construction: ['date', 'query', 'country', 'page', 'device', 'searchAppearance']
+                $finalRows[] = [
+                    'keys' => [
+                        $dayStr,                                // date
+                        Helpers::$defaultValues['query'],       // query
+                        Helpers::$defaultValues['country'],     // country
+                        $siteUrl,                               // page (Attributed to Site Root)
+                        Helpers::$defaultValues['device'],      // device
+                        $row['keys'][0]                         // searchAppearance
+                    ],
+                    'subset' => self::$allDimensions,
+                    'impressions' => $row['impressions'],
+                    'clicks' => $row['clicks'],
+                    'ctr' => $row['ctr'],
+                    'position' => $row['position'],
+                    'synthetic' => false
+                ];
             }
 
             return $finalRows;
