@@ -32,7 +32,7 @@ class Helpers
         array $targetCountries,
         array $allDimensions
     ): array {
-        return self::getFinalRecordsInclusionExclusion($allRows, $targetKeywords, $targetCountries, $allDimensions);
+        return self::getFinalRecordsLegacy($allRows, $targetKeywords, $targetCountries, $allDimensions);
     }
 
     /**

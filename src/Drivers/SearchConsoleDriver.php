@@ -560,20 +560,21 @@
 
             $finalRows = [];
 
-            // --- PASS 1: Hierarchical / Inclusion-Exclusion Data (Additive & Non-Inflated) ---
-            // Subsets: 
-            // - T: (date, country, device)
-            // - P: (date, page, country, device)
-            // - Q: (date, query, country, device)
-            // - PQ: (date, page, query, country, device)
-            // Note: We fix searchAppearance to 'standard' for these rows to ensure additivity.
+            // --- PASS 1: Multi-Anchor Data (Hierarchical Lattice) ---
+            // Subsets for Möbius Inversion:
+            // - S0: (date) -> Absolute Truth
+            // - S1: (date, page) -> Page Truth
+            // - S2: (date, query) -> Query Truth
+            // - S3: (date, country, device) -> Geo/Device Truth
+            // - S4: (date, page, query, country, device) -> Intersection Detail
             
             $hierarchicalSubsets = $calculateSynthetics
                 ? [
-                    ['country', 'device'],
-                    ['page', 'country', 'device'],
-                    ['query', 'country', 'device'],
-                    ['page', 'query', 'country', 'device']
+                    [],                                     // S0
+                    ['page'],                               // S1
+                    ['query'],                              // S2
+                    ['country', 'device'],                  // S3
+                    ['page', 'query', 'country', 'device']   // S4
                 ]
                 : [['page', 'query', 'country', 'device']]; // Only PQ if no synthetics
 
