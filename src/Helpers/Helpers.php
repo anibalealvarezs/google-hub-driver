@@ -65,9 +65,39 @@ class Helpers
     ): array {
         $extendedRecords = $records;
 
-        foreach ($records as $record) {
+        // Sort records by subset size descending: process 4D before 3D before 2D.
+        // This ensures finer-grained synthetics are created first,
+        // and coarser levels can deduct them from their gaps.
+        $indexed = [];
+        foreach ($records as $idx => $record) {
+            $indexed[] = ['idx' => $idx, 'record' => $record];
+        }
+        usort($indexed, fn($a, $b) => count($b['record']['subset'] ?? []) <=> count($a['record']['subset'] ?? []));
+
+        // Track all synthetics created so far for deduction at coarser levels
+        $createdSynthetics = [];
+
+        foreach ($indexed as $entry) {
+            $record = $entry['record'];
+            $subset = $record['subset'];
+
+            // Skip records that already have all dimensions (no missing dimension to synthesize)
+            if (count($subset) >= count($dimensionNames)) {
+                continue;
+            }
+
             $impressionDiff = $record['impressions_difference'] ?? 0;
             $clicksDiff = $record['clicks_difference'] ?? 0;
+
+            // Deduct synthetics created from strictly finer-grained records only
+            $currentLevel = count($subset);
+            foreach ($createdSynthetics as $syn) {
+                if (($syn['source_level'] ?? 0) > $currentLevel
+                    && self::isParentOf($subset, $record['keys'], $syn['subset'], $syn['keys'])) {
+                    $impressionDiff -= $syn['impressions'];
+                    $clicksDiff -= $syn['clicks'];
+                }
+            }
 
             $impressionAlloc = max(0, (int)$impressionDiff);
             $clicksAlloc = max(0, (int)$clicksDiff);
@@ -77,13 +107,6 @@ class Helpers
 
             if ($impressionAlloc > 0 || $clicksAlloc > 0) {
                 $newKeys = $record['keys'];
-                $subset = $record['subset'];
-
-                // Only create synthetic records for 1D marginals (base + 1 extra dimension)
-                // to prevent double-counting missing attribution across overlapping hypercube branches.
-                if (count($subset) !== 3) {
-                    continue;
-                }
 
                 $missingDimension = null;
                 foreach ($dimensionNames as $dim) {
@@ -108,9 +131,11 @@ class Helpers
                         'impressions_difference' => 0,
                         'clicks_difference' => 0,
                         'synthetic' => true,
+                        'source_level' => $currentLevel,
                     ];
 
                     $extendedRecords[] = $syntheticRecord;
+                    $createdSynthetics[] = $syntheticRecord;
                 }
             }
         }
@@ -371,26 +396,73 @@ class Helpers
         $n = count($records);
         $childrenSums = array_fill(0, $n, ['impressions' => 0, 'clicks' => 0]);
 
-        $maxSubsetCount = 0;
+        // Find the max subset size (fully granular level)
+        $maxLevel = 0;
         foreach ($records as $r) {
-            $maxSubsetCount = max($maxSubsetCount, count($r['subset'] ?? []));
+            $maxLevel = max($maxLevel, count($r['subset'] ?? []));
         }
 
         for ($i = 0; $i < $n; $i++) {
             $parentSubset = $records[$i]['subset'];
             $parentDims = $records[$i]['keys'];
+            $parentLevel = count($parentSubset);
+
+            // Strategy: compute TWO sums and take the larger one.
+            // (a) Best immediate-child group (parent+1 level, grouped by extra dim)
+            // (b) Leaf-descendant sum (max-level records under this parent)
+            // The max of these gives the most accurate "already covered" amount.
+
+            // (a) Immediate child groups
+            $groupSums = []; // extraDim => ['impressions' => ..., 'clicks' => ...]
+
+            // (b) Leaf sum
+            $leafSum = ['impressions' => 0, 'clicks' => 0];
 
             for ($j = 0; $j < $n; $j++) {
                 if ($i === $j) continue;
-                
-                // Only sum the fully granular leaf nodes to prevent double-counting overlaps
-                if (count($records[$j]['subset'] ?? []) !== $maxSubsetCount) continue;
+                $childLevel = count($records[$j]['subset'] ?? []);
 
-                if (self::isParentOf($parentSubset, $parentDims, $records[$j]['subset'], $records[$j]['keys'])) {
-                    $childrenSums[$i]['impressions'] += $records[$j]['impressions'] ?? 0;
-                    $childrenSums[$i]['clicks'] += $records[$j]['clicks'] ?? 0;
+                if (!self::isParentOf($parentSubset, $parentDims, $records[$j]['subset'], $records[$j]['keys'])) {
+                    continue;
+                }
+
+                // Immediate children (parent + 1)
+                if ($childLevel === $parentLevel + 1) {
+                    $extraDim = null;
+                    foreach ($records[$j]['subset'] as $d) {
+                        if (!in_array($d, $parentSubset)) {
+                            $extraDim = $d;
+                            break;
+                        }
+                    }
+                    if ($extraDim !== null) {
+                        if (!isset($groupSums[$extraDim])) {
+                            $groupSums[$extraDim] = ['impressions' => 0, 'clicks' => 0];
+                        }
+                        $groupSums[$extraDim]['impressions'] += $records[$j]['impressions'] ?? 0;
+                        $groupSums[$extraDim]['clicks'] += $records[$j]['clicks'] ?? 0;
+                    }
+                }
+
+                // Leaf descendants (max level)
+                if ($childLevel === $maxLevel) {
+                    $leafSum['impressions'] += $records[$j]['impressions'] ?? 0;
+                    $leafSum['clicks'] += $records[$j]['clicks'] ?? 0;
                 }
             }
+
+            // Pick the best immediate-child group
+            $bestGroup = ['impressions' => 0, 'clicks' => 0];
+            foreach ($groupSums as $gs) {
+                if ($gs['impressions'] > $bestGroup['impressions']) {
+                    $bestGroup = $gs;
+                }
+            }
+
+            // Take the max of best-group and leaf sum
+            $childrenSums[$i] = ($bestGroup['impressions'] >= $leafSum['impressions'])
+                ? $bestGroup
+                : $leafSum;
         }
 
         return $childrenSums;
