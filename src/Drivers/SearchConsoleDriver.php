@@ -542,10 +542,14 @@
         ): array
         {
             $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
-            $subsetRows = [];
-            $allRows = [];
+            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-            $dimensionsSubsets = $this->getAllSubsets(self::$optionalDimensions);
+            $subsetRows = [];
+
+            $dimensionsSubsets = $calculateSynthetics
+                ? $this->getAllSubsets(self::$optionalDimensions)
+                : [self::$optionalDimensions];
+
             foreach ($dimensionsSubsets as $dimensionsSubset) {
                 $actualDimensionsSubset = array_merge(array_diff(self::$allDimensions, self::$optionalDimensions), $dimensionsSubset);
 
@@ -579,7 +583,6 @@
                     }
                 }
             }
-            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
             if ($calculateSynthetics) {
                 return Helpers::getFinalRecords($subsetRows, $targetKeywords, $targetCountries, self::$allDimensions);
