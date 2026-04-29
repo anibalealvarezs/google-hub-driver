@@ -355,8 +355,8 @@
         private $dataProcessor = null;
 
         // Dimensions from legacy GoogleSearchConsoleHelpers
-        private static array $allDimensions = ['date', 'query', 'country', 'page', 'device'];
-        private static array $optionalDimensions = ['query', 'country', 'device'];
+        private static array $allDimensions = ['date', 'query', 'country', 'page', 'device', 'searchAppearance'];
+        private static array $optionalDimensions = ['query', 'country', 'device', 'searchAppearance'];
 
         public function __construct(
             ?AuthProviderInterface $authProvider = null,
@@ -533,6 +533,110 @@
          * @throws GuzzleException
          */
         private function fetchGSCDailyData(
+            SearchConsoleApi $api,
+            string           $siteUrl,
+            string           $dayStr,
+            array            $config,
+            array            $targetKeywords,
+            array            $targetCountries,
+        ): array
+        {
+            $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
+            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            $finalRows = [];
+
+            // --- PASS 1: Hierarchical Query Data (Additive & Non-Inflated) ---
+            // Anchor: 4D (date, page, country, device)
+            // Detail: 5D (date, page, query, country, device)
+            // Note: We fix searchAppearance to 'standard' for these rows to ensure additivity.
+            
+            $hierarchicalSubsets = $calculateSynthetics
+                ? [['country', 'device'], ['query', 'country', 'device']] // 4D and 5D
+                : [['query', 'country', 'device']]; // Only 5D
+
+            $pass1Rows = [];
+            foreach ($hierarchicalSubsets as $dimensionsSubset) {
+                $requestedDimensions = array_merge(['date', 'page'], $dimensionsSubset);
+                $actualDimensionsSubset = [];
+                foreach (self::$allDimensions as $dim) {
+                    if (in_array($dim, $requestedDimensions)) {
+                        $actualDimensionsSubset[] = $dim;
+                    }
+                }
+
+                $rows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
+                foreach ($rows as $row) {
+                    $pass1Rows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
+                }
+            }
+
+            if ($calculateSynthetics) {
+                $finalRows = Helpers::getFinalRecords($pass1Rows, $targetKeywords, $targetCountries, self::$allDimensions);
+            } else {
+                $finalRows = Helpers::fillWithNullsAndFilter($pass1Rows, $targetKeywords, $targetCountries);
+            }
+
+            // --- PASS 2: Search Appearance Data (Non-Additive Attributes) ---
+            // Subset: 3D (date, page, searchAppearance)
+            // Note: These rows will have 'unknown' for query, country and device.
+            
+            $appearanceSubset = ['searchAppearance'];
+            $requestedDimensions = array_merge(['date', 'page'], $appearanceSubset);
+            $actualDimensionsSubset = [];
+            foreach (self::$allDimensions as $dim) {
+                if (in_array($dim, $requestedDimensions)) {
+                    $actualDimensionsSubset[] = $dim;
+                }
+            }
+
+            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
+            $processedAppearanceRows = [];
+            foreach ($appearanceRows as $row) {
+                $processedAppearanceRows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
+            }
+
+            if (!empty($processedAppearanceRows)) {
+                $finalAppearanceRows = Helpers::fillWithNullsAndFilter($processedAppearanceRows, $targetKeywords, $targetCountries);
+                $finalRows = array_merge($finalRows, $finalAppearanceRows);
+            }
+
+            return $finalRows;
+        }
+
+        /**
+         * @throws GuzzleException
+         */
+        private function fetchWithRetry(SearchConsoleApi $api, string $siteUrl, string $dayStr, array $dimensions, int $rowLimit): array
+        {
+            $maxRetries = 3;
+            $retryCount = 0;
+            while ($retryCount < $maxRetries) {
+                try {
+                    $response = $api->getAllSearchQueryResults(
+                        siteUrl: $siteUrl,
+                        startDate: $dayStr,
+                        endDate: $dayStr,
+                        rowLimit: $rowLimit,
+                        dimensions: $dimensions
+                    );
+                    return $response['rows'] ?? [];
+                } catch (Exception $e) {
+                    $retryCount++;
+                    if ($retryCount >= $maxRetries) throw $e;
+                    usleep(500000 * $retryCount);
+                } catch (GuzzleException $e) {
+                    $retryCount++;
+                    if ($retryCount >= $maxRetries) throw $e;
+                }
+            }
+            return [];
+        }
+
+        /**
+         * @throws GuzzleException
+         */
+        private function fetchGSCDailyDataLegacy(
             SearchConsoleApi $api,
             string           $siteUrl,
             string           $dayStr,

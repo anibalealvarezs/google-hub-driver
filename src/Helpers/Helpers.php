@@ -12,8 +12,123 @@ class Helpers
         'query' => 'unknown',
         'country' => 'UNK',
         'page' => null,
-        'device' => 'unknown'
+        'device' => 'unknown',
+        'searchAppearance' => 'standard'
     ];
+
+    /**
+     * 2-Layer Residual Calculation (4D Anchor + 5D Detail)
+     *
+     * This method assumes that Country and Device dimensions are reliable and do not suffer
+     * from significant privacy filtering. It uses the 4D subset (date, page, country, device)
+     * as the "Truth" for each page and calculates the "Unknown" query volume by subtracting
+     * the sum of known 5D queries from the 4D total.
+     *
+     * @param array $allRows
+     * @param array $targetKeywords
+     * @param array $targetCountries
+     * @param array $allDimensions
+     * @return array
+     */
+    public static function getFinalRecords(
+        array $allRows,
+        array $targetKeywords,
+        array $targetCountries,
+        array $allDimensions
+    ): array {
+        $finalRecords = [];
+
+        // Phase 1: Group by the 4D dimensions (date, page, country, device)
+        $groups = [];
+        foreach ($allRows as $row) {
+            $subset = $row['subset'] ?? [];
+            $subsetFlipped = array_flip($subset);
+
+            // Extract core 4D values regardless of the subset order or level
+            $date = $row['keys'][$subsetFlipped['date']] ?? 'unknown';
+            $page = $row['keys'][$subsetFlipped['page']] ?? 'unknown';
+            $country = $row['keys'][$subsetFlipped['country']] ?? 'UNK';
+            $device = $row['keys'][$subsetFlipped['device']] ?? 'unknown';
+
+            $groupKey = "{$date}|{$page}|{$country}|{$device}";
+
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = [
+                    'parent' => null,
+                    'children' => [],
+                    'keys4d' => [
+                        'date' => $date,
+                        'page' => $page,
+                        'country' => $country,
+                        'device' => $device
+                    ]
+                ];
+            }
+
+            if (count($subset) === 4) {
+                $groups[$groupKey]['parent'] = $row;
+            } else {
+                $groups[$groupKey]['children'][] = $row;
+            }
+        }
+
+        // Phase 2: Process each group
+        foreach ($groups as $group) {
+            $parent = $group['parent'];
+            $children = $group['children'];
+            $k4d = $group['keys4d'];
+
+            if (!$parent) {
+                // If no 4D parent, just use children (fallback for non-synthetic sync)
+                foreach ($children as $child) {
+                    $finalRecords[] = self::canonicalize($child, $allDimensions);
+                }
+                continue;
+            }
+
+            $parentImpr = (int)($parent['impressions'] ?? 0);
+            $parentClicks = (int)($parent['clicks'] ?? 0);
+
+            $sumImpr = 0;
+            $sumClicks = 0;
+            foreach ($children as $child) {
+                $sumImpr += (int)($child['impressions'] ?? 0);
+                $sumClicks += (int)($child['clicks'] ?? 0);
+                $finalRecords[] = self::canonicalize($child, $allDimensions);
+            }
+
+            $residualImpr = max(0, $parentImpr - $sumImpr);
+            $residualClicks = max(0, $parentClicks - $sumClicks);
+
+            if ($residualImpr > 0 && $residualClicks > $residualImpr) {
+                $residualClicks = $residualImpr;
+            }
+
+            if ($residualImpr > 0 || $residualClicks > 0) {
+                // Create synthetic UNKNOWN record
+                $outputKeys = [];
+                foreach ($allDimensions as $dim) {
+                    if ($dim === 'query') {
+                        $outputKeys[] = self::$defaultValues['query'];
+                    } else {
+                        $outputKeys[] = $k4d[$dim] ?? 'unknown';
+                    }
+                }
+
+                $finalRecords[] = [
+                    'keys' => $outputKeys,
+                    'subset' => $allDimensions,
+                    'impressions' => $residualImpr,
+                    'clicks' => $residualClicks,
+                    'ctr' => ($residualImpr > 0) ? $residualClicks / $residualImpr : 0,
+                    'position' => $parent['position'] ?? null,
+                    'synthetic' => true,
+                ];
+            }
+        }
+
+        return self::fillWithNullsAndFilter($finalRecords, $targetKeywords, $targetCountries);
+    }
 
     /**
      * @param array $allRows
@@ -22,7 +137,7 @@ class Helpers
      * @param array $allDimensions
      * @return array
      */
-    public static function getFinalRecords(
+    public static function getFinalRecordsLegacy(
         array $allRows,
         array $targetKeywords,
         array $targetCountries,
@@ -728,6 +843,26 @@ class Helpers
             return self::$defaultValues['device'];
         }
         return strtolower($row['keys'][$dimensionsIndex['device']]);
+    }
+
+    /**
+     * Reorders keys to match the canonical $allDimensions order.
+     */
+    private static function canonicalize(array $row, array $allDimensions): array
+    {
+        $subset = $row['subset'] ?? [];
+        $subsetFlipped = array_flip($subset);
+        $newKeys = [];
+        foreach ($allDimensions as $dim) {
+            if (isset($subsetFlipped[$dim])) {
+                $newKeys[] = $row['keys'][$subsetFlipped[$dim]];
+            } else {
+                $newKeys[] = self::$defaultValues[$dim] ?? 'unknown';
+            }
+        }
+        $row['keys'] = $newKeys;
+        $row['subset'] = $allDimensions;
+        return $row;
     }
 
     /**
