@@ -255,6 +255,11 @@
 
             $chanCfg['enabled'] = $enabled;
 
+            // Synthetic generation toggle
+            if (isset($featureToggles['calculate_synthetics'])) {
+                $chanCfg['calculate_synthetics'] = filter_var($featureToggles['calculate_synthetics'], FILTER_VALIDATE_BOOLEAN);
+            }
+
             // Redis cache toggle
             if (isset($featureToggles['cache_aggregations'])) {
                 $prevValue = (bool)($chanCfg['cache_aggregations'] ?? false);
