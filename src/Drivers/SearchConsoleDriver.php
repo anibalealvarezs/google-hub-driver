@@ -570,27 +570,31 @@
             
             $hierarchicalSubsets = $calculateSynthetics
                 ? [
-                    [],                                     // S0
-                    ['page'],                               // S1
-                    ['query'],                              // S2
-                    ['country', 'device'],                  // S3
-                    ['page', 'query', 'country', 'device']   // S4
+                    [],                                     // S0: Absolute Property Truth
+                    ['page'],                               // S1: Page-level Truth
+                    ['query'],                              // S2: Query-level Truth
+                    ['country'],                            // S3: Geo-level Truth (Fixes USA mismatch)
+                    ['device'],                             // S4: Device-level Truth
+                    ['page', 'query', 'country', 'device']   // S5: Granular Intersection Detail
                 ]
                 : [['page', 'query', 'country', 'device']]; // Only PQ if no synthetics
 
             $pass1Rows = [];
             foreach ($hierarchicalSubsets as $dimensionsSubset) {
-                $requestedDimensions = array_merge(['date'], $dimensionsSubset);
+                // We EXCLUDE 'date' from the API request to reduce privacy filtering,
+                // but we keep it in the 'subset' metadata for Mobius reconciliation.
                 $actualDimensionsSubset = [];
                 foreach (self::$allDimensions as $dim) {
-                    if (in_array($dim, $requestedDimensions)) {
+                    if (in_array($dim, $dimensionsSubset)) {
                         $actualDimensionsSubset[] = $dim;
                     }
                 }
 
                 $rows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
                 foreach ($rows as $row) {
-                    $pass1Rows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
+                    // Manually prepend the date to keys to simulate a 'date' dimension response
+                    $row['keys'] = array_merge([$dayStr], $row['keys'] ?? []);
+                    $pass1Rows[] = array_merge($row, ['subset' => array_merge(['date'], $dimensionsSubset)]);
                 }
             }
 
