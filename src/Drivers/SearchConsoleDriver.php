@@ -579,8 +579,13 @@
                     }
                 }
             }
+            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-            return Helpers::getFinalRecords($subsetRows, $targetKeywords, $targetCountries, self::$allDimensions);
+            if ($calculateSynthetics) {
+                return Helpers::getFinalRecords($subsetRows, $targetKeywords, $targetCountries, self::$allDimensions);
+            }
+
+            return Helpers::fillWithNullsAndFilter($subsetRows, $targetKeywords, $targetCountries);
         }
 
         /**
