@@ -28,35 +28,99 @@ class Helpers
         array $targetCountries,
         array $allDimensions
     ): array {
-        $childrenSums = self::computeChildrenSum($allRows);
+        // --- Möbius Inversion (Bottom-Up Exact Residual Calculation) ---
+        //
+        // Sort records from most granular (5D) to least (2D).
+        // For each record, compute:
+        //   exact_residual = record.value − sum(exact_residuals of ALL its descendants)
+        //
+        // Each positive residual represents a UNIQUE, non-overlapping portion of the
+        // data that this record knows about but none of its more-granular descendants do.
+        // The sum of all residuals equals the 2D parent total exactly,
+        // and every 3D/4D marginal is conserved exactly when aggregating by any dimension.
 
-        $differences = self::calculateDifferences($allRows, $childrenSums);
+        $dimCount = count($allDimensions);
 
-        $allocatedDifferences = self::allocatePositiveDifferences(
-            $differences,
-            $allDimensions
-        );
+        // Sort descending by subset size (5D first, 2D last)
+        $indexed = [];
+        foreach ($allRows as $idx => $row) {
+            $indexed[] = ['idx' => $idx, 'row' => $row, 'level' => count($row['subset'] ?? [])];
+        }
+        usort($indexed, fn($a, $b) => $b['level'] <=> $a['level']);
 
-        $cappedDifferences = self::capSyntheticsPerMarginal(
-            $allocatedDifferences,
-            $allDimensions
-        );
+        // Compute exact residuals bottom-up
+        $residuals = []; // [{row, residual_impressions, residual_clicks, residual_position}]
 
-        $allocateFinalDifference = self::addGlobalRemainderSynthetic(
-            $cappedDifferences,
-            $allDimensions
-        );
+        foreach ($indexed as $entry) {
+            $row = $entry['row'];
+            $subset = $row['subset'] ?? [];
+            $keys = $row['keys'] ?? [];
 
-        $negativeDifferencesProcessed = self::flagOrScaleNegativeDifferences(
-            $allocateFinalDifference,
-            true
-        );
+            $residualImpressions = (int)($row['impressions'] ?? 0);
+            $residualClicks = (int)($row['clicks'] ?? 0);
 
-        $scaleAdjusted = self::adjustScaledPositions($negativeDifferencesProcessed);
+            // Subtract the exact residuals of ALL descendants
+            foreach ($residuals as $desc) {
+                if (self::isParentOf($subset, $keys, $desc['subset'], $desc['keys'])) {
+                    $residualImpressions -= $desc['residual_impressions'];
+                    $residualClicks -= $desc['residual_clicks'];
+                }
+            }
 
-        $finalRecords = array_values(array_filter($scaleAdjusted, function ($record) use ($allDimensions) {
-            return (count($record['subset']) === count($allDimensions)) || (!empty($record['synthetic']));
-        }));
+            // Clamp negatives (Google data inconsistency)
+            $residualImpressions = max(0, $residualImpressions);
+            $residualClicks = max(0, $residualClicks);
+            if ($residualImpressions > 0 && $residualClicks > $residualImpressions) {
+                $residualClicks = $residualImpressions;
+            }
+
+            $residuals[] = [
+                'subset' => $subset,
+                'keys' => $keys,
+                'residual_impressions' => $residualImpressions,
+                'residual_clicks' => $residualClicks,
+                'position' => $row['position'] ?? null,
+                'level' => $entry['level'],
+            ];
+        }
+
+        // Convert residuals to 5D output records
+        $finalRecords = [];
+
+        foreach ($residuals as $res) {
+            if ($res['residual_impressions'] <= 0 && $res['residual_clicks'] <= 0) {
+                continue;
+            }
+
+            $subset = $res['subset'];
+            $keys = $res['keys'];
+            $impressions = $res['residual_impressions'];
+            $clicks = $res['residual_clicks'];
+            $ctr = ($impressions > 0) ? $clicks / $impressions : 0;
+            $position = $res['position'];
+            $isSynthetic = (count($subset) < $dimCount);
+
+            // Build 5D keys: keep known dims, fill unknown dims with defaults
+            $outputKeys = [];
+            foreach ($allDimensions as $dim) {
+                $dimIdx = array_search($dim, $subset);
+                if ($dimIdx !== false) {
+                    $outputKeys[] = $keys[$dimIdx];
+                } else {
+                    $outputKeys[] = self::$defaultValues[$dim] ?? 'unknown';
+                }
+            }
+
+            $finalRecords[] = [
+                'keys' => $outputKeys,
+                'subset' => $allDimensions,
+                'impressions' => $impressions,
+                'clicks' => $clicks,
+                'ctr' => $ctr,
+                'position' => $position,
+                'synthetic' => $isSynthetic,
+            ];
+        }
 
         $finalRecords = self::normalizeRecords($finalRecords);
 
