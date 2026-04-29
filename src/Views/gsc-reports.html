@@ -35,10 +35,12 @@
             </div>
             <div class="controls-card gsc-header-controls">
                 <div class="control-group">
+                    <label for="propertySelector" class="visually-hidden">Property</label>
                     <i data-lucide="globe" class="control-icon"></i>
                     <select id="propertySelector" class="date-input property-selector" onchange="loadReport()"></select>
                 </div>
                 <div class="date-container">
+                    <label for="reportRange" class="visually-hidden">Date range</label>
                     <i data-lucide="calendar"></i>
                     <input type="text" id="reportRange" placeholder="Select Range" class="date-input">
                 </div>
@@ -51,37 +53,42 @@
             </div>
         </div>
 
-        <div class="metrics-grid-gsc">
-            <div class="card-stat-gsc active" data-metric="clicks" onclick="toggleMetric('clicks')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
-                <div class="gsc-label">Total Clicks</div>
-                <div class="card-metric-value" id="val-clicks">0</div>
-                <div class="card-metric-trend" id="trend-clicks">--</div>
-            </div>
-            <div class="card-stat-gsc active" data-metric="impressions" onclick="toggleMetric('impressions')" style="--color: #7e57c2; border-bottom-color: #7e57c2; opacity: 1;">
-                <div class="gsc-label">Total Impressions</div>
-                <div class="card-metric-value" id="val-impressions">0</div>
-                <div class="card-metric-trend" id="trend-impressions">--</div>
-            </div>
-            <div class="card-stat-gsc" data-metric="ctr" onclick="toggleMetric('ctr')" style="--color: #0097a7; border-bottom-color: transparent; opacity: 0.5;">
-                <div class="gsc-label">Average CTR</div>
-                <div class="card-metric-value" id="val-ctr">0.00%</div>
-                <div class="card-metric-trend" id="trend-ctr">--</div>
-            </div>
-            <div class="card-stat-gsc" data-metric="position" onclick="toggleMetric('position')" style="--color: #f4511e; border-bottom-color: transparent; opacity: 0.5;">
-                <div class="gsc-label">Average Position</div>
-                <div class="card-metric-value" id="val-position">0.0</div>
-                <div class="card-metric-trend" id="trend-position">--</div>
+        <div class="report-section-gsc" id="summarySection">
+            <div class="section-status-gsc" id="summaryStatus" aria-live="polite"></div>
+            <div class="metrics-grid-gsc" id="summaryGrid">
+                <div class="card-stat-gsc active" data-metric="clicks" onclick="toggleMetric('clicks')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
+                    <div class="gsc-label">Total Clicks</div>
+                    <div class="card-metric-value" id="val-clicks">0</div>
+                    <div class="card-metric-trend" id="trend-clicks">--</div>
+                </div>
+                <div class="card-stat-gsc active" data-metric="impressions" onclick="toggleMetric('impressions')" style="--color: #7e57c2; border-bottom-color: #7e57c2; opacity: 1;">
+                    <div class="gsc-label">Total Impressions</div>
+                    <div class="card-metric-value" id="val-impressions">0</div>
+                    <div class="card-metric-trend" id="trend-impressions">--</div>
+                </div>
+                <div class="card-stat-gsc" data-metric="ctr" onclick="toggleMetric('ctr')" style="--color: #0097a7; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gsc-label">Average CTR</div>
+                    <div class="card-metric-value" id="val-ctr">0.00%</div>
+                    <div class="card-metric-trend" id="trend-ctr">--</div>
+                </div>
+                <div class="card-stat-gsc" data-metric="position" onclick="toggleMetric('position')" style="--color: #f4511e; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gsc-label">Average Position</div>
+                    <div class="card-metric-value" id="val-position">0.0</div>
+                    <div class="card-metric-trend" id="trend-position">--</div>
+                </div>
             </div>
         </div>
 
         <!-- Chart Section -->
-        <div class="chart-container-gsc">
+        <div class="chart-container-gsc report-section-gsc" id="chartSection">
+            <div class="section-status-gsc section-status-inline-gsc" id="chartStatus" aria-live="polite"></div>
             <canvas id="mainChart"></canvas>
         </div>
 
         <!-- Breakdown Section -->
         <div class="tab-section">
-            <div class="gsc-table-container">
+            <div class="gsc-table-container report-section-gsc" id="breakdownSection">
+                <div class="section-status-gsc section-status-inline-gsc" id="tableStatus" aria-live="polite"></div>
                 <div class="tab-nav-gsc">
                     <div class="tab-gsc active" data-tab="queries" onclick="switchTab(this, 'queries')">QUERIES</div>
                     <div class="tab-gsc" data-tab="pages" onclick="switchTab(this, 'pages')">PAGES</div>

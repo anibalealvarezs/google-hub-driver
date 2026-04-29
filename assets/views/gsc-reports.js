@@ -15,6 +15,10 @@ const GSC_COLORS = {
 
 let currentTabData = [];
 let currentSort = { key: "clicks", direction: "desc" };
+let reportRequestSeq = 0;
+let tableRequestSeq = 0;
+let activeReportController = null;
+let activeTableController = null;
 
 const CHART_CONFIG = {
   responsive: true,
@@ -150,69 +154,190 @@ function initDateRange() {
   });
 }
 
-async function loadReport() {
-  const loader = document.getElementById("loader");
-  if (loader) loader.style.display = "flex";
+function abortControllerSafely(controller) {
+  if (!controller) return;
 
   try {
-    const pageEl = document.getElementById("propertySelector");
-    const rangeEl = document.getElementById("reportRange");
-
-    if (!pageEl || !rangeEl) return;
-
-    const pageId = pageEl.value;
-    const range = rangeEl.value.split(" to ");
-    if (range.length < 2) return;
-
-    const [start, end] = range;
-
-    // 1. Fetch Summary Totals (Metric aggregate)
-    const summary = await fetchAggregation(
-      ["clicks", "impressions", "ctr", "position"],
-      [],
-      { page: pageId },
-      start,
-      end,
-    );
-
-    // Fetch Previous Period for Comparison
-    const [prevStart, prevEnd] = calculatePreviousPeriod(start, end);
-    const prevSummary = await fetchAggregation(
-      ["clicks", "impressions", "ctr", "position"],
-      [],
-      { page: pageId },
-      prevStart,
-      prevEnd,
-    );
-
-    updateSummaryCards(summary[0] || {}, prevSummary[0] || {});
-
-    // 2. Fetch Chart Data (Daily)
-    const dailyData = await fetchAggregation(
-      ["clicks", "impressions", "ctr", "position"],
-      ["daily"],
-      { page: pageId },
-      start,
-      end,
-    );
-    renderChart(dailyData);
-
-    // 3. Fetch Tab Data (Queries by default)
-    // Initial load: prefer data-tab over textContent
-    const activeTabEl = document.querySelector(".tab-gsc.active");
-    const activeTab = activeTabEl
-      ? activeTabEl.getAttribute("data-tab") || "queries"
-      : "queries";
-    loadTabContent(activeTab);
+    controller.abort();
   } catch (e) {
-    console.error("GSC Load Error:", e);
-  } finally {
-    if (loader) loader.style.display = "none";
+    console.warn("Abort controller warning:", e);
+  }
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
+}
+
+function isLatestReportRequest(requestId) {
+  return requestId === reportRequestSeq;
+}
+
+function isLatestTableRequest(requestId) {
+  return requestId === tableRequestSeq;
+}
+
+function setSectionState(section, { loading = false, message = "", error = "" } = {}) {
+  const sectionMap = {
+    summary: { containerId: "summaryGrid", statusId: "summaryStatus" },
+    chart: { containerId: "chartSection", statusId: "chartStatus" },
+    table: { containerId: "breakdownSection", statusId: "tableStatus" },
+  };
+
+  const config = sectionMap[section];
+  if (!config) return;
+
+  const container = document.getElementById(config.containerId);
+  const statusEl = document.getElementById(config.statusId);
+  if (container) {
+    container.classList.toggle("is-loading", loading);
+  }
+
+  if (!statusEl) return;
+
+  const statusMessage = error || message;
+  if (!statusMessage) {
+    statusEl.classList.remove("is-visible", "is-error");
+    statusEl.innerHTML = "";
+    return;
+  }
+
+  statusEl.classList.add("is-visible");
+  statusEl.classList.toggle("is-error", Boolean(error));
+  statusEl.innerHTML = error
+    ? `<i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i><span>${error}</span>`
+    : `<i data-lucide="loader-2" class="animate-spin" style="width: 14px; height: 14px;"></i><span>${message}</span>`;
+
+  if (window.lucide) {
     lucide.createIcons();
   }
 }
 
-async function fetchAggregation(metrics, groupBy, filters, start, end) {
+async function loadReport() {
+  const loader = document.getElementById("loader");
+  if (loader) loader.style.display = "none";
+
+  const pageEl = document.getElementById("propertySelector");
+  const rangeEl = document.getElementById("reportRange");
+  if (!pageEl || !rangeEl) return;
+
+  const pageId = pageEl.value;
+  const range = rangeEl.value.split(" to ");
+  if (!pageId || range.length < 2) return;
+
+  const [start, end] = range;
+  const [prevStart, prevEnd] = calculatePreviousPeriod(start, end);
+  const requestId = ++reportRequestSeq;
+
+  abortControllerSafely(activeReportController);
+  activeReportController = new AbortController();
+  const signal = activeReportController.signal;
+
+  setSectionState("summary", { loading: true, message: "Updating summary cards..." });
+  setSectionState("chart", { loading: true, message: "Updating chart..." });
+
+  const activeTabEl = document.querySelector(".tab-gsc.active");
+  const activeTab = activeTabEl
+    ? activeTabEl.getAttribute("data-tab") || "queries"
+    : "queries";
+  loadTabContent(activeTab, { pageId, start, end });
+
+  const summaryState = {
+    current: null,
+    previous: null,
+    pending: 2,
+    hasError: false,
+  };
+
+  const finalizeSummaryState = () => {
+    if (!isLatestReportRequest(requestId)) return;
+
+    summaryState.pending -= 1;
+    if (summaryState.pending <= 0 && !summaryState.hasError) {
+      setSectionState("summary", {});
+    }
+  };
+
+  const summaryPromise = fetchAggregation(
+    ["clicks", "impressions", "ctr", "position"],
+    [],
+    { page: pageId },
+    start,
+    end,
+    { signal },
+  )
+    .then((summary) => {
+      if (!isLatestReportRequest(requestId)) return;
+
+      summaryState.current = summary[0] || {};
+      updateSummaryCards(summaryState.current, summaryState.previous);
+    })
+    .catch((e) => {
+      if (isAbortError(e) || !isLatestReportRequest(requestId)) return;
+
+      summaryState.hasError = true;
+      console.error("GSC Summary Load Error:", e);
+      setSectionState("summary", { error: "Unable to refresh summary cards." });
+    })
+    .finally(finalizeSummaryState);
+
+  const previousSummaryPromise = fetchAggregation(
+    ["clicks", "impressions", "ctr", "position"],
+    [],
+    { page: pageId },
+    prevStart,
+    prevEnd,
+    { signal },
+  )
+    .then((summary) => {
+      if (!isLatestReportRequest(requestId)) return;
+
+      summaryState.previous = summary[0] || {};
+      if (summaryState.current) {
+        updateSummaryCards(summaryState.current, summaryState.previous);
+      }
+    })
+    .catch((e) => {
+      if (isAbortError(e) || !isLatestReportRequest(requestId)) return;
+
+      summaryState.hasError = true;
+      console.error("GSC Previous Summary Load Error:", e);
+      setSectionState("summary", { error: "Unable to refresh period comparison." });
+    })
+    .finally(finalizeSummaryState);
+
+  const chartPromise = fetchAggregation(
+    ["clicks", "impressions", "ctr", "position"],
+    ["daily"],
+    { page: pageId },
+    start,
+    end,
+    { signal },
+  )
+    .then((dailyData) => {
+      if (!isLatestReportRequest(requestId)) return;
+
+      renderChart(dailyData);
+      setSectionState("chart", {});
+    })
+    .catch((e) => {
+      if (isAbortError(e) || !isLatestReportRequest(requestId)) return;
+
+      console.error("GSC Chart Load Error:", e);
+      setSectionState("chart", { error: "Unable to refresh chart." });
+    });
+
+  await Promise.allSettled([
+    summaryPromise,
+    previousSummaryPromise,
+    chartPromise,
+  ]);
+
+  if (isLatestReportRequest(requestId)) {
+    lucide.createIcons();
+  }
+}
+
+async function fetchAggregation(metrics, groupBy, filters, start, end, options = {}) {
   const headers = getAuthHeaders(true);
   const cleanFilters = { ...filters };
 
@@ -238,15 +363,17 @@ async function fetchAggregation(metrics, groupBy, filters, start, end) {
     method: "POST",
     headers: headers,
     body: JSON.stringify(body),
+    signal: options.signal,
   });
+
   const data = await res.json();
+  if (!res.ok || (data.status && data.status !== "success")) {
+    throw new Error(data.message || `Aggregation request failed with status ${res.status}`);
+  }
+
   return data.data || [];
 }
 
-// Fix for object key ordering if needed
-function json_encode_fix(obj) {
-  return JSON.stringify(obj);
-}
 
 function updateSummaryCards(data, prevData) {
   const metrics = [
@@ -272,9 +399,9 @@ function updateSummaryCards(data, prevData) {
         return;
       }
 
-      let diff = 0;
-      let pct = 0;
-      let isPositive = false;
+      let diff;
+      let pct;
+      let isPositive;
 
       if (m.type === 'pos') {
         // For position, lower is better
@@ -403,14 +530,7 @@ function updateChartAxesVisibility() {
   scales.yPos.display = activeMetrics.position;
 }
 
-async function loadTabContent(tab) {
-  const propertyId = document.getElementById("propertySelector").value;
-  const rangeEl = document.getElementById("reportRange");
-  if (!rangeEl) return;
-
-  const range = rangeEl.value.split(" to ");
-  const [start, end] = range;
-
+async function loadTabContent(tab, options = {}) {
   // Clean input
   const t = (tab || "queries").trim().toLowerCase();
 
@@ -429,8 +549,23 @@ async function loadTabContent(tab) {
   const groupBy = config.groupBy;
   const label = config.label;
 
+  const propertyId = options.pageId || document.getElementById("propertySelector")?.value;
+  const rangeEl = document.getElementById("reportRange");
+  const fallbackRange = rangeEl ? rangeEl.value.split(" to ") : [];
+  const start = options.start || fallbackRange[0];
+  const end = options.end || fallbackRange[1];
+  if (!propertyId || !start || !end) return;
+
+  const requestId = ++tableRequestSeq;
+  abortControllerSafely(activeTableController);
+  activeTableController = new AbortController();
+
   const labelEl = document.getElementById("dim-header-label");
   if (labelEl) labelEl.textContent = label;
+  setSectionState("table", {
+    loading: true,
+    message: `Loading ${label.toLowerCase()}...`,
+  });
 
   // --- NEW: Clear table and show immediate loader ---
   const tbody = document.getElementById("breakdown-body");
@@ -455,14 +590,21 @@ async function loadTabContent(tab) {
       { page: propertyId },
       start,
       end,
+      { signal: activeTableController.signal },
     );
+    if (!isLatestTableRequest(requestId)) return;
+
     currentTabData = rows;
     currentDimKey = groupBy[0];
 
     // Initial sort by clicks desc
     applySortAndRender();
+    setSectionState("table", {});
   } catch (e) {
+    if (isAbortError(e) || !isLatestTableRequest(requestId)) return;
+
     console.error("Tab Load Error:", e);
+    setSectionState("table", { error: `Unable to load ${label.toLowerCase()}.` });
     if (tbody)
       tbody.innerHTML =
         '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #f87171;">Error loading data</td></tr>';
@@ -505,7 +647,7 @@ function renderTable(data, dimKey) {
       if (!keyMatch) return;
       const key = keyMatch[1];
 
-      let iconHtml = "";
+      let iconHtml;
       if (key === currentSort.key) {
         const iconName =
           currentSort.direction === "asc" ? "arrow-up" : "arrow-down";
@@ -544,7 +686,7 @@ function renderTable(data, dimKey) {
       (k) => tabConfigs[k].groupBy[0] === dimKey
     );
 
-    let dimContent = '';
+    let dimContent;
     if (configKey === "pages") {
         dimContent = `
             <div class="gsc-url-container" style="max-width: 100%; width: 100%;">

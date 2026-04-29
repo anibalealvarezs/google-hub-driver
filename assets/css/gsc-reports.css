@@ -5,11 +5,78 @@
     --gsc-pos: #f4511e;
 }
 
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .metrics-grid-gsc {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 15px;
     margin-bottom: 25px;
+}
+
+.report-section-gsc {
+    position: relative;
+}
+
+.section-status-gsc {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: min(100%, 320px);
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(15, 23, 42, 0.72);
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.2;
+    z-index: 3;
+    backdrop-filter: blur(6px);
+}
+
+.section-status-gsc.is-visible {
+    display: inline-flex;
+}
+
+.section-status-inline-gsc {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+}
+
+#summaryStatus {
+    position: absolute;
+    top: -14px;
+    right: 0;
+}
+
+.section-status-gsc.is-error {
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(127, 29, 29, 0.28);
+}
+
+.metrics-grid-gsc.is-loading,
+.chart-container-gsc.is-loading,
+.gsc-table-container.is-loading {
+    opacity: 0.72;
+    transition: opacity 0.2s ease;
+}
+
+.chart-container-gsc.is-loading canvas {
+    filter: saturate(0.8);
 }
 
 .card-stat-gsc {
