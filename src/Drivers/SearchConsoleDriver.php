@@ -200,7 +200,12 @@
 
                 return $assets;
             } catch (Exception $e) {
-                $this->logger?->error("SearchConsoleDriver: Error fetching available assets: ".$e->getMessage());
+                if ($this->isAuthenticationError($e)) {
+                    $this->logger?->critical("SearchConsoleDriver: Authentication failed (invalid_grant/expired). Please re-authenticate via UI.");
+                } else {
+                    $this->logger?->error("SearchConsoleDriver: Error fetching available assets: ".$e->getMessage());
+                }
+
                 if ($throwOnError) {
                     throw $e;
                 }
@@ -524,6 +529,15 @@
                 ]));
 
             } catch (Exception $e) {
+                if ($this->isAuthenticationError($e)) {
+                    $this->logger?->critical("!!!! ERROR CRÍTICO DE AUTENTICACIÓN: SearchConsoleDriver falló debido a un token inválido o expirado. Se requiere re-autenticación manual vía UI: ".$e->getMessage());
+                    return new Response(json_encode([
+                        'status' => 'error',
+                        'message' => 'Authentication failed. Please re-authenticate.',
+                        'error_code' => 'auth_failure'
+                    ]), 401);
+                }
+
                 $this->logger?->critical("!!!! ERROR CRÍTICO: SearchConsoleDriver falló: ".$e->getMessage());
                 throw $e;
             }
@@ -1168,7 +1182,7 @@
          */
         public function initializeEntities(array $config = []): array
         {
-            return $this->fetchAvailableAssets(throwOnError: true);
+            return $this->fetchAvailableAssets(throwOnError: false);
         }
 
         /**
@@ -1207,6 +1221,20 @@
         }
 
         /**
+         * Check if the exception is related to authentication failure.
+         */
+        private function isAuthenticationError(Exception $e): bool
+        {
+            $msg = $e->getMessage();
+            return (
+                str_contains($msg, 'invalid_grant') || 
+                str_contains($msg, 'expired') || 
+                str_contains($msg, 'revoked') || 
+                str_contains($msg, 'authentication')
+            );
+        }
+
+        /**
          * @inheritdoc
          */
         public static function getEnvMapping(): array
@@ -1223,4 +1251,3 @@
             ];
         }
     }
-
