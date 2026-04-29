@@ -17,12 +17,8 @@ class Helpers
     ];
 
     /**
-     * 2-Layer Residual Calculation (4D Anchor + 5D Detail)
-     *
-     * This method assumes that Country and Device dimensions are reliable and do not suffer
-     * from significant privacy filtering. It uses the 4D subset (date, page, country, device)
-     * as the "Truth" for each page and calculates the "Unknown" query volume by subtracting
-     * the sum of known 5D queries from the 4D total.
+     * Entry point for GSC data reconciliation.
+     * Uses the Inclusion-Exclusion principle by default.
      *
      * @param array $allRows
      * @param array $targetKeywords
@@ -36,98 +32,265 @@ class Helpers
         array $targetCountries,
         array $allDimensions
     ): array {
-        $finalRecords = [];
+        return self::getFinalRecordsInclusionExclusion($allRows, $targetKeywords, $targetCountries, $allDimensions);
+    }
 
-        // Phase 1: Group by the 4D dimensions (date, page, country, device)
-        $groups = [];
+    /**
+     * 4-Subset Inclusion-Exclusion Reconciliation (The "Golden Lattice")
+     *
+     * Subsets used:
+     * - T: (country, device) -> Anchor Truth
+     * - P: (page, country, device) -> Page Truth
+     * - Q: (query, country, device) -> Query Truth
+     * - PQ: (page, query, country, device) -> Detail
+     *
+     * @param array $allRows
+     * @param array $targetKeywords
+     * @param array $targetCountries
+     * @param array $allDimensions
+     * @return array
+     */
+    public static function getFinalRecordsInclusionExclusion(
+        array $allRows,
+        array $targetKeywords,
+        array $targetCountries,
+        array $allDimensions
+    ): array {
+        $finalRecords = [];
+        $siteUrl = self::$defaultValues['page']; // Site root for attribution
+
+        // 1. Group rows by subset levels
+        $totals = []; // (country, device) -> Total Clicks/Impressions
+        $byPage = []; // (page, country, device) -> Total
+        $byQuery = []; // (query, country, device) -> Total
+        $byPageQuery = []; // (page, query, country, device) -> Detail
+        $k4d_map = []; // hash -> {date, country, device}
+
         foreach ($allRows as $row) {
             $subset = $row['subset'] ?? [];
-            $subsetFlipped = array_flip($subset);
+            $flipped = array_flip($subset);
+            $date = $row['keys'][$flipped['date']] ?? 'unknown';
+            $country = $row['keys'][$flipped['country']] ?? 'UNK';
+            $device = $row['keys'][$flipped['device']] ?? 'unknown';
+            $page = $row['keys'][$flipped['page']] ?? null;
+            $query = $row['keys'][$flipped['query']] ?? null;
 
-            // Extract core 4D values regardless of the subset order or level
-            $date = $row['keys'][$subsetFlipped['date']] ?? 'unknown';
-            $page = $row['keys'][$subsetFlipped['page']] ?? 'unknown';
-            $country = $row['keys'][$subsetFlipped['country']] ?? 'UNK';
-            $device = $row['keys'][$subsetFlipped['device']] ?? 'unknown';
-
-            $groupKey = "{$date}|{$page}|{$country}|{$device}";
-
-            if (!isset($groups[$groupKey])) {
-                $groups[$groupKey] = [
-                    'parent' => null,
-                    'children' => [],
-                    'keys4d' => [
-                        'date' => $date,
-                        'page' => $page,
-                        'country' => $country,
-                        'device' => $device
-                    ]
-                ];
+            $k4d_hash = "{$date}|{$country}|{$device}";
+            if (!isset($k4d_map[$k4d_hash])) {
+                $k4d_map[$k4d_hash] = ['date' => $date, 'country' => $country, 'device' => $device];
             }
 
-            if (count($subset) === 4) {
-                $groups[$groupKey]['parent'] = $row;
+            if (!isset($flipped['page']) && !isset($flipped['query'])) {
+                $totals[$k4d_hash] = $row;
+            } elseif (isset($flipped['page']) && !isset($flipped['query'])) {
+                $byPage[$k4d_hash][$page] = $row;
+            } elseif (!isset($flipped['page']) && isset($flipped['query'])) {
+                $byQuery[$k4d_hash][$query] = $row;
             } else {
-                $groups[$groupKey]['children'][] = $row;
+                $byPageQuery[$k4d_hash][$page][$query] = $row;
+                $finalRecords[] = self::canonicalize($row, $allDimensions);
             }
         }
 
-        // Phase 2: Process each group
-        foreach ($groups as $group) {
-            $parent = $group['parent'];
-            $children = $group['children'];
-            $k4d = $group['keys4d'];
+        // 2. Reconciliation Loop
+        foreach ($k4d_map as $hash => $k) {
+            $t_row = $totals[$hash] ?? null;
+            if (!$t_row) continue;
 
-            if (!$parent) {
-                // If no 4D parent, just use children (fallback for non-synthetic sync)
-                foreach ($children as $child) {
-                    $finalRecords[] = self::canonicalize($child, $allDimensions);
-                }
-                continue;
-            }
+            $totalImpr = (int)$t_row['impressions'];
+            $totalClicks = (int)$t_row['clicks'];
 
-            $parentImpr = (int)($parent['impressions'] ?? 0);
-            $parentClicks = (int)($parent['clicks'] ?? 0);
+            $sumP_Impr = 0; $sumP_Clicks = 0;
+            $sumQ_Impr = 0; $sumQ_Clicks = 0;
+            $sumPQ_Impr = 0; $sumPQ_Clicks = 0;
 
-            $sumImpr = 0;
-            $sumClicks = 0;
-            foreach ($children as $child) {
-                $sumImpr += (int)($child['impressions'] ?? 0);
-                $sumClicks += (int)($child['clicks'] ?? 0);
-                $finalRecords[] = self::canonicalize($child, $allDimensions);
-            }
+            // A. Process Page Residuals (Known Page, Unknown Query)
+            if (isset($byPage[$hash])) {
+                foreach ($byPage[$hash] as $p_val => $p_row) {
+                    $sumP_Impr += (int)$p_row['impressions'];
+                    $sumP_Clicks += (int)$p_row['clicks'];
 
-            $residualImpr = max(0, $parentImpr - $sumImpr);
-            $residualClicks = max(0, $parentClicks - $sumClicks);
+                    $pq_sumImpr = 0; $pq_sumClicks = 0;
+                    if (isset($byPageQuery[$hash][$p_val])) {
+                        foreach ($byPageQuery[$hash][$p_val] as $pq_row) {
+                            $pq_sumImpr += (int)$pq_row['impressions'];
+                            $pq_sumClicks += (int)$pq_row['clicks'];
+                        }
+                    }
+                    
+                    $resImpr = max(0, (int)$p_row['impressions'] - $pq_sumImpr);
+                    $resClicks = max(0, (int)$p_row['clicks'] - $pq_sumClicks);
 
-            if ($residualImpr > 0 && $residualClicks > $residualImpr) {
-                $residualClicks = $residualImpr;
-            }
-
-            if ($residualImpr > 0 || $residualClicks > 0) {
-                // Create synthetic UNKNOWN record
-                $outputKeys = [];
-                foreach ($allDimensions as $dim) {
-                    if ($dim === 'query') {
-                        $outputKeys[] = self::$defaultValues['query'];
-                    } else {
-                        $outputKeys[] = $k4d[$dim] ?? 'unknown';
+                    if ($resImpr > 0 || $resClicks > 0) {
+                        $finalRecords[] = self::createSynthetic($k, $p_val, self::$defaultValues['query'], $resImpr, $resClicks, $p_row['position'], $allDimensions);
                     }
                 }
+            }
 
-                $finalRecords[] = [
-                    'keys' => $outputKeys,
-                    'subset' => $allDimensions,
-                    'impressions' => $residualImpr,
-                    'clicks' => $residualClicks,
-                    'ctr' => ($residualImpr > 0) ? $residualClicks / $residualImpr : 0,
-                    'position' => $parent['position'] ?? null,
-                    'synthetic' => true,
-                ];
+            // B. Process Query Residuals (Known Query, Unknown Page)
+            if (isset($byQuery[$hash])) {
+                foreach ($byQuery[$hash] as $q_val => $q_row) {
+                    $sumQ_Impr += (int)$q_row['impressions'];
+                    $sumQ_Clicks += (int)$q_row['clicks'];
+
+                    $pq_sumImpr = 0; $pq_sumClicks = 0;
+                    if (isset($byPageQuery[$hash])) {
+                        foreach ($byPageQuery[$hash] as $p_queries) {
+                            if (isset($p_queries[$q_val])) {
+                                $pq_sumImpr += (int)$p_queries[$q_val]['impressions'];
+                                $pq_sumClicks += (int)$p_queries[$q_val]['clicks'];
+                            }
+                        }
+                    }
+
+                    $resImpr = max(0, (int)$q_row['impressions'] - $pq_sumImpr);
+                    $resClicks = max(0, (int)$q_row['clicks'] - $pq_sumClicks);
+
+                    if ($resImpr > 0 || $resClicks > 0) {
+                        $finalRecords[] = self::createSynthetic($k, $siteUrl, $q_val, $resImpr, $resClicks, $q_row['position'], $allDimensions);
+                    }
+                }
+            }
+
+            // C. The Grand Residual (Unknown Page, Unknown Query)
+            if (isset($byPageQuery[$hash])) {
+                foreach ($byPageQuery[$hash] as $p_queries) {
+                    foreach ($p_queries as $pq_row) {
+                        $sumPQ_Impr += (int)$pq_row['impressions'];
+                        $sumPQ_Clicks += (int)$pq_row['clicks'];
+                    }
+                }
+            }
+
+            $netKnownImpr = $sumP_Impr + $sumQ_Impr - $sumPQ_Impr;
+            $netKnownClicks = $sumP_Clicks + $sumQ_Clicks - $sumPQ_Clicks;
+
+            $grandResImpr = max(0, $totalImpr - $netKnownImpr);
+            $grandResClicks = max(0, $totalClicks - $netKnownClicks);
+
+            if ($grandResImpr > 0 || $grandResClicks > 0) {
+                $finalRecords[] = self::createSynthetic($k, $siteUrl, self::$defaultValues['query'], $grandResImpr, $grandResClicks, $t_row['position'], $allDimensions);
             }
         }
 
         return self::fillWithNullsAndFilter($finalRecords, $targetKeywords, $targetCountries);
+    }
+
+    /**
+     * 3-Level Hierarchical Reconciliation (Jars -> Glasses -> Drops)
+     *
+     * Subsets used:
+     * - T: (country, device) -> Anchor
+     * - P: (page, country, device) -> Level 1
+     * - PQ: (page, query, country, device) -> Level 2
+     *
+     * @param array $allRows
+     * @param array $targetKeywords
+     * @param array $targetCountries
+     * @param array $allDimensions
+     * @return array
+     */
+    public static function getFinalRecordsHierarchical(
+        array $allRows,
+        array $targetKeywords,
+        array $targetCountries,
+        array $allDimensions
+    ): array {
+        $finalRecords = [];
+        $siteUrl = self::$defaultValues['page'];
+
+        $groups = [];
+        foreach ($allRows as $row) {
+            $subset = $row['subset'] ?? [];
+            $flipped = array_flip($subset);
+            $date = $row['keys'][$flipped['date']] ?? 'unknown';
+            $country = $row['keys'][$flipped['country']] ?? 'UNK';
+            $device = $row['keys'][$flipped['device']] ?? 'unknown';
+            $page = $row['keys'][$flipped['page']] ?? $siteUrl;
+
+            $groupKey = "{$date}|{$country}|{$device}";
+            $pageKey = "{$date}|{$page}|{$country}|{$device}";
+
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = ['row' => null, 'pages' => [], 'k' => ['date' => $date, 'country' => $country, 'device' => $device]];
+            }
+
+            if (count($subset) === 3) {
+                $groups[$groupKey]['row'] = $row;
+            } elseif (count($subset) === 4) {
+                $groups[$groupKey]['pages'][$pageKey] = ['row' => $row, 'queries' => []];
+            } else {
+                if (!isset($groups[$groupKey]['pages'][$pageKey])) {
+                    $groups[$groupKey]['pages'][$pageKey] = ['row' => null, 'queries' => []];
+                }
+                $groups[$groupKey]['pages'][$pageKey]['queries'][] = $row;
+            }
+        }
+
+        foreach ($groups as $group) {
+            $t_row = $group['row'];
+            $k = $group['k'];
+            $sumPageImpr = 0; $sumPageClicks = 0;
+
+            foreach ($group['pages'] as $p_key => $p_data) {
+                $p_row = $p_data['row'];
+                if (!$p_row) continue;
+
+                $sumPageImpr += (int)$p_row['impressions'];
+                $sumPageClicks += (int)$p_row['clicks'];
+
+                $sumQImpr = 0; $sumQClicks = 0;
+                foreach ($p_data['queries'] as $q_row) {
+                    $sumQImpr += (int)$q_row['impressions'];
+                    $sumQClicks += (int)$q_row['clicks'];
+                    $finalRecords[] = self::canonicalize($q_row, $allDimensions);
+                }
+
+                $resImpr = max(0, (int)$p_row['impressions'] - $sumQImpr);
+                $resClicks = max(0, (int)$p_row['clicks'] - $sumQClicks);
+                if ($resImpr > 0 || $resClicks > 0) {
+                    $p_val = explode('|', $p_key)[1];
+                    $finalRecords[] = self::createSynthetic($k, $p_val, self::$defaultValues['query'], $resImpr, $resClicks, $p_row['position'], $allDimensions);
+                }
+            }
+
+            if ($t_row) {
+                $resImpr = max(0, (int)$t_row['impressions'] - $sumPageImpr);
+                $resClicks = max(0, (int)$t_row['clicks'] - $sumPageClicks);
+                if ($resImpr > 0 || $resClicks > 0) {
+                    $finalRecords[] = self::createSynthetic($k, $siteUrl, self::$defaultValues['query'], $resImpr, $resClicks, $t_row['position'], $allDimensions);
+                }
+            }
+        }
+
+        return self::fillWithNullsAndFilter($finalRecords, $targetKeywords, $targetCountries);
+    }
+
+    /**
+     * Helper to create a synthetic record.
+     */
+    private static function createSynthetic(array $k, ?string $page, string $query, int $impr, int $clicks, $pos, array $allDims): array
+    {
+        $keys = [];
+        foreach ($allDims as $dim) {
+            if ($dim === 'date') $keys[] = $k['date'];
+            elseif ($dim === 'country') $keys[] = $k['country'];
+            elseif ($dim === 'device') $keys[] = $k['device'];
+            elseif ($dim === 'page') $keys[] = $page;
+            elseif ($dim === 'query') $keys[] = $query;
+            elseif ($dim === 'searchAppearance') $keys[] = self::$defaultValues['searchAppearance'];
+            else $keys[] = 'unknown';
+        }
+
+        return [
+            'keys' => $keys,
+            'subset' => $allDims,
+            'impressions' => $impr,
+            'clicks' => $clicks,
+            'ctr' => ($impr > 0) ? $clicks / $impr : 0,
+            'position' => $pos,
+            'synthetic' => true,
+        ];
     }
 
     /**

@@ -546,18 +546,26 @@
 
             $finalRows = [];
 
-            // --- PASS 1: Hierarchical Query Data (Additive & Non-Inflated) ---
-            // Anchor: 4D (date, page, country, device)
-            // Detail: 5D (date, page, query, country, device)
+            // --- PASS 1: Hierarchical / Inclusion-Exclusion Data (Additive & Non-Inflated) ---
+            // Subsets: 
+            // - T: (date, country, device)
+            // - P: (date, page, country, device)
+            // - Q: (date, query, country, device)
+            // - PQ: (date, page, query, country, device)
             // Note: We fix searchAppearance to 'standard' for these rows to ensure additivity.
             
             $hierarchicalSubsets = $calculateSynthetics
-                ? [['country', 'device'], ['query', 'country', 'device']] // 4D and 5D
-                : [['query', 'country', 'device']]; // Only 5D
+                ? [
+                    ['country', 'device'],
+                    ['page', 'country', 'device'],
+                    ['query', 'country', 'device'],
+                    ['page', 'query', 'country', 'device']
+                ]
+                : [['page', 'query', 'country', 'device']]; // Only PQ if no synthetics
 
             $pass1Rows = [];
             foreach ($hierarchicalSubsets as $dimensionsSubset) {
-                $requestedDimensions = array_merge(['date', 'page'], $dimensionsSubset);
+                $requestedDimensions = array_merge(['date'], $dimensionsSubset);
                 $actualDimensionsSubset = [];
                 foreach (self::$allDimensions as $dim) {
                     if (in_array($dim, $requestedDimensions)) {
