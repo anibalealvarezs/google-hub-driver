@@ -696,7 +696,13 @@ function renderTable(data, dimKey) {
     const maxImps = Math.max(...data.map((d) => d.impressions || 0), 1);
 
     data.forEach((row) => {
-        const dimValue = row[dimKey] || "Unknown";
+        const dimValue = row[dimKey];
+        
+        // Only hide if the CURRENT dimension we are grouping by is unknown/null
+        // This preserves hierarchical residuals (e.g., a known Page with an unknown Query)
+        if (dimValue === null || dimValue === undefined || dimValue === 'unknown' || dimValue === 'UNK' || dimValue === 'null') {
+            return;
+        }
         const tr = document.createElement("tr");
 
         const tabConfigs = {

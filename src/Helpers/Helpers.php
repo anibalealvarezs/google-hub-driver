@@ -10,7 +10,7 @@ class Helpers
 {
     public static array $defaultValues = [
         'query' => 'unknown',
-        'country' => 'UNK',
+        'country' => 'unk',
         'page' => null,
         'device' => 'unknown',
         'searchAppearance' => 'standard'
@@ -343,13 +343,6 @@ class Helpers
                     $residualImpressions -= $desc['residual_impressions'];
                     $residualClicks -= $desc['residual_clicks'];
                 }
-            }
-
-            // Clamp negatives (Google data inconsistency)
-            $residualImpressions = max(0, $residualImpressions);
-            $residualClicks = max(0, $residualClicks);
-            if ($residualImpressions > 0 && $residualClicks > $residualImpressions) {
-                $residualClicks = $residualImpressions;
             }
 
             $residuals[] = [
@@ -717,7 +710,13 @@ class Helpers
         }
 
         foreach ($parentIndexInChild as $i => $childIdx) {
-            if ($parentDims[$i] !== $childDims[$childIdx]) {
+            $pVal = $parentDims[$i];
+            $cVal = $childDims[$childIdx];
+            if (is_string($pVal) && is_string($cVal)) {
+                if (strtolower($pVal) !== strtolower($cVal)) {
+                    return false;
+                }
+            } elseif ($pVal !== $cVal) {
                 return false;
             }
         }

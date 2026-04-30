@@ -65,7 +65,7 @@
                     ['dimensionKey' => 'page', 'dimensionValue' => $dimensionValues['page'] ?? null],
                     ['dimensionKey' => 'query', 'dimensionValue' => $dimensionValues['query'] ?? null],
                     ['dimensionKey' => 'country', 'dimensionValue' => $dimensionValues['country'] ?? 'UNK'],
-                    ['dimensionKey' => 'device', 'dimensionValue' => strtolower((string)($dimensionValues['device'] ?? 'unknown'))],
+                    ['dimensionKey' => 'device', 'dimensionValue' => (string)($dimensionValues['device'] ?? 'unknown')],
                     ['dimensionKey' => 'searchAppearance', 'dimensionValue' => $dimensionValues['searchAppearance'] ?? 'standard'],
                 ];
                 $dimensionsHash = KeyGenerator::generateDimensionsHash($dimensions);
