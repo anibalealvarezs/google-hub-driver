@@ -437,8 +437,8 @@
                     $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console', 'Google', 'google']]) ?? [];
                 }
 
-                $startDateStr = $startDate->format('Y-m-d');
-                $endDateStr = $endDate->format('Y-m-d');
+                $startDateCarbon = Carbon::instance($startDate);
+                $endDateCarbon = Carbon::instance($endDate);
 
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
@@ -458,57 +458,70 @@
                     }
                     $siteKey = is_object($page) ? ($page->getCanonicalId() ?? $page->getPlatformId() ?? $siteUrl) : $siteUrl;
 
-                    if ($shouldContinue && !$shouldContinue()) {
-                        throw new Exception("Sync aborted by the orchestrator.");
-                    }
+                    // CHUNKING: Process in 7-day windows to balance Privacy Thresholds vs Memory/DB performance
+                    $chunkStart = clone $startDateCarbon;
+                    while ($chunkStart <= $endDateCarbon) {
+                        $chunkEnd = (clone $chunkStart)->addDays(6);
+                        if ($chunkEnd > $endDateCarbon) $chunkEnd = clone $endDateCarbon;
 
-                    $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Periodo: $startDateStr a $endDateStr)");
+                        $chunkStartStr = $chunkStart->format('Y-m-d');
+                        $chunkEndStr = $chunkEnd->format('Y-m-d');
 
-                    try {
-                        // FETCH IN BULK (One call per subset for the whole period)
-                        $rows = $this->fetchGSCPeriodData(
-                            api: $api,
-                            siteUrl: $siteUrl,
-                            startDate: $startDateStr,
-                            endDate: $endDateStr,
-                            rowLimit: $rowLimit,
-                            calculateSynthetics: $calculateSynthetics
-                        );
-
-                        if (empty($rows)) {
-                            $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl");
-                            continue;
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new Exception("Sync aborted by the orchestrator.");
                         }
 
-                        $mainAccount = $accountMap['Google Search Console'] ?? $accountMap['Google'] ?? $accountMap['google'] ?? ($config['accounts_group_name'] ?? 'Default');
-                        $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
-                        $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : (method_exists($caObject, 'getContext') ? ($caObject->getContext()['account'] ?? $mainAccount) : $mainAccount);
+                        $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Ventana: $chunkStartStr a $chunkEndStr)");
 
-                        $collection = GoogleSearchConsoleConvert::metrics(
-                            rows: $rows,
-                            siteUrl: $siteUrl,
-                            siteKey: $siteKey,
-                            logger: $this->logger,
-                            page: $page,
-                            channeledAccount: $caObject,
-                            account: $accObject
-                        );
+                        try {
+                            // FETCH IN BULK FOR THE CHUNK
+                            $rows = $this->fetchGSCPeriodData(
+                                api: $api,
+                                siteUrl: $siteUrl,
+                                startDate: $chunkStartStr,
+                                endDate: $chunkEndStr,
+                                rowLimit: $rowLimit,
+                                calculateSynthetics: $calculateSynthetics
+                            );
 
-                        if ($this->dataProcessor && $collection->count() > 0) {
-                            $this->validateHierarchicalIntegrity(collection: $collection, type: HierarchyType::PAGE);
+                            if (empty($rows)) {
+                                $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl ($chunkStartStr a $chunkEndStr)");
+                                $chunkStart->addDays(7);
+                                continue;
+                            }
 
-                            $result = ($this->dataProcessor)($collection, $this->logger);
+                            $mainAccount = $accountMap['Google Search Console'] ?? $accountMap['Google'] ?? $accountMap['google'] ?? ($config['accounts_group_name'] ?? 'Default');
+                            $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
+                            $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : (method_exists($caObject, 'getContext') ? ($caObject->getContext()['account'] ?? $mainAccount) : $mainAccount);
 
-                            $totalStats['metrics'] += $result['metrics'] ?? 0;
-                            $totalStats['rows'] += count($rows);
-                            $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                            $collection = GoogleSearchConsoleConvert::metrics(
+                                rows: $rows,
+                                siteUrl: $siteUrl,
+                                siteKey: $siteKey,
+                                logger: $this->logger,
+                                page: $page,
+                                channeledAccount: $caObject,
+                                account: $accObject
+                            );
 
-                            $this->logger?->info("+++ ÉXITO: Sincronizados " . count($rows) . " registros GSC para $siteUrl");
+                            if ($this->dataProcessor && $collection->count() > 0) {
+                                $this->validateHierarchicalIntegrity(collection: $collection, type: HierarchyType::PAGE);
+
+                                $result = ($this->dataProcessor)($collection, $this->logger);
+
+                                $totalStats['metrics'] += $result['metrics'] ?? 0;
+                                $totalStats['rows'] += count($rows);
+                                $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+
+                                $this->logger?->info("+++ ÉXITO: Sincronizados " . count($rows) . " registros GSC para $siteUrl");
+                            }
+                        } catch (Exception $e) {
+                            $this->logger?->error("!!! ERROR: Fallo al sincronizar ventana $chunkStartStr a $chunkEndStr para $siteUrl: ".$e->getMessage());
+                            if ($this->isAuthenticationError($e)) throw $e;
+                            // For other errors, we continue with next chunk
                         }
-                    } catch (Exception $e) {
-                        $this->logger?->error("!!! ERROR: Fallo al sincronizar GSC para $siteUrl: ".$e->getMessage());
-                        if ($this->isAuthenticationError($e)) throw $e;
-                        continue;
+
+                        $chunkStart->addDays(7);
                     }
                 }
 
