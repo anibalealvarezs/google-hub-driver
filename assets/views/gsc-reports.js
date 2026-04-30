@@ -369,9 +369,9 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
 
     // Ensure we only sum 'standard' data unless we are specifically looking at appearances
     // This prevents double-counting parallel Möbius/Appearance datasets
-    const isAppearanceQuery = groupBy.some(g => g.includes('search_appearance'));
-    if (!isAppearanceQuery && !cleanFilters['dimensions.search_appearance']) {
-        body.filters['dimensions.search_appearance'] = 'standard';
+    const isAppearanceQuery = groupBy.some(g => g.includes('searchAppearance'));
+    if (!isAppearanceQuery && !cleanFilters['dimensions.searchAppearance']) {
+        body.filters['dimensions.searchAppearance'] = 'standard';
     }
 
     metrics.forEach((m) => (body.aggregations[m] = m));
@@ -562,7 +562,7 @@ async function loadTabContent(tab, options = {}) {
         countries: {groupBy: ["country"], label: "Country"},
         devices: {groupBy: ["device"], label: "Device"},
         appearances: {
-            groupBy: ["dimensions.search_appearance"],
+            groupBy: ["dimensions.searchAppearance"],
             label: "Search Appearance",
         },
     };
@@ -618,7 +618,7 @@ async function loadTabContent(tab, options = {}) {
 
         // Filter out 'standard' from the Appearances tab to show only specific types
         if (t === 'appearances') {
-            rows = rows.filter(r => r['dimensions.search_appearance'] !== 'standard');
+            rows = rows.filter(r => r['dimensions.searchAppearance'] !== 'standard');
         }
 
         currentTabData = rows;
@@ -705,7 +705,7 @@ function renderTable(data, dimKey) {
             countries: {groupBy: ["country"], label: "Country"},
             devices: {groupBy: ["device"], label: "Device"},
             appearances: {
-                groupBy: ["dimensions.search_appearance"],
+                groupBy: ["dimensions.searchAppearance"],
                 label: "Search Appearance",
             },
         };
