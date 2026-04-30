@@ -557,78 +557,104 @@
             int    $rowLimit = 25000,
             bool   $calculateSynthetics = true
         ): array {
-            // Möbius Reconciliation Dimensions (5 standard)
+            $finalRows = [];
+            $current = Carbon::parse($startDate);
+            $end = Carbon::parse($endDate);
+
+            while ($current <= $end) {
+                $dayStr = $current->format('Y-m-d');
+                $this->logger?->info(">>> Fetching GSC Data for Date: $dayStr");
+                
+                $dayRows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $rowLimit, $calculateSynthetics);
+                $finalRows = array_merge($finalRows, $dayRows);
+                
+                $current->addDay();
+            }
+
+            return $finalRows;
+        }
+
+        /**
+         * Fetches and reconciles all GSC data for a single day using the Power Set of dimensions.
+         */
+        protected function fetchGSCDailyData(
+            object $api,
+            string $siteUrl,
+            string $date,
+            int    $rowLimit = 25000,
+            bool   $calculateSynthetics = true
+        ): array {
+            $baseDimensions = ['query', 'country', 'page', 'device'];
             $reconcileDimensions = ['date', 'query', 'country', 'page', 'device'];
 
-            $hierarchicalSubsets = $calculateSynthetics
-                ? [
-                    [],                                     // S0: Absolute Property Truth
-                    ['page'],                               // S1: Page-level Truth
-                    ['query'],                              // S2: Query-level Truth
-                    ['country'],                            // S3: Geo-level Truth
-                    ['device'],                             // S4: Device-level Truth
-                    ['page', 'query', 'country', 'device']   // S5: Granular Intersection Detail
-                ]
-                : [['page', 'query', 'country', 'device']];
-
-            $pass1Rows = [];
-            foreach ($hierarchicalSubsets as $dimensionsSubset) {
-                $actualDimensionsSubset = [];
-                foreach ($reconcileDimensions as $dim) {
-                    if ($dim === 'date' || in_array($dim, $dimensionsSubset)) {
-                        $actualDimensionsSubset[] = $dim;
+            // 1. Generate Power Set of dimensions (2^4 = 16 combinations)
+            // This ensures we capture EVERY level of knowledge provided by Google.
+            $subsetsToFetch = [[]]; // Start with S0: [date]
+            if ($calculateSynthetics) {
+                $numDims = count($baseDimensions);
+                for ($i = 1; $i < (1 << $numDims); $i++) {
+                    $subset = [];
+                    for ($j = 0; $j < $numDims; $j++) {
+                        if ($i & (1 << $j)) {
+                            $subset[] = $baseDimensions[$j];
+                        }
                     }
+                    $subsetsToFetch[] = $subset;
                 }
+            } else {
+                $subsetsToFetch[] = $baseDimensions;
+            }
 
-                $rows = $this->fetchWithRetry($api, $siteUrl, $startDate, $endDate, $actualDimensionsSubset, $rowLimit);
+            // 2. Fetch all combinations for this specific day
+            $dayRows = [];
+            foreach ($subsetsToFetch as $dimSubset) {
+                $actualDims = array_merge(['date'], $dimSubset);
+                $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, $actualDims, $rowLimit);
                 foreach ($rows as $row) {
-                    $pass1Rows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
+                    $dayRows[] = array_merge($row, ['subset' => $actualDims]);
                 }
             }
 
-            // Perform Multi-Anchor Reconciliation (Möbius Inversion) on 5 dimensions
+            if (empty($dayRows)) return [];
+
+            // 3. Perform Möbius Reconciliation (Daily Truth)
+            // This will calculate residuals for each level of the power set.
             $reconciledRows = Helpers::getFinalRecords(
-                $pass1Rows,
+                $dayRows,
                 $calculateSynthetics ? ['query'] : [],
                 $calculateSynthetics ? ['country'] : [],
                 $reconcileDimensions
             );
 
-            // Expand reconciled rows to 6 dimensions (adding searchAppearance = standard)
-            $finalRows = [];
+            // 4. Format and add Search Appearance (Standard)
+            $finalDayRows = [];
             foreach ($reconciledRows as $row) {
-                $row['keys'][] = 'standard'; // Add searchAppearance default
+                $row['keys'][] = 'standard';
                 $row['subset'][] = 'searchAppearance';
-                $finalRows[] = $row;
+                $finalDayRows[] = $row;
             }
 
-            // Pass 2: Search Appearance (MUST be daily loop as per GSC API restrictions)
-            $current = Carbon::parse($startDate);
-            $end = Carbon::parse($endDate);
-            while ($current <= $end) {
-                $dayStr = $current->format('Y-m-d');
-                $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $dayStr, ['searchAppearance'], $rowLimit);
-                foreach ($appearanceRows as $row) {
-                    $finalRows[] = [
-                        'keys' => [
-                            $dayStr,                                // date
-                            Helpers::$defaultValues['query'],       // query
-                            Helpers::$defaultValues['country'],     // country
-                            $siteUrl,                               // page
-                            Helpers::$defaultValues['device'],      // device
-                            $row['keys'][0]                         // searchAppearance
-                        ],
-                        'clicks' => $row['clicks'],
-                        'impressions' => $row['impressions'],
-                        'ctr' => $row['ctr'],
-                        'position' => $row['position'],
-                        'subset' => self::$allDimensions
-                    ];
-                }
-                $current->addDay();
+            // Pass 2: Search Appearance (Daily loop required by API)
+            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
+            foreach ($appearanceRows as $row) {
+                $finalDayRows[] = [
+                    'keys' => [
+                        $date,
+                        Helpers::$defaultValues['query'],
+                        Helpers::$defaultValues['country'],
+                        $siteUrl,
+                        Helpers::$defaultValues['device'],
+                        $row['keys'][0]
+                    ],
+                    'clicks' => $row['clicks'],
+                    'impressions' => $row['impressions'],
+                    'ctr' => $row['ctr'],
+                    'position' => $row['position'],
+                    'subset' => self::$allDimensions
+                ];
             }
 
-            return $finalRows;
+            return $finalDayRows;
         }
 
         /**

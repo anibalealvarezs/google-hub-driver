@@ -400,9 +400,7 @@ class Helpers
             ];
         }
 
-        $finalRecords = self::normalizeRecords($finalRecords);
-
-        return self::fillWithNullsAndFilter($finalRecords, $targetKeywords, $targetCountries);
+        return $finalRecords;
     }
 
     public static function allocatePositiveDifferences(
