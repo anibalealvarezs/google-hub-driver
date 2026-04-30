@@ -415,7 +415,10 @@
                 $api = $this->initializeApi($config);
                 $totalStats = ['metrics' => 0, 'rows' => 0, 'duplicates' => 0];
 
-                $sitesToProcess = $config['sites'] ?? $config[GoogleChannel::SEARCH_CONSOLE->value]['sites'] ?? [];
+                $chanCfg = $config[GoogleChannel::SEARCH_CONSOLE->value] ?? [];
+                $sitesToProcess = $config['sites'] ?? $chanCfg['sites'] ?? [];
+                $rowLimit = $chanCfg['row_limit'] ?? 25000;
+                $calculateSynthetics = filter_var($chanCfg['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
                 // 1. Batch Resolve Identities via Oracle
                 $pageMap = [];
@@ -434,6 +437,9 @@
                     $accountMap = $identityMapper('accounts', ['names' => ['Google Search Console', 'Google', 'google']]) ?? [];
                 }
 
+                $startDateStr = $startDate->format('Y-m-d');
+                $endDateStr = $endDate->format('Y-m-d');
+
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
                     if (!($site['enabled'] ?? true) && is_array($site)) continue;
@@ -446,79 +452,63 @@
 
                     $caPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                     $ca = $caMap[$caPlatformId] ?? null;
-                    if (!is_object($ca)) {
-                        $ca = (new UniversalEntity())->setPlatformId($caPlatformId);
-                    }
-
-                    if (!$pLevel && is_object($ca) && method_exists($ca, 'getData')) {
-                        $pLevel = $ca->getData()['permissionLevel'] ?? null;
-                        if (in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
-                            $this->logger?->warning("--- SKIP: Permission insufficient for $siteUrl ($pLevel) [from metadata]");
-                            continue;
-                        }
-                    }
                     $page = $pageMap[$caPlatformId] ?? null;
                     if (!is_object($page)) {
                         $page = (new UniversalEntity())->setPlatformId($caPlatformId);
                     }
                     $siteKey = is_object($page) ? ($page->getCanonicalId() ?? $page->getPlatformId() ?? $siteUrl) : $siteUrl;
 
+                    if ($shouldContinue && !$shouldContinue()) {
+                        throw new Exception("Sync aborted by the orchestrator.");
+                    }
+
+                    $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Periodo: $startDateStr a $endDateStr)");
+
                     try {
-                        $period = Carbon::instance($startDate)->toPeriod($endDate, '1 day');
-                        foreach ($period as $day) {
-                            if ($shouldContinue && !$shouldContinue()) {
-                                throw new Exception("Sync aborted by the orchestrator.");
-                            }
-                            $dayStr = $day->format('Y-m-d');
-                            $this->logger?->info(">>> INICIO: Sincronizando GSC para Sitio: $siteUrl (Día: $dayStr)");
-                            $rows = $this->fetchGSCDailyData(
-                                api: $api,
-                                siteUrl: $siteUrl,
-                                dayStr: $dayStr,
-                                config: $config,
-                                targetKeywords: $site['target_keywords'] ?? [],
-                                targetCountries: $site['target_countries'] ?? []
-                            );
+                        // FETCH IN BULK (One call per subset for the whole period)
+                        $rows = $this->fetchGSCPeriodData(
+                            api: $api,
+                            siteUrl: $siteUrl,
+                            startDate: $startDateStr,
+                            endDate: $endDateStr,
+                            rowLimit: $rowLimit,
+                            calculateSynthetics: $calculateSynthetics
+                        );
 
-                            if (empty($rows)) {
-                                $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl (Día: $dayStr)");
-                                continue;
-                            }
+                        if (empty($rows)) {
+                            $this->logger?->info("--- INFO: No se encontraron datos GSC para Sitio: $siteUrl");
+                            continue;
+                        }
 
-                            $mainAccount = $accountMap['Google Search Console'] ?? $accountMap['Google'] ?? $accountMap['google'] ?? ($config['accounts_group_name'] ?? 'Default');
-                            $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
-                            if (is_object($caObject) && method_exists($caObject, 'getContext') && !($caObject->getContext()['account'] ?? null)) {
-                                if (method_exists($caObject, 'setContext')) {
-                                    $caObject->setContext(array_merge($caObject->getContext(), ['account' => $mainAccount]));
-                                }
-                            }
-                            $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : (method_exists($caObject, 'getContext') ? ($caObject->getContext()['account'] ?? $mainAccount) : $mainAccount);
+                        $mainAccount = $accountMap['Google Search Console'] ?? $accountMap['Google'] ?? $accountMap['google'] ?? ($config['accounts_group_name'] ?? 'Default');
+                        $caObject = is_object($ca) ? $ca : (new UniversalEntity())->setPlatformId($caPlatformId);
+                        $accObject = (is_object($caObject) && method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : (method_exists($caObject, 'getContext') ? ($caObject->getContext()['account'] ?? $mainAccount) : $mainAccount);
 
-                            $collection = GoogleSearchConsoleConvert::metrics(
-                                rows: $rows,
-                                siteUrl: $siteUrl,
-                                siteKey: $siteKey,
-                                logger: $this->logger,
-                                page: $page,
-                                channeledAccount: $caObject,
-                                account: $accObject
-                            );
+                        $collection = GoogleSearchConsoleConvert::metrics(
+                            rows: $rows,
+                            siteUrl: $siteUrl,
+                            siteKey: $siteKey,
+                            logger: $this->logger,
+                            page: $page,
+                            channeledAccount: $caObject,
+                            account: $accObject
+                        );
 
-                            if ($this->dataProcessor && $collection->count() > 0) {
-                                $this->validateHierarchicalIntegrity(collection: $collection, type: HierarchyType::PAGE);
+                        if ($this->dataProcessor && $collection->count() > 0) {
+                            $this->validateHierarchicalIntegrity(collection: $collection, type: HierarchyType::PAGE);
 
-                                $result = ($this->dataProcessor)($collection, $this->logger);
+                            $result = ($this->dataProcessor)($collection, $this->logger);
 
-                                $totalStats['metrics'] += $result['metrics'] ?? 0;
-                                $totalStats['rows'] += $rowCount = count($rows);
-                                $totalStats['duplicates'] += $result['duplicates'] ?? 0;
+                            $totalStats['metrics'] += $result['metrics'] ?? 0;
+                            $totalStats['rows'] += count($rows);
+                            $totalStats['duplicates'] += $result['duplicates'] ?? 0;
 
-                                $this->logger?->info("+++ ÉXITO: Sincronizados $rowCount registros GSC para $siteUrl el $dayStr");
-                            }
+                            $this->logger?->info("+++ ÉXITO: Sincronizados " . count($rows) . " registros GSC para $siteUrl");
                         }
                     } catch (Exception $e) {
                         $this->logger?->error("!!! ERROR: Fallo al sincronizar GSC para $siteUrl: ".$e->getMessage());
-                        throw $e;
+                        if ($this->isAuthenticationError($e)) throw $e;
+                        continue;
                     }
                 }
 
@@ -530,7 +520,7 @@
 
             } catch (Exception $e) {
                 if ($this->isAuthenticationError($e)) {
-                    $this->logger?->critical("!!!! ERROR CRÍTICO DE AUTENTICACIÓN: SearchConsoleDriver falló debido a un token inválido o expirado. Se requiere re-autenticación manual vía UI: ".$e->getMessage());
+                    $this->logger?->critical("!!!! ERROR CRÍTICO DE AUTENTICACIÓN: SearchConsoleDriver falló debido a un token inválido o expirado: ".$e->getMessage());
                     return new Response(json_encode([
                         'status' => 'error',
                         'message' => 'Authentication failed. Please re-authenticate.',
@@ -546,90 +536,64 @@
         /**
          * @throws GuzzleException
          */
-        private function fetchGSCDailyData(
-            SearchConsoleApi $api,
-            string           $siteUrl,
-            string           $dayStr,
-            array            $config,
-            array            $targetKeywords,
-            array            $targetCountries,
-        ): array
-        {
-            $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
-            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
-            $finalRows = [];
-
-            // --- PASS 1: Multi-Anchor Data (Hierarchical Lattice) ---
-            // Subsets for Möbius Inversion:
-            // - S0: (date) -> Absolute Truth
-            // - S1: (date, page) -> Page Truth
-            // - S2: (date, query) -> Query Truth
-            // - S3: (date, country, device) -> Geo/Device Truth
-            // - S4: (date, page, query, country, device) -> Intersection Detail
-            
+        protected function fetchGSCPeriodData(
+            object $api,
+            string $siteUrl,
+            string $startDate,
+            string $endDate,
+            int    $rowLimit = 25000,
+            bool   $calculateSynthetics = true
+        ): array {
             $hierarchicalSubsets = $calculateSynthetics
                 ? [
                     [],                                     // S0: Absolute Property Truth
                     ['page'],                               // S1: Page-level Truth
                     ['query'],                              // S2: Query-level Truth
-                    ['country'],                            // S3: Geo-level Truth (Fixes USA mismatch)
+                    ['country'],                            // S3: Geo-level Truth
                     ['device'],                             // S4: Device-level Truth
                     ['page', 'query', 'country', 'device']   // S5: Granular Intersection Detail
                 ]
-                : [['page', 'query', 'country', 'device']]; // Only PQ if no synthetics
+                : [['page', 'query', 'country', 'device']];
 
             $pass1Rows = [];
             foreach ($hierarchicalSubsets as $dimensionsSubset) {
-                // We EXCLUDE 'date' from the API request to reduce privacy filtering,
-                // but we keep it in the 'subset' metadata for Mobius reconciliation.
                 $actualDimensionsSubset = [];
                 foreach (self::$allDimensions as $dim) {
-                    if (in_array($dim, $dimensionsSubset)) {
+                    if ($dim === 'date' || in_array($dim, $dimensionsSubset)) {
                         $actualDimensionsSubset[] = $dim;
                     }
                 }
 
-                $rows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
+                $rows = $this->fetchWithRetry($api, $siteUrl, $startDate, $endDate, $actualDimensionsSubset, $rowLimit);
                 foreach ($rows as $row) {
-                    // Manually prepend the date to keys to simulate a 'date' dimension response
-                    $row['keys'] = array_merge([$dayStr], $row['keys'] ?? []);
-                    // Ensure the subset metadata matches the physical order of keys
-                    $pass1Rows[] = array_merge($row, ['subset' => array_merge(['date'], $actualDimensionsSubset)]);
+                    $pass1Rows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
                 }
             }
 
-            if ($calculateSynthetics) {
-                $finalRows = Helpers::getFinalRecords($pass1Rows, $targetKeywords, $targetCountries, self::$allDimensions);
-            } else {
-                $finalRows = Helpers::fillWithNullsAndFilter($pass1Rows, $targetKeywords, $targetCountries);
-            }
+            $finalRows = Helpers::getFinalRecords(
+                $pass1Rows,
+                $calculateSynthetics ? ['query'] : [],
+                $calculateSynthetics ? ['country'] : [],
+                self::$allDimensions
+            );
 
-            // --- PASS 2: Search Appearance Data (Property-Level) ---
-            // Subset: 1D (searchAppearance)
-            // Note: GSC API does not allow combining searchAppearance with other dimensions.
-            // We attribute these results to the site root URL.
-            
-            $actualDimensionsSubset = ['searchAppearance'];
-            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $actualDimensionsSubset, $rowLimit);
-
+            // Pass 2: Search Appearance
+            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $startDate, $endDate, ['date', 'searchAppearance'], $rowLimit);
             foreach ($appearanceRows as $row) {
-                // Manual 6D construction: ['date', 'query', 'country', 'page', 'device', 'searchAppearance']
                 $finalRows[] = [
                     'keys' => [
-                        $dayStr,                                // date
+                        $row['keys'][0],                        // date
                         Helpers::$defaultValues['query'],       // query
                         Helpers::$defaultValues['country'],     // country
-                        $siteUrl,                               // page (Attributed to Site Root)
+                        $siteUrl,                               // page
                         Helpers::$defaultValues['device'],      // device
-                        $row['keys'][0]                         // searchAppearance
+                        $row['keys'][1]                         // searchAppearance
                     ],
-                    'subset' => self::$allDimensions,
-                    'impressions' => $row['impressions'],
                     'clicks' => $row['clicks'],
+                    'impressions' => $row['impressions'],
                     'ctr' => $row['ctr'],
                     'position' => $row['position'],
-                    'synthetic' => false
+                    'subset' => self::$allDimensions
                 ];
             }
 
@@ -639,7 +603,7 @@
         /**
          * @throws GuzzleException
          */
-        private function fetchWithRetry(SearchConsoleApi $api, string $siteUrl, string $dayStr, array $dimensions, int $rowLimit): array
+        private function fetchWithRetry(SearchConsoleApi $api, string $siteUrl, string $startDate, string $endDate, array $dimensions, int $rowLimit): array
         {
             $maxRetries = 3;
             $retryCount = 0;
@@ -647,8 +611,8 @@
                 try {
                     $response = $api->getAllSearchQueryResults(
                         siteUrl: $siteUrl,
-                        startDate: $dayStr,
-                        endDate: $dayStr,
+                        startDate: $startDate,
+                        endDate: $endDate,
                         rowLimit: $rowLimit,
                         dimensions: $dimensions
                     );
@@ -663,68 +627,6 @@
                 }
             }
             return [];
-        }
-
-        /**
-         * @throws GuzzleException
-         */
-        private function fetchGSCDailyDataLegacy(
-            SearchConsoleApi $api,
-            string           $siteUrl,
-            string           $dayStr,
-            array            $config,
-            array            $targetKeywords,
-            array            $targetCountries,
-        ): array
-        {
-            $rowLimit = $config[GoogleChannel::SEARCH_CONSOLE->value]['row_limit'] ?? 25000;
-            $calculateSynthetics = filter_var($config[GoogleChannel::SEARCH_CONSOLE->value]['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
-            $subsetRows = [];
-
-            $dimensionsSubsets = $calculateSynthetics
-                ? $this->getAllSubsets(self::$optionalDimensions)
-                : [self::$optionalDimensions];
-
-            foreach ($dimensionsSubsets as $dimensionsSubset) {
-                $actualDimensionsSubset = array_merge(array_diff(self::$allDimensions, self::$optionalDimensions), $dimensionsSubset);
-
-                $maxRetries = 3;
-                $retryCount = 0;
-                $fetched = false;
-
-                while ($retryCount < $maxRetries && !$fetched) {
-                    try {
-                        $rows = $api->getAllSearchQueryResults(
-                            siteUrl: $siteUrl,
-                            startDate: $dayStr,
-                            endDate: $dayStr,
-                            rowLimit: $rowLimit,
-                            dimensions: $actualDimensionsSubset
-                        );
-
-                        if (!empty($rows['rows'])) {
-                            foreach ($rows['rows'] as $row) {
-                                $subsetRows[] = array_merge($row, ['subset' => $actualDimensionsSubset]);
-                            }
-                        }
-                        $fetched = true;
-                    } catch (Exception $e) {
-                        $retryCount++;
-                        if ($retryCount >= $maxRetries) throw $e;
-                        usleep(500000 * $retryCount);
-                    } catch (GuzzleException $e) {
-                        $retryCount++;
-                        if ($retryCount >= $maxRetries) throw $e;
-                    }
-                }
-            }
-
-            if ($calculateSynthetics) {
-                return Helpers::getFinalRecords($subsetRows, $targetKeywords, $targetCountries, self::$allDimensions);
-            }
-
-            return Helpers::fillWithNullsAndFilter($subsetRows, $targetKeywords, $targetCountries);
         }
 
         /**
