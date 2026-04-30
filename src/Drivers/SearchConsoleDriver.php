@@ -626,31 +626,24 @@
                 $reconcileDimensions
             );
 
-            // 4. Format and add Search Appearance (Standard)
-            $finalDayRows = [];
-            foreach ($reconciledRows as $row) {
-                $row['keys'][] = 'standard';
-                $row['subset'][] = 'searchAppearance';
-                $finalDayRows[] = $row;
-            }
+            // 4. Final normalization and add Search Appearance (Standard)
+            $finalDayRows = $reconciledRows;
 
             // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius/IPF)
             $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
             foreach ($appearanceRows as $row) {
                 $finalDayRows[] = [
-                    'keys' => [
-                        $date,
-                        Helpers::$defaultValues['query'],
-                        Helpers::$defaultValues['country'],
-                        Helpers::$defaultValues['page'] ?? $siteUrl,
-                        Helpers::$defaultValues['device'],
-                        $row['keys'][0] // Appearance Type
-                    ],
-                    'clicks' => $row['clicks'],
-                    'impressions' => $row['impressions'],
-                    'ctr' => $row['ctr'],
-                    'position' => $row['position'],
-                    'subset' => array_merge($reconcileDimensions, ['searchAppearance'])
+                    'date'             => $date,
+                    'query'            => Helpers::$defaultValues['query'],
+                    'country'          => Helpers::$defaultValues['country'],
+                    'device'           => Helpers::$defaultValues['device'],
+                    'page'             => Helpers::$defaultValues['page'] ?? $siteUrl,
+                    'searchAppearance' => $row['keys'][0] ?? 'standard',
+                    'clicks'           => $row['clicks'],
+                    'impressions'      => $row['impressions'],
+                    'ctr'              => $row['ctr'],
+                    'position'         => $row['position'],
+                    'synthetic'        => false
                 ];
             }
 

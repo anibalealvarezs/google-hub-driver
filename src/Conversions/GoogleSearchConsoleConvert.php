@@ -73,11 +73,6 @@
                     'country' => 'country',
                     'device'  => 'device',
                 ],
-                'row_entity_fields'    => [
-                    'query'   => 'query',
-                    'country' => 'country',
-                    'device'  => 'device',
-                ],
                 'fallback_platform_id' => $pagePlatformId,
             ], $logger);
 

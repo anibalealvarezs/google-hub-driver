@@ -514,24 +514,27 @@ class Helpers
 
             $ctr = $impressions > 0 ? $clicks / $impressions : 0.0;
 
-            $keys = [];
-            foreach ($allDimensions as $dim) {
-                if ($dim === 'date') {
-                    $keys[] = $date;
-                } else {
-                    $keys[] = $cell['dims'][$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
-                }
-            }
-
-            $records[] = [
-                'keys'        => $keys,
-                'subset'      => $allDimensions,
+            $record = [
+                'date'        => $date,
                 'impressions' => $impressions,
                 'clicks'      => $clicks,
                 'ctr'         => $ctr,
                 'position'    => $cell['position'],
                 'synthetic'   => $cell['synthetic'] ?? false,
             ];
+
+            foreach ($allDimensions as $dim) {
+                if ($dim !== 'date') {
+                    $val = $cell['dims'][$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
+                    // Normalize casing for system resolution
+                    if (in_array($dim, ['country', 'device'])) {
+                        $val = strtolower((string)$val);
+                    }
+                    $record[$dim] = $val;
+                }
+            }
+
+            $records[] = $record;
         }
 
         return $records;
