@@ -634,7 +634,7 @@
                 $finalDayRows[] = $row;
             }
 
-            // Pass 2: Search Appearance (Daily loop required by API)
+            // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius)
             $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
             foreach ($appearanceRows as $row) {
                 $finalDayRows[] = [
@@ -642,15 +642,15 @@
                         $date,
                         Helpers::$defaultValues['query'],
                         Helpers::$defaultValues['country'],
-                        $siteUrl,
+                        Helpers::$defaultValues['page'] ?? $siteUrl,
                         Helpers::$defaultValues['device'],
-                        $row['keys'][0]
+                        $row['keys'][0] // Appearance Type
                     ],
                     'clicks' => $row['clicks'],
                     'impressions' => $row['impressions'],
                     'ctr' => $row['ctr'],
                     'position' => $row['position'],
-                    'subset' => self::$allDimensions
+                    'subset' => array_merge($reconcileDimensions, ['searchAppearance'])
                 ];
             }
 

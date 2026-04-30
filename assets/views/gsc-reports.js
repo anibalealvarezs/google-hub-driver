@@ -367,6 +367,13 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
         endDate: end,
     };
 
+    // Ensure we only sum 'standard' data unless we are specifically looking at appearances
+    // This prevents double-counting parallel Möbius/Appearance datasets
+    const isAppearanceQuery = groupBy.some(g => g.includes('search_appearance'));
+    if (!isAppearanceQuery && !cleanFilters['dimensions.search_appearance']) {
+        body.filters['dimensions.search_appearance'] = 'standard';
+    }
+
     metrics.forEach((m) => (body.aggregations[m] = m));
 
     // Call /google_search_console/metric/aggregate
@@ -599,7 +606,7 @@ async function loadTabContent(tab, options = {}) {
     }
 
     try {
-        const rows = await fetchAggregation(
+        let rows = await fetchAggregation(
             ["clicks", "impressions", "ctr", "position"],
             groupBy,
             {page: propertyId},
@@ -608,6 +615,11 @@ async function loadTabContent(tab, options = {}) {
             {signal: activeTableController.signal},
         );
         if (!isLatestTableRequest(requestId)) return;
+
+        // Filter out 'standard' from the Appearances tab to show only specific types
+        if (t === 'appearances') {
+            rows = rows.filter(r => r['dimensions.search_appearance'] !== 'standard');
+        }
 
         currentTabData = rows;
         currentDimKey = groupBy[0];
