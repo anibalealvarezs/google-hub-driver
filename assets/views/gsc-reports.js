@@ -369,7 +369,7 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
 
     // Ensure we only sum 'standard' data unless we are specifically looking at appearances
     // This prevents double-counting parallel Möbius/Appearance datasets
-    const isAppearanceQuery = groupBy.some(g => g.includes('searchAppearance'));
+    const isAppearanceQuery = groupBy.some(g => g === 'dimensions.searchAppearance');
     if (!isAppearanceQuery && !cleanFilters['dimensions.searchAppearance']) {
         body.filters['dimensions.searchAppearance'] = 'standard';
     }
@@ -557,7 +557,7 @@ async function loadTabContent(tab, options = {}) {
     const t = (tab || "queries").trim().toLowerCase();
 
     const tabConfigs = {
-        queries: {groupBy: ["dimensions.query"], label: "Search Query"},
+        queries: {groupBy: ["query"], label: "Search Query"},
         pages: {groupBy: ["dimensions.page"], label: "Page URL"},
         countries: {groupBy: ["country"], label: "Country"},
         devices: {groupBy: ["device"], label: "Device"},
@@ -706,7 +706,7 @@ function renderTable(data, dimKey) {
         const tr = document.createElement("tr");
 
         const tabConfigs = {
-            queries: {groupBy: ["dimensions.query"], label: "Search Query"},
+            queries: {groupBy: ["query"], label: "Search Query"},
             pages: {groupBy: ["dimensions.page"], label: "Page URL"},
             countries: {groupBy: ["country"], label: "Country"},
             devices: {groupBy: ["device"], label: "Device"},
