@@ -557,6 +557,9 @@
             int    $rowLimit = 25000,
             bool   $calculateSynthetics = true
         ): array {
+            // Möbius Reconciliation Dimensions (5 standard)
+            $reconcileDimensions = ['date', 'query', 'country', 'page', 'device'];
+
             $hierarchicalSubsets = $calculateSynthetics
                 ? [
                     [],                                     // S0: Absolute Property Truth
@@ -571,7 +574,7 @@
             $pass1Rows = [];
             foreach ($hierarchicalSubsets as $dimensionsSubset) {
                 $actualDimensionsSubset = [];
-                foreach (self::$allDimensions as $dim) {
+                foreach ($reconcileDimensions as $dim) {
                     if ($dim === 'date' || in_array($dim, $dimensionsSubset)) {
                         $actualDimensionsSubset[] = $dim;
                     }
@@ -583,31 +586,46 @@
                 }
             }
 
-            $finalRows = Helpers::getFinalRecords(
+            // Perform Multi-Anchor Reconciliation (Möbius Inversion) on 5 dimensions
+            $reconciledRows = Helpers::getFinalRecords(
                 $pass1Rows,
                 $calculateSynthetics ? ['query'] : [],
                 $calculateSynthetics ? ['country'] : [],
-                self::$allDimensions
+                $reconcileDimensions
             );
 
-            // Pass 2: Search Appearance
-            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $startDate, $endDate, ['date', 'searchAppearance'], $rowLimit);
-            foreach ($appearanceRows as $row) {
-                $finalRows[] = [
-                    'keys' => [
-                        $row['keys'][0],                        // date
-                        Helpers::$defaultValues['query'],       // query
-                        Helpers::$defaultValues['country'],     // country
-                        $siteUrl,                               // page
-                        Helpers::$defaultValues['device'],      // device
-                        $row['keys'][1]                         // searchAppearance
-                    ],
-                    'clicks' => $row['clicks'],
-                    'impressions' => $row['impressions'],
-                    'ctr' => $row['ctr'],
-                    'position' => $row['position'],
-                    'subset' => self::$allDimensions
-                ];
+            // Expand reconciled rows to 6 dimensions (adding searchAppearance = standard)
+            $finalRows = [];
+            foreach ($reconciledRows as $row) {
+                $row['keys'][] = 'standard'; // Add searchAppearance default
+                $row['subset'][] = 'searchAppearance';
+                $finalRows[] = $row;
+            }
+
+            // Pass 2: Search Appearance (MUST be daily loop as per GSC API restrictions)
+            $current = Carbon::parse($startDate);
+            $end = Carbon::parse($endDate);
+            while ($current <= $end) {
+                $dayStr = $current->format('Y-m-d');
+                $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $dayStr, $dayStr, ['searchAppearance'], $rowLimit);
+                foreach ($appearanceRows as $row) {
+                    $finalRows[] = [
+                        'keys' => [
+                            $dayStr,                                // date
+                            Helpers::$defaultValues['query'],       // query
+                            Helpers::$defaultValues['country'],     // country
+                            $siteUrl,                               // page
+                            Helpers::$defaultValues['device'],      // device
+                            $row['keys'][0]                         // searchAppearance
+                        ],
+                        'clicks' => $row['clicks'],
+                        'impressions' => $row['impressions'],
+                        'ctr' => $row['ctr'],
+                        'position' => $row['position'],
+                        'subset' => self::$allDimensions
+                    ];
+                }
+                $current->addDay();
             }
 
             return $finalRows;
