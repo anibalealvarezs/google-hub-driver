@@ -367,12 +367,14 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
         endDate: end,
     };
 
-    // Ensure we only sum 'standard' data unless we are specifically looking at appearances
-    // This prevents double-counting parallel Möbius/Appearance datasets
-    const isAppearanceQuery = groupBy.some(g => g === 'dimensions.searchAppearance');
-    if (!isAppearanceQuery && !cleanFilters['dimensions.searchAppearance']) {
-        body.filters['dimensions.searchAppearance'] = 'standard';
-    }
+    // Ensure we only sum the specific subset we need to avoid double-counting
+    // (Solución Salomónica: total = sum where other dimensions are NULL)
+    const GSC_DIMENSIONS = ['query', 'country', 'device', 'dimensions.page', 'dimensions.searchAppearance'];
+    GSC_DIMENSIONS.forEach(dim => {
+        if (!groupBy.includes(dim) && !body.filters[dim]) {
+            body.filters[dim] = (dim === 'dimensions.searchAppearance') ? 'standard' : null;
+        }
+    });
 
     metrics.forEach((m) => (body.aggregations[m] = m));
 
