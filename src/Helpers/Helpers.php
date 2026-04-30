@@ -526,8 +526,10 @@ class Helpers
             foreach ($allDimensions as $dim) {
                 if ($dim !== 'date') {
                     $val = $cell['dims'][$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
-                    // Normalize casing for system resolution
-                    if (in_array($dim, ['country', 'device'])) {
+                    // Normalize casing for system resolution (Country: MEX, Device: desktop)
+                    if ($dim === 'country') {
+                        $val = strtoupper((string)$val);
+                    } elseif ($dim === 'device') {
                         $val = strtolower((string)$val);
                     }
                     $record[$dim] = $val;

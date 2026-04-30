@@ -635,8 +635,8 @@
                 $finalDayRows[] = [
                     'date'             => $date,
                     'query'            => Helpers::$defaultValues['query'],
-                    'country'          => Helpers::$defaultValues['country'],
-                    'device'           => Helpers::$defaultValues['device'],
+                    'country'          => strtoupper(Helpers::$defaultValues['country']),
+                    'device'           => strtolower(Helpers::$defaultValues['device']),
                     'page'             => Helpers::$defaultValues['page'] ?? $siteUrl,
                     'searchAppearance' => $row['keys'][0] ?? 'standard',
                     'clicks'           => $row['clicks'],
