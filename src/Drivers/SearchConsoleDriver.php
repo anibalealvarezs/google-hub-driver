@@ -634,7 +634,7 @@
                 $finalDayRows[] = $row;
             }
 
-            // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius)
+            // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius/IPF)
             $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
             foreach ($appearanceRows as $row) {
                 $finalDayRows[] = [
