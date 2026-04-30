@@ -32,7 +32,553 @@ class Helpers
         array $targetCountries,
         array $allDimensions
     ): array {
-        return self::getFinalRecordsLegacy($allRows, $targetKeywords, $targetCountries, $allDimensions);
+        return self::getFinalRecordsIPF($allRows, $targetKeywords, $targetCountries, $allDimensions);
+    }
+
+    // =========================================================================
+    // IPF / Raking Reconciliation (v4)
+    // =========================================================================
+
+    /**
+     * Iterative Proportional Fitting reconciliation.
+     *
+     * Treats all 16 dimension-subset totals as simultaneous constraints
+     * and iteratively scales 5D cells until convergence.
+     */
+    public static function getFinalRecordsIPF(
+        array $allRows,
+        array $targetKeywords,
+        array $targetCountries,
+        array $allDimensions,
+        float $tolerance = 0.001,
+        int   $maxIterations = 20
+    ): array {
+        // Group rows by date (IPF runs per-day)
+        $byDate = [];
+        foreach ($allRows as $row) {
+            $subset = $row['subset'] ?? [];
+            $flipped = array_flip($subset);
+            $date = $row['keys'][$flipped['date']] ?? null;
+            if ($date === null) continue;
+            $byDate[$date][] = $row;
+        }
+
+        $allFinal = [];
+        foreach ($byDate as $date => $dateRows) {
+            $reconciled = self::ipfReconcileDay(
+                $date, $dateRows, $allDimensions, $tolerance, $maxIterations
+            );
+            foreach ($reconciled as $r) {
+                $allFinal[] = $r;
+            }
+        }
+
+        return $allFinal;
+    }
+
+    /**
+     * Run IPF for a single day's data.
+     */
+    private static function ipfReconcileDay(
+        string $date,
+        array  $rows,
+        array  $allDimensions,
+        float  $tolerance,
+        int    $maxIterations
+    ): array {
+        $optionalDims = array_values(array_diff($allDimensions, ['date']));
+
+        // 1. Parse all subset data into constraints + initial 5D cube
+        [$constraints, $cube] = self::parseSubsetData($rows, $optionalDims);
+
+        // 2. Seed synthetic cells for marginal values not covered by 5D records
+        $cube = self::seedMissingCells($cube, $constraints, $optionalDims);
+
+        if (empty($cube)) return [];
+
+        // 3. Add explicit unknown-value constraints
+        //    If query marginal sums to 160 but S0=200, add query=unknown→40.
+        //    Without this, unknown cells don't participate in specific constraints
+        //    and IPF oscillates between S0 normalization and marginal fitting.
+        $constraints = self::addUnknownConstraints($constraints, $optionalDims);
+
+        // 4. Pre-normalize cube to S0 total
+        //    Seeds from overlapping constraints may sum to more than S0.
+        $globalConstraint = $constraints[''] ?? null;
+        if ($globalConstraint && !empty($globalConstraint['margins'])) {
+            $gm = reset($globalConstraint['margins']);
+            foreach (['impressions', 'clicks'] as $metric) {
+                $s0Val = (float)($gm[$metric] ?? 0);
+                if ($s0Val <= 0) continue;
+                $cubeTotal = 0.0;
+                foreach ($cube as $cell) {
+                    $cubeTotal += $cell[$metric];
+                }
+                if ($cubeTotal > 0 && abs($cubeTotal - $s0Val) > 0.5) {
+                    $factor = $s0Val / $cubeTotal;
+                    foreach ($cube as &$cell) {
+                        $cell[$metric] *= $factor;
+                    }
+                    unset($cell);
+                }
+            }
+        }
+
+        // 5. Run IPF — one pass for impressions, one for clicks
+        $cube = self::runIPFForMetric($cube, $constraints, $optionalDims, 'impressions', $tolerance, $maxIterations);
+        $cube = self::runIPFForMetric($cube, $constraints, $optionalDims, 'clicks', $tolerance, $maxIterations);
+
+        // 6. Convert to output records
+        return self::cubeToRecords($cube, $date, $allDimensions);
+    }
+
+    /**
+     * For each dimension where the 1D marginal doesn't cover S0 fully,
+     * add an explicit constraint for the "unknown" value so IPF can
+     * properly scale unknown cells instead of leaving them unanchored.
+     */
+    private static function addUnknownConstraints(array $constraints, array $optionalDims): array
+    {
+        $globalConstraint = $constraints[''] ?? null;
+        if (!$globalConstraint || empty($globalConstraint['margins'])) return $constraints;
+
+        $gm = reset($globalConstraint['margins']);
+        $s0Impr   = (float)($gm['impressions'] ?? 0);
+        $s0Clicks = (float)($gm['clicks'] ?? 0);
+
+        foreach ($optionalDims as $dim) {
+            $subsetKey = $dim;
+            if (!isset($constraints[$subsetKey])) continue;
+
+            // Sum known marginal values for this dimension
+            $knownImpr   = 0.0;
+            $knownClicks = 0.0;
+            foreach ($constraints[$subsetKey]['margins'] as $margin) {
+                $knownImpr   += (float)($margin['impressions'] ?? 0);
+                $knownClicks += (float)($margin['clicks'] ?? 0);
+            }
+
+            $unknownImpr   = $s0Impr - $knownImpr;
+            $unknownClicks = $s0Clicks - $knownClicks;
+
+            // Always add the unknown constraint.
+            // If gap > 0: IPF scales unknown cells to absorb the gap.
+            // If gap = 0: IPF zeros out any synthetic cells with the default value.
+            $unknownValue = self::$defaultValues[$dim] ?? 'unknown';
+            $marginKey = $dim . '=' . strtolower((string)$unknownValue);
+            $constraints[$subsetKey]['margins'][$marginKey] = [
+                'dims'        => [$dim => $unknownValue],
+                'impressions' => max(0, (int)round(max(0, $unknownImpr))),
+                'clicks'      => max(0, (int)round(max(0, $unknownClicks))),
+                'position'    => null,
+            ];
+        }
+
+        return $constraints;
+    }
+
+    /**
+     * Parse rows into a constraints map and an initial 5D cube.
+     *
+     * @return array{0: array, 1: array}  [constraints, cube]
+     */
+    private static function parseSubsetData(array $rows, array $optionalDims): array
+    {
+        $constraints = []; // subsetKey => {dims: [...], margins: {marginKey => {dims, impressions, clicks, position}}}
+        $cube = [];        // cubeKey  => {dims: {...}, impressions, clicks, position, synthetic}
+
+        $dimCount = count($optionalDims);
+
+        foreach ($rows as $row) {
+            $subset = $row['subset'] ?? [];
+            $flipped = array_flip($subset);
+
+            // Extract optional-dimension values present in this subset
+            $dimValues = [];
+            foreach ($optionalDims as $dim) {
+                if (isset($flipped[$dim])) {
+                    $dimValues[$dim] = $row['keys'][$flipped[$dim]];
+                }
+            }
+
+            $subsetOptional = array_values(array_intersect($optionalDims, $subset));
+            $subsetKey = implode(',', $subsetOptional);
+
+            if (!isset($constraints[$subsetKey])) {
+                $constraints[$subsetKey] = ['dims' => $subsetOptional, 'margins' => []];
+            }
+
+            $marginKey = self::makeMarginKey($dimValues, $subsetOptional);
+
+            // Keep the largest total when duplicates exist for same margin
+            $impr = (int)($row['impressions'] ?? 0);
+            $clicks = (int)($row['clicks'] ?? 0);
+            if (!isset($constraints[$subsetKey]['margins'][$marginKey])
+                || $impr > ($constraints[$subsetKey]['margins'][$marginKey]['impressions'] ?? 0)
+            ) {
+                $constraints[$subsetKey]['margins'][$marginKey] = [
+                    'dims'        => $dimValues,
+                    'impressions' => $impr,
+                    'clicks'      => $clicks,
+                    'position'    => $row['position'] ?? null,
+                ];
+            }
+
+            // Full 5D record → add to cube
+            if (count($subsetOptional) === $dimCount) {
+                $cubeKey = self::makeCubeKey($dimValues, $optionalDims);
+                $cube[$cubeKey] = [
+                    'dims'        => $dimValues,
+                    'impressions' => (float)$impr,
+                    'clicks'      => (float)$clicks,
+                    'position'    => $row['position'] ?? null,
+                    'synthetic'   => false,
+                ];
+            }
+        }
+
+        return [$constraints, $cube];
+    }
+
+    /**
+     * Create synthetic seed cells for marginal values not fully covered by existing 5D cells.
+     *
+     * Bridge seeding: instead of creating cells with "unknown" values (which don't
+     * participate in other marginal constraints and prevent IPF convergence), we
+     * distribute each gap proportionally across known values of other dimensions.
+     * This creates bridge cells that connect multiple constraints.
+     */
+    private static function seedMissingCells(array $cube, array $constraints, array $optionalDims): array
+    {
+        $dimCount = count($optionalDims);
+
+        // 1. Build per-dimension value distributions from 1D marginals
+        //    These are used to proportionally distribute gaps.
+        //    The "unknown" weight per dimension is derived from data:
+        //    unknown_weight = (S0_total - marginal_sum) / S0_total
+        $globalTotal = 0.0;
+        $globalConstraint = $constraints[''] ?? null;
+        if ($globalConstraint && !empty($globalConstraint['margins'])) {
+            $gm = reset($globalConstraint['margins']);
+            $globalTotal = max(1.0, (float)($gm['impressions'] ?? 0));
+        }
+
+        $dimDistributions = []; // dim => [{value => ..., weight => ...}]
+        foreach ($constraints as $constraint) {
+            if (count($constraint['dims']) !== 1) continue; // Only 1D marginals
+            $dim = $constraint['dims'][0];
+            $marginalSum = 0.0;
+            $values = [];
+            foreach ($constraint['margins'] as $margin) {
+                $val = $margin['dims'][$dim] ?? null;
+                if ($val === null) continue;
+                $impr = max(0.0, (float)$margin['impressions']);
+                $values[] = ['value' => $val, 'impressions' => $impr, 'clicks' => max(0.0, (float)$margin['clicks']), 'position' => $margin['position']];
+                $marginalSum += $impr;
+            }
+
+            // Unknown weight = proportion of S0 NOT covered by this marginal
+            $unknownWeight = ($globalTotal > 0 && $marginalSum < $globalTotal)
+                ? ($globalTotal - $marginalSum) / $globalTotal
+                : 0.001; // Epsilon when marginal fully covers S0
+
+            if ($marginalSum > 0) {
+                foreach ($values as &$v) {
+                    $v['weight'] = $v['impressions'] / $globalTotal; // Relative to S0, not marginal sum
+                }
+                unset($v);
+            }
+
+            $dimDistributions[$dim] = ['values' => $values, 'unknownWeight' => $unknownWeight];
+        }
+
+        // 2. Process constraints from most-specific to least-specific
+        $sorted = $constraints;
+        uasort($sorted, fn($a, $b) => count($b['dims']) <=> count($a['dims']));
+
+        foreach ($sorted as $constraint) {
+            $subsetDims = $constraint['dims'];
+            if (count($subsetDims) >= $dimCount) continue; // Skip full 5D
+            if (count($subsetDims) === 0) continue;        // Skip S0, handled below
+
+            foreach ($constraint['margins'] as $margin) {
+                // Sum existing cube cells matching this marginal value
+                $existingImpr = 0.0;
+                $existingClicks = 0.0;
+                foreach ($cube as $cell) {
+                    if (self::cellMatchesMargin($cell['dims'], $margin['dims'], $subsetDims)) {
+                        $existingImpr += $cell['impressions'];
+                        $existingClicks += $cell['clicks'];
+                    }
+                }
+
+                $gapImpr = (float)$margin['impressions'] - $existingImpr;
+                $gapClicks = (float)$margin['clicks'] - $existingClicks;
+                if ($gapImpr < 0.5 && $gapClicks < 0.5) continue;
+
+                // Identify dimensions NOT in this constraint's subset
+                $missingDims = array_values(array_diff($optionalDims, $subsetDims));
+
+                // Build candidate dimension-value combinations for missing dims
+                $combos = [[]]; // Start with one empty combo
+                foreach ($missingDims as $mDim) {
+                    $distData = $dimDistributions[$mDim] ?? null;
+                    if ($distData && !empty($distData['values'])) {
+                        // Expand combos with known values from this dimension's distribution
+                        $newCombos = [];
+                        foreach ($combos as $combo) {
+                            foreach ($distData['values'] as $distEntry) {
+                                $newCombos[] = array_merge($combo, [
+                                    $mDim => ['value' => $distEntry['value'], 'weight' => $distEntry['weight'], 'position' => $distEntry['position']],
+                                ]);
+                            }
+                            // Unknown fallback — weight derived from data (S0 - marginal_sum) / S0
+                            $newCombos[] = array_merge($combo, [
+                                $mDim => ['value' => self::$defaultValues[$mDim] ?? 'unknown', 'weight' => $distData['unknownWeight'], 'position' => null],
+                            ]);
+                        }
+                        $combos = $newCombos;
+                    } else {
+                        // No distribution info — use default
+                        foreach ($combos as &$combo) {
+                            $combo[$mDim] = ['value' => self::$defaultValues[$mDim] ?? 'unknown', 'weight' => 1.0, 'position' => null];
+                        }
+                        unset($combo);
+                    }
+                }
+
+                // Normalize combo weights
+                $totalWeight = 0.0;
+                foreach ($combos as $combo) {
+                    $w = 1.0;
+                    foreach ($combo as $entry) {
+                        $w *= $entry['weight'];
+                    }
+                    $totalWeight += $w;
+                }
+
+                // Create seeds proportionally
+                foreach ($combos as $combo) {
+                    $w = 1.0;
+                    foreach ($combo as $entry) {
+                        $w *= $entry['weight'];
+                    }
+                    $share = ($totalWeight > 0) ? ($w / $totalWeight) : 0;
+                    if ($share < 1e-6) continue;
+
+                    $seedDims = [];
+                    foreach ($optionalDims as $dim) {
+                        if (isset($margin['dims'][$dim])) {
+                            $seedDims[$dim] = $margin['dims'][$dim];
+                        } elseif (isset($combo[$dim])) {
+                            $seedDims[$dim] = $combo[$dim]['value'];
+                        } else {
+                            $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown';
+                        }
+                    }
+
+                    $seedKey = self::makeCubeKey($seedDims, $optionalDims);
+                    if (isset($cube[$seedKey])) continue; // Already exists
+
+                    $seedImpr = max(0.0, $gapImpr * $share);
+                    $seedClicks = max(0.0, $gapClicks * $share);
+                    if ($seedImpr < 0.1 && $seedClicks < 0.1) continue;
+
+                    // Position: use marginal's position or combo position
+                    $seedPosition = $margin['position'];
+                    foreach ($combo as $entry) {
+                        if ($entry['position'] !== null) {
+                            $seedPosition = $entry['position'];
+                            break;
+                        }
+                    }
+
+                    $cube[$seedKey] = [
+                        'dims'        => $seedDims,
+                        'impressions' => $seedImpr,
+                        'clicks'      => $seedClicks,
+                        'position'    => $seedPosition,
+                        'synthetic'   => true,
+                    ];
+                }
+            }
+        }
+
+        // 3. Global (S0) seed — absorb any remaining gap vs the day total
+        $globalConstraint = $constraints[''] ?? null;
+        if ($globalConstraint && !empty($globalConstraint['margins'])) {
+            $globalMargin = reset($globalConstraint['margins']);
+            $cubeImpr   = 0.0;
+            $cubeClicks = 0.0;
+            foreach ($cube as $cell) {
+                $cubeImpr   += $cell['impressions'];
+                $cubeClicks += $cell['clicks'];
+            }
+
+            $globalGapImpr   = (float)$globalMargin['impressions'] - $cubeImpr;
+            $globalGapClicks = (float)$globalMargin['clicks'] - $cubeClicks;
+
+            if ($globalGapImpr > 0.5 || $globalGapClicks > 0.5) {
+                $seedDims = [];
+                foreach ($optionalDims as $dim) {
+                    $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown';
+                }
+                $seedKey = self::makeCubeKey($seedDims, $optionalDims);
+                if (!isset($cube[$seedKey])) {
+                    $cube[$seedKey] = [
+                        'dims'        => $seedDims,
+                        'impressions' => max(0.0, $globalGapImpr),
+                        'clicks'      => max(0.0, $globalGapClicks),
+                        'position'    => $globalMargin['position'],
+                        'synthetic'   => true,
+                    ];
+                } else {
+                    $cube[$seedKey]['impressions'] += max(0.0, $globalGapImpr);
+                    $cube[$seedKey]['clicks']      += max(0.0, $globalGapClicks);
+                }
+            }
+        }
+
+        return $cube;
+    }
+
+    /**
+     * Core IPF loop for a single metric (impressions or clicks).
+     */
+    private static function runIPFForMetric(
+        array  $cube,
+        array  $constraints,
+        array  $optionalDims,
+        string $metric,
+        float  $tolerance,
+        int    $maxIterations
+    ): array {
+        for ($iter = 0; $iter < $maxIterations; $iter++) {
+            $maxError = 0.0;
+
+            foreach ($constraints as $constraint) {
+                foreach ($constraint['margins'] as $margin) {
+                    $target = (float)$margin[$metric];
+
+                    // Find matching cube cells
+                    $localSum    = 0.0;
+                    $matchingKeys = [];
+                    foreach ($cube as $key => $cell) {
+                        if (self::cellMatchesMargin($cell['dims'], $margin['dims'], $constraint['dims'])) {
+                            $localSum += $cell[$metric];
+                            $matchingKeys[] = $key;
+                        }
+                    }
+
+                    if ($localSum <= 0 || empty($matchingKeys)) continue;
+                    if ($target <= 0) {
+                        // Marginal says zero — zero out matching cells for this metric
+                        foreach ($matchingKeys as $key) {
+                            $cube[$key][$metric] = 0.0;
+                        }
+                        continue;
+                    }
+
+                    $factor = $target / $localSum;
+                    $maxError = max($maxError, abs(1.0 - $factor));
+
+                    foreach ($matchingKeys as $key) {
+                        $cube[$key][$metric] *= $factor;
+                    }
+                }
+            }
+
+            if ($maxError < $tolerance) break;
+        }
+
+        return $cube;
+    }
+
+    /**
+     * Convert the cube into output records with integer rounding and invariants.
+     */
+    private static function cubeToRecords(array $cube, string $date, array $allDimensions): array
+    {
+        $records = [];
+
+        foreach ($cube as $cell) {
+            $impressions = max(0, (int)round($cell['impressions']));
+            $clicks      = max(0, (int)round($cell['clicks']));
+
+            if ($impressions <= 0 && $clicks <= 0) continue;
+
+            // Enforce clicks <= impressions
+            if ($impressions > 0 && $clicks > $impressions) {
+                $clicks = $impressions;
+            }
+
+            $ctr = $impressions > 0 ? $clicks / $impressions : 0.0;
+
+            $keys = [];
+            foreach ($allDimensions as $dim) {
+                if ($dim === 'date') {
+                    $keys[] = $date;
+                } else {
+                    $keys[] = $cell['dims'][$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
+                }
+            }
+
+            $records[] = [
+                'keys'        => $keys,
+                'subset'      => $allDimensions,
+                'impressions' => $impressions,
+                'clicks'      => $clicks,
+                'ctr'         => $ctr,
+                'position'    => $cell['position'],
+                'synthetic'   => $cell['synthetic'] ?? false,
+            ];
+        }
+
+        return $records;
+    }
+
+    /**
+     * Check if a cube cell matches a marginal constraint's dimension values.
+     */
+    private static function cellMatchesMargin(array $cellDims, array $marginDims, array $subsetDims): bool
+    {
+        foreach ($subsetDims as $dim) {
+            $cVal = $cellDims[$dim] ?? null;
+            $mVal = $marginDims[$dim] ?? null;
+            if ($cVal === null || $mVal === null) return false;
+            if (is_string($cVal) && is_string($mVal)) {
+                if (strtolower($cVal) !== strtolower($mVal)) return false;
+            } elseif ($cVal !== $mVal) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Build a unique key for a cube cell from its dimension values.
+     */
+    private static function makeCubeKey(array $dims, array $optionalDims): string
+    {
+        $parts = [];
+        foreach ($optionalDims as $dim) {
+            $v = $dims[$dim] ?? 'NULL';
+            $parts[] = $dim . '=' . (is_string($v) ? strtolower($v) : $v);
+        }
+        return implode('|', $parts);
+    }
+
+    /**
+     * Build a unique key for a marginal row from its dimension values.
+     */
+    private static function makeMarginKey(array $dims, array $subsetDims): string
+    {
+        $parts = [];
+        foreach ($subsetDims as $dim) {
+            $v = $dims[$dim] ?? 'NULL';
+            $parts[] = $dim . '=' . (is_string($v) ? strtolower($v) : $v);
+        }
+        return implode('|', $parts);
     }
 
     /**
