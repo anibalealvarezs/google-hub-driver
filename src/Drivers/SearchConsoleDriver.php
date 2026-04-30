@@ -627,7 +627,11 @@
             );
 
             // 4. Final normalization and add Search Appearance (Standard)
-            $finalDayRows = $reconciledRows;
+            // We tag all reconciled rows as 'standard' so they can be filtered separately from specific appearance breakdowns.
+            $finalDayRows = array_map(function($row) {
+                $row['searchAppearance'] = 'standard';
+                return $row;
+            }, $reconciledRows);
 
             // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius/IPF)
             $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
