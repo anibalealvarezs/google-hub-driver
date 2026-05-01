@@ -46,6 +46,7 @@
             $accountId = is_object($account) ? (method_exists($account, 'getId') ? (string)$account->getId() : (string)$account) : (string)$account;
             $pagePlatformId = SearchConsoleDriver::getPlatformId(['url' => $pageUrl ?? $siteUrl], \Anibalealvarezs\ApiDriverCore\Enums\AssetCategory::PAGEABLE, 'gsc');
 
+            $logger?->info(sprintf("Starting GSC metrics conversion for %d rows...", $rowCount));
             $collection = UniversalMetricConverter::convert($rows, [
                 'channel'              => GoogleChannel::SEARCH_CONSOLE->value,
                 'period'               => $periodValue,
@@ -82,7 +83,7 @@
             ], $logger);
 
             $totalTime = microtime(true) - $startTime;
-            $logger?->info(sprintf("Completed GSC metrics conversion: %d rows in %.4f seconds", $rowCount, $totalTime));
+            $logger?->info(sprintf("Completed GSC metrics conversion: %d input rows -> %d converted metrics in %.4f seconds", $rowCount, $collection->count(), $totalTime));
 
             return $collection;
         }
