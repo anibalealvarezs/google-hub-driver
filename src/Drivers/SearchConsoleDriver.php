@@ -104,6 +104,19 @@
                     key: 'gsc_site_geo_device_breakdown',
                     label: 'GSC Site Country Device Breakdown'
                 ),
+                [
+                    'key' => 'gsc_site_full_breakdown',
+                    'channel' => GoogleChannel::SEARCH_CONSOLE->value,
+                    'label' => 'GSC Site Full Breakdown (Query, Geo, Device)',
+                    'metric_config' => [
+                        'required_fields' => ['account', 'channeledAccount', 'page', 'query', 'country', 'device', 'dimensionSet', 'channel', 'name', 'period'],
+                        'common_filters' => ['page', 'query', 'country', 'device', 'name', 'period'],
+                        'groupable_fields' => ['query', 'country', 'device'],
+                        'index_hints' => [
+                            ['channel', 'name', 'period', 'page', 'query', 'country', 'device'],
+                        ],
+                    ],
+                ],
             ];
         }
 
