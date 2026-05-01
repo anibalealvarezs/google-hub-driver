@@ -135,8 +135,10 @@ class Helpers
         $index = self::buildIPFIndex($cube, $constraints);
 
         // 6. Run IPF — one pass for impressions, one for clicks
-        $cube = self::runIPFForMetric($cube, $constraints, $index, 'impressions', $tolerance, $maxIterations);
-        $cube = self::runIPFForMetric($cube, $constraints, $index, 'clicks', $tolerance, $maxIterations);
+        $logger?->debug("[IPF] Starting reconciliation for {$date} (Cube size: " . count($cube) . ")");
+        $cube = self::runIPFForMetric($cube, $constraints, $index, 'impressions', $tolerance, $maxIterations, $logger);
+        $cube = self::runIPFForMetric($cube, $constraints, $index, 'clicks', $tolerance, $maxIterations, $logger);
+        $logger?->debug("[IPF] Reconciliation complete for {$date}");
 
         // 7. Convert to output records
         return self::cubeToRecords($cube, $date, $allDimensions, $logger);
@@ -480,16 +482,21 @@ class Helpers
         array  $index,
         string $metric,
         float  $tolerance,
-        int    $maxIterations
+        int    $maxIterations,
+        ?LoggerInterface $logger = null
     ): array {
+        // Separate S0 from other constraints to enforce it last
+        $s0Constraint = $constraints[''] ?? null;
+        $otherConstraints = $constraints;
+        unset($otherConstraints['']);
+
         for ($iter = 0; $iter < $maxIterations; $iter++) {
             $maxError = 0.0;
 
-            foreach ($constraints as $subsetKey => $constraint) {
+            // 1. Process all specific marginals
+            foreach ($otherConstraints as $subsetKey => $constraint) {
                 foreach ($constraint['margins'] as $marginKey => $margin) {
                     $target = (float)$margin[$metric];
-
-                    // Use pre-calculated index to find matching cube cells
                     $matchingKeys = $index[$subsetKey][$marginKey] ?? [];
                     if (empty($matchingKeys)) continue;
 
@@ -498,11 +505,10 @@ class Helpers
                         $localSum += $cube[$key][$metric];
                     }
 
-                    if ($localSum <= 0) continue;
-                    if ($target <= 0) {
-                        // Marginal says zero — zero out matching cells for this metric
-                        foreach ($matchingKeys as $key) {
-                            $cube[$key][$metric] = 0.0;
+                    if ($localSum <= 0) {
+                        if ($target > 0) {
+                            // We have a target but no mass — this should be rare if seeding worked
+                            $logger?->warning("[IPF] Marginal '{$marginKey}' has target {$target} but localSum is 0. Constraint unsatisfied.");
                         }
                         continue;
                     }
@@ -516,7 +522,34 @@ class Helpers
                 }
             }
 
-            if ($maxError < $tolerance) break;
+            // 2. Enforce S0 (Global Total) last to ensure consistency
+            if ($s0Constraint) {
+                foreach ($s0Constraint['margins'] as $marginKey => $margin) {
+                    $target = (float)$margin[$metric];
+                    $matchingKeys = $index[''][$marginKey] ?? [];
+                    if (empty($matchingKeys)) continue;
+
+                    $localSum = 0.0;
+                    foreach ($matchingKeys as $key) {
+                        $localSum += $cube[$key][$metric];
+                    }
+
+                    if ($localSum > 0) {
+                        $factor = $target / $localSum;
+                        foreach ($matchingKeys as $key) {
+                            $cube[$key][$metric] *= $factor;
+                        }
+                    }
+                }
+            }
+
+            if ($maxError < $tolerance) {
+                $logger?->debug("[IPF] Converged in " . ($iter + 1) . " iterations for {$metric}. Max error: {$maxError}");
+                break;
+            }
+            if ($iter === $maxIterations - 1) {
+                $logger?->warning("[IPF] Failed to converge in {$maxIterations} iterations for {$metric}. Last max error: {$maxError}");
+            }
         }
 
         return $cube;

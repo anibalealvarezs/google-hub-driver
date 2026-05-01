@@ -641,10 +641,10 @@
             foreach ($appearanceRows as $row) {
                 $finalDayRows[] = [
                     'date'             => $date,
-                    'query'            => null,
-                    'country'          => null,
-                    'device'           => null,
-                    'page'             => $siteUrl,
+                    'query'            => Helpers::$defaultValues['query'],
+                    'country'          => strtoupper(Helpers::$defaultValues['country']),
+                    'device'           => strtolower(Helpers::$defaultValues['device']),
+                    'page'             => Helpers::$defaultValues['page'] ?? $siteUrl,
                     'searchAppearance' => $row['keys'][0] ?? 'standard',
                     'clicks'           => $row['clicks'],
                     'impressions'      => $row['impressions'],
