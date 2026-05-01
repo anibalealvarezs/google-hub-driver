@@ -284,8 +284,7 @@ class Helpers
 
         foreach ($sorted as $constraint) {
             $subsetDims = $constraint['dims'];
-            if (count($subsetDims) >= $dimCount) continue; // Skip full 5D
-            if (count($subsetDims) === 0) continue;        // Skip S0
+            if (count($subsetDims) === 0) continue;        // Skip S0 (handled separately)
 
             $subsetKey = implode(',', $subsetDims);
 
