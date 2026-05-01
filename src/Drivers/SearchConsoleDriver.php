@@ -610,7 +610,7 @@
             foreach ($subsetsToFetch as $dimSubset) {
                 $actualDims = array_merge(['date'], $dimSubset);
                 $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, $actualDims, $rowLimit);
-                $logger?->info("GSC Subset [" . implode(',', $actualDims) . "]: " . count($rows) . " rows fetched.");
+                $this->logger?->info("GSC Subset [" . implode(',', $actualDims) . "]: " . count($rows) . " rows fetched.");
                 foreach ($rows as $row) {
                     $dayRows[] = array_merge($row, ['subset' => $actualDims]);
                 }
@@ -626,7 +626,7 @@
                 $calculateSynthetics ? ['country'] : [],
                 $reconcileDimensions
             );
-            $logger?->info("GSC Reconciliation complete: " . count($dayRows) . " input rows -> " . count($reconciledRows) . " reconciled rows.");
+            $this->logger?->info("GSC Reconciliation complete: " . count($dayRows) . " input rows -> " . count($reconciledRows) . " reconciled rows.");
 
             // 4. Final normalization and add Search Appearance (Standard)
             // We tag all reconciled rows as 'standard' so they can be filtered separately from specific appearance breakdowns.
