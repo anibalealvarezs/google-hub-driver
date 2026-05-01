@@ -22,8 +22,8 @@ class Helpers
         array $targetKeywords,
         array $targetCountries,
         array $allDimensions,
-        float $tolerance = 0.000001,
-        int   $maxIterations = 5000,
+        float $tolerance = 0.001,
+        int   $maxIterations = 200,
         ?LoggerInterface $logger = null
     ): array {
         // Group rows by date (IPF runs per-day)
@@ -305,49 +305,77 @@ class Helpers
 
     private static function runIPFForMetric(array &$cube, array $constraints, array $index, string $metric, float $tolerance, int $maxIterations): void
     {
-        // Ensure S0 (global) is applied LAST in each iteration for better final convergence
+        if (empty($cube)) return;
+
+        // 1. Map cube keys to integers for fast array access
+        $cubeKeys = array_keys($cube);
+        $idMap = array_flip($cubeKeys);
+        $values = [];
+        foreach ($cubeKeys as $key) {
+            $values[] = (float)$cube[$key][$metric];
+        }
+
+        // 2. Map index to integer IDs
+        $flatIndex = [];
+        foreach ($index as $sKey => $margins) {
+            foreach ($margins as $mKey => $matchingKeys) {
+                $ids = [];
+                foreach ($matchingKeys as $key) {
+                    if (isset($idMap[$key])) $ids[] = $idMap[$key];
+                }
+                $flatIndex[$sKey][$mKey] = $ids;
+            }
+        }
+
+        // 3. Prepare constraints
         $s0Data = $constraints[''] ?? null;
         $marginalConstraints = $constraints;
         unset($marginalConstraints['']);
 
+        // 4. Run IPF loop on flat arrays
         for ($iter = 0; $iter < $maxIterations; $iter++) {
             $maxError = 0;
 
-            // 1. Apply marginal constraints
+            // Apply marginal constraints
             foreach ($marginalConstraints as $sKey => $subset) {
                 foreach ($subset['margins'] as $mKey => $margin) {
                     $target = (float)$margin[$metric];
-                    $matchingKeys = $index[$sKey][$mKey] ?? [];
-                    if (empty($matchingKeys)) continue;
+                    $ids = $flatIndex[$sKey][$mKey] ?? [];
+                    if (empty($ids)) continue;
 
                     $localSum = 0.0;
-                    foreach ($matchingKeys as $key) { $localSum += $cube[$key][$metric]; }
+                    foreach ($ids as $id) { $localSum += $values[$id]; }
                     if ($localSum <= 1e-10) continue;
 
                     $factor = $target / $localSum;
                     $maxError = max($maxError, abs(1.0 - $factor));
-                    foreach ($matchingKeys as $key) { $cube[$key][$metric] *= $factor; }
+                    foreach ($ids as $id) { $values[$id] *= $factor; }
                 }
             }
 
-            // 2. Apply S0 constraint LAST
+            // Apply S0 constraint LAST
             if ($s0Data) {
                 foreach ($s0Data['margins'] as $mKey => $margin) {
                     $target = (float)$margin[$metric];
-                    $matchingKeys = $index[''][$mKey] ?? [];
-                    if (empty($matchingKeys)) continue;
+                    $ids = $flatIndex[''][$mKey] ?? [];
+                    if (empty($ids)) continue;
 
                     $localSum = 0.0;
-                    foreach ($matchingKeys as $key) { $localSum += $cube[$key][$metric]; }
+                    foreach ($ids as $id) { $localSum += $values[$id]; }
                     if ($localSum <= 1e-10) continue;
 
                     $factor = $target / $localSum;
                     $maxError = max($maxError, abs(1.0 - $factor));
-                    foreach ($matchingKeys as $key) { $cube[$key][$metric] *= $factor; }
+                    foreach ($ids as $id) { $values[$id] *= $factor; }
                 }
             }
 
             if ($maxError < $tolerance) break;
+        }
+
+        // 5. Inject back into cube
+        foreach ($cubeKeys as $i => $key) {
+            $cube[$key][$metric] = $values[$i];
         }
     }
 
