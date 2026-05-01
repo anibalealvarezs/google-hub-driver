@@ -626,6 +626,8 @@
                 $calculateSynthetics ? ['query'] : [],
                 $calculateSynthetics ? ['country'] : [],
                 $reconcileDimensions,
+                0.000001,
+                5000,
                 $this->logger
             );
             $this->logger?->info("GSC Reconciliation complete: " . count($dayRows) . " input rows -> " . count($reconciledRows) . " reconciled rows.");
