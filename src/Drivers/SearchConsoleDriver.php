@@ -620,6 +620,7 @@
 
             // 3. Perform Möbius Reconciliation (Daily Truth)
             // This will calculate residuals for each level of the power set.
+            Helpers::$defaultValues['page'] = $siteUrl;
             $reconciledRows = Helpers::getFinalRecords(
                 $dayRows,
                 $calculateSynthetics ? ['query'] : [],

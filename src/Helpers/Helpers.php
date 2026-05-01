@@ -625,28 +625,26 @@ class Helpers
         return true;
     }
 
-    /**
-     * Build a unique key for a cube cell from its dimension values.
-     */
     private static function makeCubeKey(array $dims, array $optionalDims): string
     {
         $parts = [];
+        // Use alphabetical order for deterministic keys
+        sort($optionalDims);
         foreach ($optionalDims as $dim) {
-            $v = $dims[$dim] ?? 'NULL';
-            $parts[] = $dim . '=' . (is_string($v) ? strtolower($v) : $v);
+            $v = $dims[$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
+            $parts[] = $dim . '=' . (is_string($v) ? strtolower((string)$v) : $v);
         }
         return implode('|', $parts);
     }
 
-    /**
-     * Build a unique key for a marginal row from its dimension values.
-     */
     private static function makeMarginKey(array $dims, array $subsetDims): string
     {
         $parts = [];
+        // Use alphabetical order for deterministic keys
+        sort($subsetDims);
         foreach ($subsetDims as $dim) {
-            $v = $dims[$dim] ?? 'NULL';
-            $parts[] = $dim . '=' . (is_string($v) ? strtolower($v) : $v);
+            $v = $dims[$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
+            $parts[] = $dim . '=' . (is_string($v) ? strtolower((string)$v) : $v);
         }
         return implode('|', $parts);
     }
