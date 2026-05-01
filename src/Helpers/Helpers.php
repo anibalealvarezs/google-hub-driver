@@ -6,7 +6,7 @@ use Psr\Log\LoggerInterface;
 
 class Helpers
 {
-    protected static $defaultValues = [
+    public static $defaultValues = [
         'date' => 'unknown',
         'query' => 'unknown',
         'country' => 'unk',
