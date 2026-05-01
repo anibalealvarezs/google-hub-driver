@@ -417,8 +417,8 @@
 
                 $chanCfg = $config[GoogleChannel::SEARCH_CONSOLE->value] ?? [];
                 $sitesToProcess = $config['sites'] ?? $chanCfg['sites'] ?? [];
-                $rowLimit = $chanCfg['row_limit'] ?? 25000;
-                $calculateSynthetics = filter_var($chanCfg['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $rowLimit = $config['row_limit'] ?? $chanCfg['row_limit'] ?? 25000;
+                $calculateSynthetics = filter_var($config['calculate_synthetics'] ?? $chanCfg['calculate_synthetics'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
                 // 1. Batch Resolve Identities via Oracle
                 $pageMap = [];
@@ -743,9 +743,12 @@
         {
             return [
                 'global'  => [
-                    'enabled'             => false,
-                    'cache_history_range' => '16 months',
-                    'cache_aggregations'  => true,
+                    'enabled'              => false,
+                    'cache_history_range'  => '16 months',
+                    'cache_aggregations'   => true,
+                    'calculate_synthetics' => true,
+                    'cron_recent_hour'     => 5,
+                    'cron_recent_minute'   => 0,
                 ],
                 'entity'  => [
                     'url'               => '',
@@ -1124,7 +1127,7 @@
             $ui['gsc_enabled'] = $channelConfig['enabled'] ?? false;
             $ui['gsc_cron_recent_hour'] = $channelConfig['cron_recent_hour'] ?? 5;
             $ui['gsc_cron_recent_minute'] = $channelConfig['cron_recent_minute'] ?? 0;
-            $ui['gsc_calculate_synthetics'] = filter_var($channelConfig['calculate_synthetics'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $ui['gsc_calculate_synthetics'] = filter_var($channelConfig['calculate_synthetics'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
             $ui['gsc'] = [];
             foreach (($channelConfig['sites'] ?? []) as $site) {
