@@ -39,6 +39,9 @@
         {
             $startTime = microtime(true);
             $rowCount = count($rows);
+            if ($rowCount > 0 && $logger) {
+                $logger->info("DEBUG: First GSC row sample: " . json_encode($rows[0]));
+            }
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $pageUrl = is_object($page) && method_exists($page, 'getUrl') ? $page->getUrl() : (string)$page;
 

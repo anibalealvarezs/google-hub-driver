@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Anibalealvarezs\GoogleHubDriver\Helpers;
 
 use Anibalealvarezs\ApiDriverCore\Helpers\Helpers as CoreHelpers;
+use Psr\Log\LoggerInterface;
 
 class Helpers
 {
@@ -30,9 +31,10 @@ class Helpers
         array $allRows,
         array $targetKeywords,
         array $targetCountries,
-        array $allDimensions
+        array $allDimensions,
+        ?LoggerInterface $logger = null
     ): array {
-        return self::getFinalRecordsIPF($allRows, $targetKeywords, $targetCountries, $allDimensions);
+        return self::getFinalRecordsIPF($allRows, $targetKeywords, $targetCountries, $allDimensions, logger: $logger);
     }
 
     // =========================================================================
@@ -51,7 +53,8 @@ class Helpers
         array $targetCountries,
         array $allDimensions,
         float $tolerance = 0.001,
-        int   $maxIterations = 20
+        int   $maxIterations = 20,
+        ?LoggerInterface $logger = null
     ): array {
         // Group rows by date (IPF runs per-day)
         $byDate = [];
@@ -59,14 +62,17 @@ class Helpers
             $subset = $row['subset'] ?? [];
             $flipped = array_flip($subset);
             $date = $row['keys'][$flipped['date']] ?? null;
-            if ($date === null) continue;
+            if ($date === null) {
+                $logger?->warning('[IPF] Row skipped: no date key in subset=' . implode(',', $subset) . ' keys=' . json_encode($row['keys'] ?? []));
+                continue;
+            }
             $byDate[$date][] = $row;
         }
 
         $allFinal = [];
         foreach ($byDate as $date => $dateRows) {
             $reconciled = self::ipfReconcileDay(
-                $date, $dateRows, $allDimensions, $tolerance, $maxIterations
+                $date, $dateRows, $allDimensions, $tolerance, $maxIterations, $logger
             );
             foreach ($reconciled as $r) {
                 $allFinal[] = $r;
@@ -84,7 +90,8 @@ class Helpers
         array  $rows,
         array  $allDimensions,
         float  $tolerance,
-        int    $maxIterations
+        int    $maxIterations,
+        ?LoggerInterface $logger = null
     ): array {
         $optionalDims = array_values(array_diff($allDimensions, ['date']));
 
@@ -132,7 +139,7 @@ class Helpers
         $cube = self::runIPFForMetric($cube, $constraints, $index, 'clicks', $tolerance, $maxIterations);
 
         // 7. Convert to output records
-        return self::cubeToRecords($cube, $date, $allDimensions);
+        return self::cubeToRecords($cube, $date, $allDimensions, $logger);
     }
 
     /**
@@ -518,7 +525,7 @@ class Helpers
     /**
      * Convert the cube into output records with integer rounding and invariants.
      */
-    private static function cubeToRecords(array $cube, string $date, array $allDimensions): array
+    private static function cubeToRecords(array $cube, string $date, array $allDimensions, ?LoggerInterface $logger = null): array
     {
         $records = [];
 
@@ -535,6 +542,7 @@ class Helpers
 
             $ctr = $impressions > 0 ? $clicks / $impressions : 0.0;
 
+            $logger?->debug("[cubeToRecords] date={$date} | impr={$impressions} | clicks={$clicks}");
             $record = [
                 'date'        => $date,
                 'impressions' => $impressions,
