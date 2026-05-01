@@ -266,189 +266,91 @@ class Helpers
     {
         $dimCount = count($optionalDims);
 
-        // 1. Build per-dimension value distributions from 1D marginals
-        //    These are used to proportionally distribute gaps.
-        //    The "unknown" weight per dimension is derived from data:
-        //    unknown_weight = (S0_total - marginal_sum) / S0_total
-        $globalTotal = 0.0;
-        $globalConstraint = $constraints[''] ?? null;
-        if ($globalConstraint && !empty($globalConstraint['margins'])) {
-            $gm = reset($globalConstraint['margins']);
-            $globalTotal = max(1.0, (float)($gm['impressions'] ?? 0));
+        // 1. Pre-calculate sums for every subset margin currently in the cube
+        // This avoids O(Constraints * Cube) behavior in the seeding loop
+        $cubeSums = []; // subsetKey => [marginKey => sum]
+        foreach ($constraints as $subsetKey => $constraint) {
+            $subsetDims = $constraint['dims'];
+            foreach ($cube as $cell) {
+                $mKey = self::makeMarginKey($cell['dims'], $subsetDims);
+                $cubeSums[$subsetKey][$mKey] = ($cubeSums[$subsetKey][$mKey] ?? 0.0) + $cell['impressions'];
+            }
         }
 
-        $dimDistributions = []; // dim => [{value => ..., weight => ...}]
-        foreach ($constraints as $constraint) {
-            if (count($constraint['dims']) !== 1) continue; // Only 1D marginals
-            $dim = $constraint['dims'][0];
-            $marginalSum = 0.0;
-            $values = [];
-            foreach ($constraint['margins'] as $margin) {
-                $val = $margin['dims'][$dim] ?? null;
-                if ($val === null) continue;
-                $impr = max(0.0, (float)$margin['impressions']);
-                $values[] = ['value' => $val, 'impressions' => $impr, 'clicks' => max(0.0, (float)$margin['clicks']), 'position' => $margin['position']];
-                $marginalSum += $impr;
-            }
-
-            // Unknown weight = proportion of S0 NOT covered by this marginal
-            $unknownWeight = ($globalTotal > 0 && $marginalSum < $globalTotal)
-                ? ($globalTotal - $marginalSum) / $globalTotal
-                : 0.001; // Epsilon when marginal fully covers S0
-
-            if ($marginalSum > 0) {
-                foreach ($values as &$v) {
-                    $v['weight'] = $v['impressions'] / $globalTotal; // Relative to S0, not marginal sum
-                }
-                unset($v);
-            }
-
-            $dimDistributions[$dim] = ['values' => $values, 'unknownWeight' => $unknownWeight];
-        }
-
-        // 2. Process constraints from most-specific to least-specific
+        // 2. Process constraints to fill gaps
+        // We sort by dimension count descending to fill specific gaps first
         $sorted = $constraints;
         uasort($sorted, fn($a, $b) => count($b['dims']) <=> count($a['dims']));
 
         foreach ($sorted as $constraint) {
             $subsetDims = $constraint['dims'];
             if (count($subsetDims) >= $dimCount) continue; // Skip full 5D
-            if (count($subsetDims) === 0) continue;        // Skip S0, handled below
+            if (count($subsetDims) === 0) continue;        // Skip S0
 
-            foreach ($constraint['margins'] as $margin) {
-                // Sum existing cube cells matching this marginal value
-                $existingImpr = 0.0;
-                $existingClicks = 0.0;
-                foreach ($cube as $cell) {
-                    if (self::cellMatchesMargin($cell['dims'], $margin['dims'], $subsetDims)) {
-                        $existingImpr += $cell['impressions'];
-                        $existingClicks += $cell['clicks'];
-                    }
-                }
+            $subsetKey = implode(',', $subsetDims);
 
+            foreach ($constraint['margins'] as $marginKey => $margin) {
+                $existingImpr = $cubeSums[$subsetKey][$marginKey] ?? 0.0;
                 $gapImpr = (float)$margin['impressions'] - $existingImpr;
-                $gapClicks = (float)$margin['clicks'] - $existingClicks;
-                if ($gapImpr < 0.5 && $gapClicks < 0.5) continue;
+                
+                // Use a small epsilon to avoid seeding for rounding noise
+                if ($gapImpr < 0.5) continue;
 
-                // Identify dimensions NOT in this constraint's subset
-                $missingDims = array_values(array_diff($optionalDims, $subsetDims));
-
-                // Build candidate dimension-value combinations for missing dims
-                $combos = [[]]; // Start with one empty combo
-                foreach ($missingDims as $mDim) {
-                    $distData = $dimDistributions[$mDim] ?? null;
-                    if ($distData && !empty($distData['values'])) {
-                        // Expand combos with known values from this dimension's distribution
-                        $newCombos = [];
-                        foreach ($combos as $combo) {
-                            foreach ($distData['values'] as $distEntry) {
-                                $newCombos[] = array_merge($combo, [
-                                    $mDim => ['value' => $distEntry['value'], 'weight' => $distEntry['weight'], 'position' => $distEntry['position']],
-                                ]);
-                            }
-                            // Unknown fallback — weight derived from data (S0 - marginal_sum) / S0
-                            $newCombos[] = array_merge($combo, [
-                                $mDim => ['value' => self::$defaultValues[$mDim] ?? 'unknown', 'weight' => $distData['unknownWeight'], 'position' => null],
-                            ]);
-                        }
-                        $combos = $newCombos;
+                // To avoid combinatorial explosion, we seed the gap into ONE cell
+                // using the "unknown" value for all dimensions NOT in this marginal.
+                $seedDims = [];
+                foreach ($optionalDims as $dim) {
+                    if (isset($margin['dims'][$dim])) {
+                        $seedDims[$dim] = $margin['dims'][$dim];
                     } else {
-                        // No distribution info — use default
-                        foreach ($combos as &$combo) {
-                            $combo[$mDim] = ['value' => self::$defaultValues[$mDim] ?? 'unknown', 'weight' => 1.0, 'position' => null];
-                        }
-                        unset($combo);
+                        $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown';
                     }
                 }
 
-                // Normalize combo weights
-                $totalWeight = 0.0;
-                foreach ($combos as $combo) {
-                    $w = 1.0;
-                    foreach ($combo as $entry) {
-                        $w *= $entry['weight'];
-                    }
-                    $totalWeight += $w;
-                }
-
-                // Create seeds proportionally
-                foreach ($combos as $combo) {
-                    $w = 1.0;
-                    foreach ($combo as $entry) {
-                        $w *= $entry['weight'];
-                    }
-                    $share = ($totalWeight > 0) ? ($w / $totalWeight) : 0;
-                    if ($share < 1e-6) continue;
-
-                    $seedDims = [];
-                    foreach ($optionalDims as $dim) {
-                        if (isset($margin['dims'][$dim])) {
-                            $seedDims[$dim] = $margin['dims'][$dim];
-                        } elseif (isset($combo[$dim])) {
-                            $seedDims[$dim] = $combo[$dim]['value'];
-                        } else {
-                            $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown';
-                        }
-                    }
-
-                    $seedKey = self::makeCubeKey($seedDims, $optionalDims);
-                    if (isset($cube[$seedKey])) continue; // Already exists
-
-                    $seedImpr = max(0.0, $gapImpr * $share);
-                    $seedClicks = max(0.0, $gapClicks * $share);
-                    if ($seedImpr < 0.1 && $seedClicks < 0.1) continue;
-
-                    // Position: use marginal's position or combo position
-                    $seedPosition = $margin['position'];
-                    foreach ($combo as $entry) {
-                        if ($entry['position'] !== null) {
-                            $seedPosition = $entry['position'];
-                            break;
-                        }
-                    }
-
+                $seedKey = self::makeCubeKey($seedDims, $optionalDims);
+                
+                // Add or increment the seed cell
+                if (!isset($cube[$seedKey])) {
                     $cube[$seedKey] = [
                         'dims'        => $seedDims,
-                        'impressions' => $seedImpr,
-                        'clicks'      => $seedClicks,
-                        'position'    => $seedPosition,
+                        'impressions' => $gapImpr,
+                        'clicks'      => (float)($margin['clicks'] ?? 0),
+                        'position'    => $margin['position'],
                         'synthetic'   => true,
                     ];
+                    // Update our pre-calculated sums so subsequent constraints see this mass
+                    foreach ($constraints as $sKey => $c) {
+                        $mKey = self::makeMarginKey($seedDims, $c['dims']);
+                        $cubeSums[$sKey][$mKey] = ($cubeSums[$sKey][$mKey] ?? 0.0) + $gapImpr;
+                    }
+                } else {
+                    $cube[$seedKey]['impressions'] += $gapImpr;
+                    $cube[$seedKey]['clicks']      += (float)($margin['clicks'] ?? 0);
                 }
             }
         }
 
-        // 3. Global (S0) seed — absorb any remaining gap vs the day total
+        // 3. Global (S0) gap handling
         $globalConstraint = $constraints[''] ?? null;
         if ($globalConstraint && !empty($globalConstraint['margins'])) {
             $globalMargin = reset($globalConstraint['margins']);
-            $cubeImpr   = 0.0;
-            $cubeClicks = 0.0;
-            foreach ($cube as $cell) {
-                $cubeImpr   += $cell['impressions'];
-                $cubeClicks += $cell['clicks'];
-            }
+            $currentTotal = 0.0;
+            foreach ($cube as $cell) { $currentTotal += $cell['impressions']; }
 
-            $globalGapImpr   = (float)$globalMargin['impressions'] - $cubeImpr;
-            $globalGapClicks = (float)$globalMargin['clicks'] - $cubeClicks;
-
-            if ($globalGapImpr > 0.5 || $globalGapClicks > 0.5) {
+            $globalGap = (float)$globalMargin['impressions'] - $currentTotal;
+            if ($globalGap > 0.5) {
                 $seedDims = [];
-                foreach ($optionalDims as $dim) {
-                    $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown';
-                }
+                foreach ($optionalDims as $dim) { $seedDims[$dim] = self::$defaultValues[$dim] ?? 'unknown'; }
                 $seedKey = self::makeCubeKey($seedDims, $optionalDims);
+                
                 if (!isset($cube[$seedKey])) {
                     $cube[$seedKey] = [
-                        'dims'        => $seedDims,
-                        'impressions' => max(0.0, $globalGapImpr),
-                        'clicks'      => max(0.0, $globalGapClicks),
-                        'position'    => $globalMargin['position'],
-                        'synthetic'   => true,
+                        'dims' => $seedDims, 'impressions' => $globalGap, 
+                        'clicks' => (float)($globalMargin['clicks'] ?? 0), 
+                        'position' => $globalMargin['position'], 'synthetic' => true
                     ];
                 } else {
-                    $cube[$seedKey]['impressions'] += max(0.0, $globalGapImpr);
-                    $cube[$seedKey]['clicks']      += max(0.0, $globalGapClicks);
+                    $cube[$seedKey]['impressions'] += $globalGap;
                 }
             }
         }
