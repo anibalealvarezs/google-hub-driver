@@ -124,11 +124,14 @@ class Helpers
             }
         }
 
-        // 5. Run IPF — one pass for impressions, one for clicks
-        $cube = self::runIPFForMetric($cube, $constraints, $optionalDims, 'impressions', $tolerance, $maxIterations);
-        $cube = self::runIPFForMetric($cube, $constraints, $optionalDims, 'clicks', $tolerance, $maxIterations);
+        // 5. Build Index for fast lookup
+        $index = self::buildIPFIndex($cube, $constraints);
 
-        // 6. Convert to output records
+        // 6. Run IPF — one pass for impressions, one for clicks
+        $cube = self::runIPFForMetric($cube, $constraints, $index, 'impressions', $tolerance, $maxIterations);
+        $cube = self::runIPFForMetric($cube, $constraints, $index, 'clicks', $tolerance, $maxIterations);
+
+        // 7. Convert to output records
         return self::cubeToRecords($cube, $date, $allDimensions);
     }
 
@@ -443,12 +446,31 @@ class Helpers
     }
 
     /**
+     * Build an index mapping marginal constraints to cube cells.
+     * $index[subsetKey][marginKey] => [cubeKey1, cubeKey2, ...]
+     */
+    private static function buildIPFIndex(array $cube, array $constraints): array
+    {
+        $index = [];
+        foreach ($constraints as $subsetKey => $constraint) {
+            $subsetDims = $constraint['dims'];
+            foreach ($cube as $cubeKey => $cell) {
+                $marginKey = self::makeMarginKey($cell['dims'], $subsetDims);
+                if (isset($constraint['margins'][$marginKey])) {
+                    $index[$subsetKey][$marginKey][] = $cubeKey;
+                }
+            }
+        }
+        return $index;
+    }
+
+    /**
      * Core IPF loop for a single metric (impressions or clicks).
      */
     private static function runIPFForMetric(
         array  $cube,
         array  $constraints,
-        array  $optionalDims,
+        array  $index,
         string $metric,
         float  $tolerance,
         int    $maxIterations
@@ -456,21 +478,20 @@ class Helpers
         for ($iter = 0; $iter < $maxIterations; $iter++) {
             $maxError = 0.0;
 
-            foreach ($constraints as $constraint) {
-                foreach ($constraint['margins'] as $margin) {
+            foreach ($constraints as $subsetKey => $constraint) {
+                foreach ($constraint['margins'] as $marginKey => $margin) {
                     $target = (float)$margin[$metric];
 
-                    // Find matching cube cells
-                    $localSum    = 0.0;
-                    $matchingKeys = [];
-                    foreach ($cube as $key => $cell) {
-                        if (self::cellMatchesMargin($cell['dims'], $margin['dims'], $constraint['dims'])) {
-                            $localSum += $cell[$metric];
-                            $matchingKeys[] = $key;
-                        }
+                    // Use pre-calculated index to find matching cube cells
+                    $matchingKeys = $index[$subsetKey][$marginKey] ?? [];
+                    if (empty($matchingKeys)) continue;
+
+                    $localSum = 0.0;
+                    foreach ($matchingKeys as $key) {
+                        $localSum += $cube[$key][$metric];
                     }
 
-                    if ($localSum <= 0 || empty($matchingKeys)) continue;
+                    if ($localSum <= 0) continue;
                     if ($target <= 0) {
                         // Marginal says zero — zero out matching cells for this metric
                         foreach ($matchingKeys as $key) {
