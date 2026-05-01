@@ -542,7 +542,6 @@ class Helpers
 
             $ctr = $impressions > 0 ? $clicks / $impressions : 0.0;
 
-            $logger?->debug("[cubeToRecords] date={$date} | impr={$impressions} | clicks={$clicks}");
             $record = [
                 'date'        => $date,
                 'impressions' => $impressions,
@@ -552,6 +551,8 @@ class Helpers
                 'synthetic'   => $cell['synthetic'] ?? false,
             ];
 
+            // Build ordered keys array (allDimensions order: date, query, country, page, device)
+            $keys = [$date];
             foreach ($allDimensions as $dim) {
                 if ($dim !== 'date') {
                     $val = $cell['dims'][$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
@@ -562,8 +563,10 @@ class Helpers
                         $val = strtolower((string)$val);
                     }
                     $record[$dim] = $val;
+                    $keys[] = $val;
                 }
             }
+            $record['keys'] = $keys;
 
             $records[] = $record;
         }
