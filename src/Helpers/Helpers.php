@@ -56,6 +56,7 @@ class Helpers
         ?LoggerInterface $logger = null
     ): array {
         $optionalDims = array_values(array_diff($allDimensions, ['date']));
+        sort($optionalDims);
         [$constraints, $cube] = self::parseSubsetData($rows, $optionalDims, $date);
         $cube = self::seedMissingCells($cube, $constraints, $optionalDims, $date);
         $index = self::buildIPFIndex($cube, $constraints);
@@ -190,21 +191,24 @@ class Helpers
             }
         }
 
-        // 2. Create pioneer seeds for marginal buckets ONLY if they have a deficit
+        // 2. Pre-calculate current sums for all margins in ONE PASS over the cube
+        $currentSums = [];
+        foreach ($cube as $cell) {
+            foreach ($constraints as $sKey => $data) {
+                if ($sKey === '') continue;
+                $mKey = self::makeMarginKey($cell['dims'], $data['dims']);
+                $currentSums[$sKey][$mKey] = ($currentSums[$sKey][$mKey] ?? 0.0) + $cell['impressions'];
+            }
+        }
+
+        // 3. Create pioneer seeds for marginal buckets ONLY if they have a deficit
         foreach ($constraints as $subsetKey => $subsetData) {
             if ($subsetKey === '') continue;
             foreach ($subsetData['margins'] as $marginKey => $margin) {
                 $target = (float)$margin['impressions'];
                 if ($target <= 0) continue;
 
-                $mKeyForCheck = self::makeMarginKey($margin['dims'], $subsetData['dims']);
-                $currentSum = 0.0;
-                foreach ($cube as $cell) {
-                    if (self::makeMarginKey($cell['dims'], $subsetData['dims']) === $mKeyForCheck) {
-                        $currentSum += $cell['impressions'];
-                    }
-                }
-
+                $currentSum = $currentSums[$subsetKey][$marginKey] ?? 0.0;
                 if ($currentSum < $target - 0.01) {
                     $seeds = [['dims' => $margin['dims'], 'weight' => 1.0]];
 
@@ -457,9 +461,9 @@ class Helpers
 
     private static function makeCubeKey(array $dims, array $optionalDims): string
     {
-        sort($optionalDims); $parts = [];
+        $parts = [];
         foreach ($optionalDims as $dim) {
-            $parts[] = strtolower($dim) . "=" . strtolower((string)($dims[strtolower($dim)] ?? self::$defaultValues[strtolower($dim)]));
+            $parts[] = $dim . "=" . (string)($dims[$dim] ?? self::$defaultValues[$dim]);
         }
         return implode('|', $parts);
     }
@@ -471,9 +475,9 @@ class Helpers
 
     private static function makeMarginKey(array $dims, array $subsetDims): string
     {
-        sort($subsetDims); $parts = [];
+        $parts = [];
         foreach ($subsetDims as $dim) {
-            $parts[] = strtolower($dim) . "=" . strtolower((string)($dims[strtolower($dim)] ?? self::$defaultValues[strtolower($dim)]));
+            $parts[] = $dim . "=" . (string)($dims[$dim] ?? self::$defaultValues[$dim]);
         }
         return implode('|', $parts);
     }
