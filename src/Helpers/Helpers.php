@@ -94,6 +94,7 @@ class Helpers
         ?LoggerInterface $logger = null
     ): array {
         $optionalDims = array_values(array_diff($allDimensions, ['date']));
+        sort($optionalDims); // Sort ONCE for the whole day
 
         // 1. Parse all subset data into constraints + initial 5D cube
         [$constraints, $cube] = self::parseSubsetData($rows, $optionalDims);
@@ -214,6 +215,7 @@ class Helpers
             }
 
             $subsetOptional = array_values(array_intersect($optionalDims, $subset));
+            sort($subsetOptional); // Sort subset dimensions ONCE
             $subsetKey = implode(',', $subsetOptional);
 
             if (!isset($constraints[$subsetKey])) {
@@ -628,8 +630,7 @@ class Helpers
     private static function makeCubeKey(array $dims, array $optionalDims): string
     {
         $parts = [];
-        // Use alphabetical order for deterministic keys
-        sort($optionalDims);
+        // Assumes $optionalDims is already sorted externally
         foreach ($optionalDims as $dim) {
             $v = $dims[$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
             $parts[] = $dim . '=' . (is_string($v) ? strtolower((string)$v) : $v);
@@ -640,8 +641,7 @@ class Helpers
     private static function makeMarginKey(array $dims, array $subsetDims): string
     {
         $parts = [];
-        // Use alphabetical order for deterministic keys
-        sort($subsetDims);
+        // Assumes $subsetDims is already sorted externally
         foreach ($subsetDims as $dim) {
             $v = $dims[$dim] ?? (self::$defaultValues[$dim] ?? 'unknown');
             $parts[] = $dim . '=' . (is_string($v) ? strtolower((string)$v) : $v);
