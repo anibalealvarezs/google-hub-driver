@@ -57,13 +57,13 @@ class GetFinalRecordsConservationTest extends TestCase
         $this->assertEqualsWithDelta(
             $expectedImpressions,
             $totalImpressions,
-            1, // Allow ±1 for rounding
+            0, // Parity 100%
             "[$scenario] Aggregated impressions must match S0 total."
         );
         $this->assertEqualsWithDelta(
             $expectedClicks,
             $totalClicks,
-            1,
+            0,
             "[$scenario] Aggregated clicks must match S0 total."
         );
     }
@@ -110,13 +110,13 @@ class GetFinalRecordsConservationTest extends TestCase
             $this->assertEqualsWithDelta(
                 $check['expectedImpr'],
                 $sumImpr,
-                2, // IPF rounding tolerance
+                0, // IPF rounding tolerance
                 "[$scenario] Marginal impressions for $label should match."
             );
             $this->assertEqualsWithDelta(
                 $check['expectedClicks'],
                 $sumClicks,
-                2,
+                0,
                 "[$scenario] Marginal clicks for $label should match."
             );
         }
@@ -258,13 +258,13 @@ class GetFinalRecordsConservationTest extends TestCase
                 $this->assertEqualsWithDelta(
                     $expected['impressions'],
                     $sumImpr,
-                    3, // IPF rounding tolerance
+                    0, // IPF rounding tolerance
                     "Impressions mismatch for $label (expected {$expected['impressions']}, got $sumImpr)"
                 );
                 $this->assertEqualsWithDelta(
                     $expected['clicks'],
                     $sumClicks,
-                    2,
+                    0,
                     "Clicks mismatch for $label (expected {$expected['clicks']}, got $sumClicks)"
                 );
                 $passedConstraints++;
@@ -339,8 +339,8 @@ class GetFinalRecordsConservationTest extends TestCase
             $totalImpr += (int)$rec['impressions'];
             $totalClicks += (int)$rec['clicks'];
         }
-        $this->assertEqualsWithDelta(200, $totalImpr, 2, 'S0 impressions must match.');
-        $this->assertEqualsWithDelta(20, $totalClicks, 2, 'S0 clicks must match.');
+        $this->assertEqualsWithDelta(200, $totalImpr, 0, 'S0 impressions must match.');
+        $this->assertEqualsWithDelta(20, $totalClicks, 0, 'S0 clicks must match.');
 
         // 2. Verify query marginal (shoes=100, boots=60, unknown=40)
         $queryGroups = [];

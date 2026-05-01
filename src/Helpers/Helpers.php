@@ -64,6 +64,8 @@ class Helpers
         $metrics = ['impressions', 'clicks'];
         foreach ($metrics as $metric) {
             self::runIPFForMetric($cube, $constraints, $index, $metric, $tolerance, $maxIterations);
+            $target = (float)($constraints['']['margins'][''][$metric] ?? 0);
+            self::reconcileRoundingErrors($cube, $metric, $target);
         }
 
         return self::cubeToRecords($cube, $date, $allDimensions);
@@ -238,7 +240,7 @@ class Helpers
                     foreach ($seeds as $seed) {
                         $seed['dims']['date'] = $date;
                         $seedKey = self::makeCubeKey($seed['dims'], $optionalDims);
-                        $impr = 1.0 * $seed['weight']; // Competitive but elastic
+                        $impr = 1.5 * $seed['weight']; // Slightly higher weight to protect synthetics
                         if (!isset($cube[$seedKey])) {
                             $cube[$seedKey] = [
                                 'dims' => $seed['dims'], 'impressions' => $impr, 'clicks' => $impr * 0.1,
@@ -376,6 +378,37 @@ class Helpers
         // 5. Inject back into cube
         foreach ($cubeKeys as $i => $key) {
             $cube[$key][$metric] = $values[$i];
+        }
+    }
+
+    /**
+     * Largest Remainder Method (Hare-Niemeyer) to ensure integer parity.
+     */
+    private static function reconcileRoundingErrors(array &$cube, string $metric, float $target): void
+    {
+        if (empty($cube) || $target < 0.5) return;
+
+        $sumFloors = 0;
+        $residuals = [];
+
+        foreach ($cube as $key => $cell) {
+            $val = (float)$cell[$metric];
+            $floor = (int)floor($val);
+            $cube[$key][$metric] = $floor;
+            $sumFloors += $floor;
+            $residuals[$key] = $val - $floor;
+        }
+
+        $gap = (int)round($target) - $sumFloors;
+        if ($gap <= 0) return;
+
+        // Sort by residual descending
+        arsort($residuals);
+
+        $keys = array_keys($residuals);
+        $count = count($keys);
+        for ($i = 0; $i < $gap && $i < $count; $i++) {
+            $cube[$keys[$i]][$metric]++;
         }
     }
 
