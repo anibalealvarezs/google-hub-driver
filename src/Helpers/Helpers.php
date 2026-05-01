@@ -32,48 +32,7 @@ class Helpers
         array $targetCountries,
         array $allDimensions
     ): array {
-        $records = [];
-        foreach ($allRows as $row) {
-            $subset = $row['subset'] ?? [];
-            $flipped = array_flip($subset);
-
-            $impressions = max(0, (int)round($row['impressions'] ?? 0));
-            $clicks      = max(0, (int)round($row['clicks'] ?? 0));
-            if ($impressions <= 0 && $clicks <= 0) continue;
-
-            $record = [
-                'date'        => $row['date'] ?? null,
-                'impressions' => $impressions,
-                'clicks'      => $clicks,
-                'ctr'         => $row['ctr'] ?? ($impressions > 0 ? $clicks / $impressions : 0),
-                'position'    => $row['position'] ?? null,
-                'synthetic'   => $row['synthetic'] ?? false,
-            ];
-
-            // Fill dimensions: only set values if they exist in the current subset, otherwise NULL
-            $dimsToFill = ['query', 'country', 'device', 'page'];
-            foreach ($dimsToFill as $dim) {
-                $val = null;
-                if (isset($flipped[$dim])) {
-                    $val = $row['keys'][$flipped[$dim]] ?? null;
-                }
-
-                if ($val !== null) {
-                    // Casing normalization
-                    if ($dim === 'country') {
-                        $val = strtoupper((string)$val);
-                    } elseif ($dim === 'device') {
-                        $val = strtolower((string)$val);
-                    }
-                }
-                
-                $record[$dim] = $val;
-            }
-
-            $records[] = $record;
-        }
-
-        return $records;
+        return self::getFinalRecordsIPF($allRows, $targetKeywords, $targetCountries, $allDimensions);
     }
 
     // =========================================================================
