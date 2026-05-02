@@ -663,6 +663,15 @@ function applySortAndRender() {
     renderTable(sorted, currentDimKey);
 }
 
+function getRowValueByKey(row, key) {
+    if (!row || !key) return undefined;
+    if (Object.prototype.hasOwnProperty.call(row, key)) return row[key];
+
+    const target = key.toLowerCase();
+    const matchedKey = Object.keys(row).find((k) => k.toLowerCase() === target);
+    return matchedKey ? row[matchedKey] : undefined;
+}
+
 function renderTable(data, dimKey) {
     const tbody = document.getElementById("breakdown-body");
     if (!tbody) return;
@@ -700,8 +709,8 @@ function renderTable(data, dimKey) {
     const maxImps = Math.max(...data.map((d) => d.impressions || 0), 1);
 
     data.forEach((row) => {
-        const dimValue = row[dimKey];
-        
+        const dimValue = getRowValueByKey(row, dimKey);
+
         // Only hide if the CURRENT dimension we are grouping by is unknown/null
         // This preserves hierarchical residuals (e.g., a known Page with an unknown Query)
         if (dimValue === null || dimValue === undefined || dimValue === 'unknown' || dimValue === 'UNK' || dimValue === 'null') {
