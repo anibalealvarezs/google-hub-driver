@@ -606,20 +606,24 @@ async function loadTabContent(tab, options = {}) {
     }
 
     try {
+        const tabFilters = {page: propertyId};
+        if (t === 'appearances') {
+            // Backend-supported operator form: exclude baseline standard bucket.
+            tabFilters['dimensions.searchAppearance'] = {
+                operator: 'not_equal',
+                value: 'standard',
+            };
+        }
+
         let rows = await fetchAggregation(
             ["clicks", "impressions", "ctr", "position"],
             groupBy,
-            {page: propertyId},
+            tabFilters,
             start,
             end,
             {signal: activeTableController.signal},
         );
         if (!isLatestTableRequest(requestId)) return;
-
-        // Filter out 'standard' from the Appearances tab to show only specific types
-        if (t === 'appearances') {
-            rows = rows.filter(r => r['dimensions.searchAppearance'] !== 'standard');
-        }
 
         currentTabData = rows;
         currentDimKey = groupBy[0];
