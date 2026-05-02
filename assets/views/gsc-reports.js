@@ -460,13 +460,24 @@ function calculatePreviousPeriod(start, end) {
 }
 
 function renderChart(data) {
+    const sortedData = [...(data || [])].sort((left, right) => {
+        const leftDate = dayjs(left?.daily);
+        const rightDate = dayjs(right?.daily);
+
+        if (!leftDate.isValid() && !rightDate.isValid()) return 0;
+        if (!leftDate.isValid()) return 1;
+        if (!rightDate.isValid()) return -1;
+
+        return leftDate.valueOf() - rightDate.valueOf();
+    });
+
     const ctx = document.getElementById("mainChart").getContext("2d");
-    const labels = data.map((d) => dayjs(d.daily).format("MMM D"));
+    const labels = sortedData.map((d) => dayjs(d.daily).format("MMM D"));
 
     const datasets = [
         {
             label: "Clicks",
-            data: data.map((d) => d.clicks),
+            data: sortedData.map((d) => d.clicks),
             borderColor: GSC_COLORS.clicks,
             backgroundColor: "rgba(66, 133, 244, 0.1)",
             borderWidth: 2,
@@ -477,7 +488,7 @@ function renderChart(data) {
         },
         {
             label: "Impressions",
-            data: data.map((d) => d.impressions),
+            data: sortedData.map((d) => d.impressions),
             borderColor: GSC_COLORS.impressions,
             backgroundColor: "rgba(126, 87, 194, 0.1)",
             borderWidth: 2,
@@ -488,7 +499,7 @@ function renderChart(data) {
         },
         {
             label: 'CTR',
-            data: data.map(d => (parseFloat(d.ctr || 0) * 100).toFixed(2)),
+            data: sortedData.map(d => (parseFloat(d.ctr || 0) * 100).toFixed(2)),
             borderColor: GSC_COLORS.ctr,
             borderWidth: 2,
             tension: 0.3,
@@ -497,7 +508,7 @@ function renderChart(data) {
         },
         {
             label: "Position",
-            data: data.map((d) => d.position),
+            data: sortedData.map((d) => d.position),
             borderColor: GSC_COLORS.position,
             borderWidth: 2,
             tension: 0.3,
@@ -672,6 +683,12 @@ function getRowValueByKey(row, key) {
     return matchedKey ? row[matchedKey] : undefined;
 }
 
+function truncateLabel(value, maxLength = 100) {
+    const text = String(value ?? '');
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 1).trimEnd() + '…';
+}
+
 function renderTable(data, dimKey) {
     const tbody = document.getElementById("breakdown-body");
     if (!tbody) return;
@@ -742,6 +759,9 @@ function renderTable(data, dimKey) {
                 </a>
             </div>
         `;
+        } else if (configKey === "queries") {
+            const truncatedValue = truncateLabel(dimValue, 100);
+            dimContent = `<div class="gsc-url-text" title="${dimValue}">${truncatedValue}</div>`;
         } else {
             dimContent = `<div class="gsc-url-text">${dimValue}</div>`;
         }
