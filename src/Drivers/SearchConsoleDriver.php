@@ -44,17 +44,6 @@
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait;
 
-        public static function getAggregationProfiles(): array
-        {
-            return [
-                AggregationProfileTemplates::searchCubeProfile(
-                    channel: GoogleChannel::SEARCH_CONSOLE->value,
-                    key: 'google_search_console_search_cube',
-                    label: 'Google Search Console Search Cube'
-                ),
-            ];
-        }
-
         public static function getCommonConfigKey(): ?string
         {
             return 'google';
