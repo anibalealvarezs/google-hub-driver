@@ -131,12 +131,26 @@
                     label: 'GSC Search Cube',
                     overrides: [
                         'asset_type' => 'page',
+                        'group_patterns' => [
+                            ['dimensions.country'],
+                            ['dimensions.device'],
+                            ['dimensions.country', 'dimensions.device'],
+                            ['dimensions.query'],
+                            ['dimensions.page'],
+                            ['query'],
+                            ['page'],
+                            ['daily'],
+                            [],
+                        ],
                         'filter_contract' => [
-                            'channel' => ['='],
-                            'dimensions.country' => ['=', 'in'],
-                            'dimensions.device' => ['=', 'in'],
-                            'dimensions.query' => ['=', 'in', 'like'],
-                            'dimensions.page' => ['=', 'in'],
+                            'channel' => ['eq'],
+                            'dimensions.country' => ['eq', 'in'],
+                            'dimensions.device' => ['eq', 'in'],
+                            'dimensions.query' => ['eq', 'in', 'like'],
+                            'dimensions.page' => ['eq', 'in'],
+                            'dimensions.searchAppearance' => ['eq', 'in'],
+                            'query' => ['eq', 'in', 'like'],
+                            'page' => ['eq', 'in'],
                         ],
                         'reducer_strategies' => [
                             '*' => 'sum',
@@ -152,6 +166,7 @@
                         'filter_contract' => [
                             'channel' => ['='],
                             'page' => ['=', 'in'],
+                            'dimensions.searchAppearance' => ['=', 'in'],
                             'metricDate' => ['between', '>=', '<='],
                         ],
                         'reducer_strategies' => [
