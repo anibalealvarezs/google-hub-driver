@@ -11,6 +11,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
@@ -33,13 +34,12 @@
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
-
     use Anibalealvarezs\ApiDriverCore\Enums\HierarchyType;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
-    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface
+    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
     {
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait;
@@ -107,14 +107,14 @@
                     label: 'GSC Site Country Device Breakdown'
                 ),
                 [
-                    'key' => 'gsc_site_full_breakdown',
-                    'channel' => GoogleChannel::SEARCH_CONSOLE->value,
-                    'label' => 'GSC Site Full Breakdown (Query, Geo, Device)',
+                    'key'           => 'gsc_site_full_breakdown',
+                    'channel'       => GoogleChannel::SEARCH_CONSOLE->value,
+                    'label'         => 'GSC Site Full Breakdown (Query, Geo, Device)',
                     'metric_config' => [
-                        'required_fields' => ['account', 'channeledAccount', 'page', 'query', 'country', 'device', 'dimensionSet', 'channel', 'name', 'period'],
-                        'common_filters' => ['page', 'query', 'country', 'device', 'name', 'period'],
+                        'required_fields'  => ['account', 'channeledAccount', 'page', 'query', 'country', 'device', 'dimensionSet', 'channel', 'name', 'period'],
+                        'common_filters'   => ['page', 'query', 'country', 'device', 'name', 'period'],
                         'groupable_fields' => ['query', 'country', 'device'],
-                        'index_hints' => [
+                        'index_hints'      => [
                             ['channel', 'name', 'period', 'page', 'query', 'country', 'device'],
                         ],
                     ],
@@ -128,10 +128,13 @@
                 AggregationProfileTemplates::searchCubeProfile(
                     channel: GoogleChannel::SEARCH_CONSOLE->value,
                     key: 'gsc_search_cube',
-                    label: 'GSC Search Cube',
+                    label: 'GSC Search Cube (Standard)',
                     overrides: [
-                        'asset_type' => 'page',
-                        'group_patterns' => [
+                        'asset_type'         => 'page',
+                        'default_filters'    => [
+                            'dimensions.searchAppearance' => 'standard',
+                        ],
+                        'group_patterns'     => [
                             ['dimensions.country'],
                             ['dimensions.device'],
                             ['dimensions.country', 'dimensions.device'],
@@ -142,40 +145,85 @@
                             ['daily'],
                             [],
                         ],
-                        'filter_contract' => [
-                            'channel' => ['eq'],
-                            'dimensions.country' => ['eq', 'neq', 'in'],
-                            'dimensions.device' => ['eq', 'neq', 'in'],
-                            'dimensions.query' => ['eq', 'neq', 'in', 'like'],
-                            'dimensions.page' => ['eq', 'neq', 'in'],
+                        'filter_contract'    => [
+                            'channel'                     => ['eq'],
+                            'dimensions.country'          => ['eq', 'neq', 'in'],
+                            'dimensions.device'           => ['eq', 'neq', 'in'],
+                            'dimensions.query'            => ['eq', 'neq', 'in', 'like'],
+                            'dimensions.page'             => ['eq', 'neq', 'in'],
                             'dimensions.searchAppearance' => ['eq', 'neq', 'in'],
-                            'query' => ['eq', 'neq', 'in', 'like'],
-                            'page' => ['eq', 'neq', 'in'],
+                            'query'                       => ['eq', 'neq', 'in', 'like'],
+                            'page'                        => ['eq', 'neq', 'in'],
                         ],
                         'reducer_strategies' => [
-                            '*' => 'sum',
+                            '*'        => 'sum',
                             'position' => 'weighted_by_metric',
                         ],
                     ]
                 ),
+                AggregationProfileTemplates::searchCubeProfile(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_search_cube_by_appearance',
+                    label: 'GSC Search Cube by Appearance',
+                    overrides: [
+                        'asset_type'         => 'page',
+                        'default_filters'    => [
+                            'dimensions.searchAppearance' => ['operator' => 'neq', 'value' => 'standard'],
+                        ],
+                        'group_patterns'     => [
+                            ['dimensions.searchAppearance'],
+                            ['dimensions.searchAppearance', 'daily'],
+                            ['dimensions.searchAppearance', 'dimensions.country'],
+                            ['dimensions.searchAppearance', 'dimensions.device'],
+                        ],
+                        'filter_contract'    => [
+                            'channel'                     => ['eq'],
+                            'dimensions.searchAppearance' => ['eq', 'neq', 'in'],
+                            'dimensions.country'          => ['eq', 'neq', 'in'],
+                            'dimensions.device'           => ['eq', 'neq', 'in'],
+                        ],
+                        'reducer_strategies' => [
+                            '*'        => 'sum',
+                            'position' => 'weighted_by_metric',
+                        ],
+                    ]
+                ),
+
                 AggregationProfileTemplates::organicPageFlowProfile(
                     channel: GoogleChannel::SEARCH_CONSOLE->value,
                     key: 'gsc_page_flow',
                     label: 'GSC Page Flow',
                     overrides: [
-                        'filter_contract' => [
-                            'channel' => ['='],
-                            'page' => ['=', 'in'],
+                        'filter_contract'    => [
+                            'channel'                     => ['='],
+                            'page'                        => ['=', 'in'],
                             'dimensions.searchAppearance' => ['=', 'in'],
-                            'metricDate' => ['between', '>=', '<='],
+                            'metricDate'                  => ['between', '>=', '<='],
                         ],
                         'reducer_strategies' => [
-                            '*' => 'sum',
+                            '*'        => 'sum',
                             'position' => 'weighted_by_metric',
                         ],
                     ]
                 ),
             ];
+        }
+
+        public static function getCanonicalMetricDictionary(): array
+        {
+            return [
+                'clicks'          => ['clicks', 'clicks_daily'],
+                'impressions'     => ['impressions', 'impressions_daily'],
+                'ctr'             => ['ctr'],
+                'position'        => ['position', 'position_daily'],
+                'conversions'     => ['conversions', 'conversions_daily'],
+                'conversion_rate' => ['conversion_rate'],
+            ];
+        }
+
+        public static function getPlatformEntityIdField(): string
+        {
+            return 'platform_id';
         }
 
         public static function getChannelLabel(): string
@@ -584,7 +632,7 @@
                                 $totalStats['rows'] += count($rows);
                                 $totalStats['duplicates'] += $result['duplicates'] ?? 0;
 
-                                $this->logger?->info("+++ ÉXITO: Sincronizados " . count($rows) . " registros GSC para $siteUrl");
+                                $this->logger?->info("+++ ÉXITO: Sincronizados ".count($rows)." registros GSC para $siteUrl");
                             }
                         } catch (Exception $e) {
                             $this->logger?->error("!!! ERROR: Fallo al sincronizar ventana $chunkStartStr a $chunkEndStr para $siteUrl: ".$e->getMessage());
@@ -605,9 +653,10 @@
             } catch (Exception $e) {
                 if ($this->isAuthenticationError($e)) {
                     $this->logger?->critical("!!!! ERROR CRÍTICO DE AUTENTICACIÓN: SearchConsoleDriver falló debido a un token inválido o expirado: ".$e->getMessage());
+
                     return new Response(json_encode([
-                        'status' => 'error',
-                        'message' => 'Authentication failed. Please re-authenticate.',
+                        'status'     => 'error',
+                        'message'    => 'Authentication failed. Please re-authenticate.',
                         'error_code' => 'auth_failure'
                     ]), 401);
                 }
@@ -627,7 +676,8 @@
             string $endDate,
             int    $rowLimit = 25000,
             bool   $calculateSynthetics = true
-        ): array {
+        ): array
+        {
             $finalRows = [];
             $current = Carbon::parse($startDate);
             $end = Carbon::parse($endDate);
@@ -635,10 +685,10 @@
             while ($current <= $end) {
                 $dayStr = $current->format('Y-m-d');
                 $this->logger?->info(">>> Fetching GSC Data for Date: $dayStr");
-                
+
                 $dayRows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $rowLimit, $calculateSynthetics);
                 $finalRows = array_merge($finalRows, $dayRows);
-                
+
                 $current->addDay();
             }
 
@@ -654,7 +704,8 @@
             string $date,
             int    $rowLimit = 25000,
             bool   $calculateSynthetics = true
-        ): array {
+        ): array
+        {
             $baseDimensions = ['query', 'country', 'page', 'device'];
             $reconcileDimensions = ['date', 'query', 'country', 'page', 'device'];
 
@@ -681,7 +732,7 @@
             foreach ($subsetsToFetch as $dimSubset) {
                 $actualDims = array_merge(['date'], $dimSubset);
                 $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, $actualDims, $rowLimit);
-                $this->logger?->info("GSC Subset [" . implode(',', $actualDims) . "]: " . count($rows) . " rows fetched.");
+                $this->logger?->info("GSC Subset [".implode(',', $actualDims)."]: ".count($rows)." rows fetched.");
                 foreach ($rows as $row) {
                     $dayRows[] = array_merge($row, ['subset' => $actualDims]);
                 }
@@ -701,12 +752,13 @@
                 200,
                 $this->logger
             );
-            $this->logger?->info("GSC Reconciliation complete: " . count($dayRows) . " input rows -> " . count($reconciledRows) . " reconciled rows.");
+            $this->logger?->info("GSC Reconciliation complete: ".count($dayRows)." input rows -> ".count($reconciledRows)." reconciled rows.");
 
             // 4. Final normalization and add Search Appearance (Standard)
             // We tag all reconciled rows as 'standard' so they can be filtered separately from specific appearance breakdowns.
-            $finalDayRows = array_map(function($row) {
+            $finalDayRows = array_map(function ($row) {
                 $row['searchAppearance'] = 'standard';
+
                 return $row;
             }, $reconciledRows);
 
@@ -747,6 +799,7 @@
                         rowLimit: $rowLimit,
                         dimensions: $dimensions
                     );
+
                     return $response['rows'] ?? [];
                 } catch (Exception $e) {
                     $retryCount++;
@@ -757,6 +810,7 @@
                     if ($retryCount >= $maxRetries) throw $e;
                 }
             }
+
             return [];
         }
 
@@ -1268,10 +1322,11 @@
         private function isAuthenticationError(Exception $e): bool
         {
             $msg = $e->getMessage();
+
             return (
-                str_contains($msg, 'invalid_grant') || 
-                str_contains($msg, 'expired') || 
-                str_contains($msg, 'revoked') || 
+                str_contains($msg, 'invalid_grant') ||
+                str_contains($msg, 'expired') ||
+                str_contains($msg, 'revoked') ||
                 str_contains($msg, 'authentication')
             );
         }

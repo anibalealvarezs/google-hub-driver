@@ -15,3 +15,5 @@
 - Synthetic generation is controlled by `calculate_synthetics`; when disabled, the driver should query only the full 5D subset to avoid overcounting and reduce quota usage.
 - Query breakdown performance relies on the optimized aggregate path and the shared helper conservation tests; keep the invariants (`clicks <= impressions`, non-negative outputs, bounded CTR) intact.
 - Shared Phase 2 pilot: `SearchConsoleDriver` now implements `AggregationProfileProviderInterface` and exposes normalized aggregation capability profiles (`gsc_search_cube`, `gsc_page_flow`) for planner-side capability validation in `apis-hub`.
+- Google priority pilot completed for canonical metric equivalence: `SearchConsoleDriver` now implements `CanonicalMetricDictionaryProviderInterface` with read-only canonical -> raw mapping for aggregation-time resolution, and this Google step closes the pilot-expansion stage for now.
+- **GSC Profiles**: Split `gsc_search_cube` into two profiles (Standard and By Appearance) to handle mandatory `searchAppearance` filters via `default_filters`, removing the need for hardcoded logic in the planner.
