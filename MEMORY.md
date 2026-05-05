@@ -14,3 +14,4 @@
 - The earlier daily distribution bug was fixed by including the metric date in the aggregation grouping key.
 - Synthetic generation is controlled by `calculate_synthetics`; when disabled, the driver should query only the full 5D subset to avoid overcounting and reduce quota usage.
 - Query breakdown performance relies on the optimized aggregate path and the shared helper conservation tests; keep the invariants (`clicks <= impressions`, non-negative outputs, bounded CTR) intact.
+- Shared Phase 2 pilot: `SearchConsoleDriver` now implements `AggregationProfileProviderInterface` and exposes normalized aggregation capability profiles (`gsc_search_cube`, `gsc_page_flow`) for planner-side capability validation in `apis-hub`.
