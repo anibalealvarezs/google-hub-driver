@@ -3,12 +3,14 @@
     namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
     use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
+    use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
     use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
@@ -37,7 +39,7 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
-    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface
+    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface
     {
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait;
@@ -117,6 +119,47 @@
                         ],
                     ],
                 ],
+            ];
+        }
+
+        public static function getAggregationProfiles(): array
+        {
+            return [
+                AggregationProfileTemplates::searchCubeProfile(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_search_cube',
+                    label: 'GSC Search Cube',
+                    overrides: [
+                        'asset_type' => 'page',
+                        'filter_contract' => [
+                            'channel' => ['='],
+                            'dimensions.country' => ['=', 'in'],
+                            'dimensions.device' => ['=', 'in'],
+                            'dimensions.query' => ['=', 'in', 'like'],
+                            'dimensions.page' => ['=', 'in'],
+                        ],
+                        'reducer_strategies' => [
+                            '*' => 'sum',
+                            'position' => 'weighted_by_metric',
+                        ],
+                    ]
+                ),
+                AggregationProfileTemplates::organicPageFlowProfile(
+                    channel: GoogleChannel::SEARCH_CONSOLE->value,
+                    key: 'gsc_page_flow',
+                    label: 'GSC Page Flow',
+                    overrides: [
+                        'filter_contract' => [
+                            'channel' => ['='],
+                            'page' => ['=', 'in'],
+                            'metricDate' => ['between', '>=', '<='],
+                        ],
+                        'reducer_strategies' => [
+                            '*' => 'sum',
+                            'position' => 'weighted_by_metric',
+                        ],
+                    ]
+                ),
             ];
         }
 
