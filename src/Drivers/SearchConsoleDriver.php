@@ -560,8 +560,15 @@
                 $startDateCarbon = Carbon::instance($startDate);
                 $endDateCarbon = Carbon::instance($endDate);
 
+                $targetAccountId = $config['account_id'] ?? null;
+
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
+
+                    if ($targetAccountId && $targetAccountId !== $siteUrl) {
+                        continue;
+                    }
+
                     if (!($site['enabled'] ?? true) && is_array($site)) continue;
 
                     $pLevel = $site['permissionLevel'] ?? null;
