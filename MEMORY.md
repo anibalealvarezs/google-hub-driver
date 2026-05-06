@@ -17,3 +17,5 @@
 - Shared Phase 2 pilot: `SearchConsoleDriver` now implements `AggregationProfileProviderInterface` and exposes normalized aggregation capability profiles (`gsc_search_cube`, `gsc_page_flow`) for planner-side capability validation in `apis-hub`.
 - Google priority pilot completed for canonical metric equivalence: `SearchConsoleDriver` now implements `CanonicalMetricDictionaryProviderInterface` with read-only canonical -> raw mapping for aggregation-time resolution, and this Google step closes the pilot-expansion stage for now.
 - **GSC Profiles**: Split `gsc_search_cube` into two profiles (Standard and By Appearance) to handle mandatory `searchAppearance` filters via `default_filters`, removing the need for hardcoded logic in the planner.
+- **Platform Identity**: Implemented `getPlatformEntityIdField()` to return `site_url`, facilitating agnostic identity resolution in the core engine.
+

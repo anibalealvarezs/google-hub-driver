@@ -140,6 +140,7 @@
                             ['dimensions.country', 'dimensions.device'],
                             ['dimensions.query'],
                             ['dimensions.page'],
+                            ['dimensions.searchAppearance'],
                             ['query'],
                             ['page'],
                             ['daily'],
