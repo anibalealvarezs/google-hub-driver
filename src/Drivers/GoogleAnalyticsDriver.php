@@ -209,12 +209,17 @@
 
         public function updateConfiguration(array $newData, array $currentConfig): array
         {
+            if (isset($newData['granular_sync'])) {
+                $currentConfig['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            }
             return $currentConfig;
         }
 
         public function prepareUiConfig(array $channelConfig): array
         {
-            return [];
+            return [
+                'ga_granular_sync' => $channelConfig['granular_sync'] ?? false
+            ];
         }
 
         /**

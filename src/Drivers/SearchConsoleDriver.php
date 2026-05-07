@@ -379,6 +379,9 @@
             }
 
             $chanCfg['enabled'] = $enabled;
+            if (isset($newData['granular_sync'])) {
+                $chanCfg['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            }
 
             // Synthetic generation toggle
             if (isset($featureToggles['calculate_synthetics'])) {
@@ -1265,6 +1268,7 @@
             $ui['gsc_cron_recent_hour'] = $channelConfig['cron_recent_hour'] ?? 5;
             $ui['gsc_cron_recent_minute'] = $channelConfig['cron_recent_minute'] ?? 0;
             $ui['gsc_calculate_synthetics'] = filter_var($channelConfig['calculate_synthetics'] ?? true, FILTER_VALIDATE_BOOLEAN);
+            $ui['gsc_granular_sync'] = $channelConfig['granular_sync'] ?? false;
 
             $ui['gsc'] = [];
             foreach (($channelConfig['sites'] ?? []) as $site) {
