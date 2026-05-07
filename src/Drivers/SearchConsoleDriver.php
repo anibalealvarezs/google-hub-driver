@@ -1336,7 +1336,6 @@
             ];
         }
 
-
         /**
          * Check if the exception is related to authentication failure.
          */
