@@ -399,8 +399,16 @@
                 }
             }
 
+            if (empty($selectedSites) && isset($newData['type']) && $newData['type'] !== 'global') {
+                if ($this->logger) {
+                    $this->logger->warning("Received empty sites payload for Google Search Console, skipping update to prevent wipe.");
+                }
+                return $currentConfig;
+            }
+
             // Sites management
             $currentSites = $chanCfg['sites'] ?? [];
+
             $newSitesList = [];
             $selectedMap = [];
             foreach ($selectedSites as $sel) {
