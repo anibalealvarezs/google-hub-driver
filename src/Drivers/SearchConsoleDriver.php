@@ -560,12 +560,13 @@
                     $urls = [];
                     $caPlatformIds = [];
                     foreach ($sitesToProcess as $site) {
+                        $siteUrl = (string)($site['url'] ?? $site);
                         // Use the formal platform ID calculation (same as Scheduler)
-                        $pId = self::getPlatformId(['url' => $u], AssetCategory::IDENTITY, 'gsc');
+                        $pId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                         if ($targetAccountId && $targetAccountId !== $pId) {
                             continue;
                         }
-                        $urls[] = $u;
+                        $urls[] = $siteUrl;
                         $caPlatformIds[] = $pId;
                     }
                     $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
