@@ -555,13 +555,18 @@
                 $pageMap = [];
                 $caMap = [];
                 $accountMap = [];
+                $targetAccountId = $config['account_id'] ?? null;
                 if ($identityMapper && !empty($sitesToProcess)) {
                     $urls = [];
                     $caPlatformIds = [];
                     foreach ($sitesToProcess as $site) {
-                        $u = (string)($site['url'] ?? $site);
+                        // Use the formal platform ID calculation (same as Scheduler)
+                        $pId = self::getPlatformId(['url' => $u], AssetCategory::IDENTITY, 'gsc');
+                        if ($targetAccountId && $targetAccountId !== $pId) {
+                            continue;
+                        }
                         $urls[] = $u;
-                        $caPlatformIds[] = self::getPlatformId(['url' => $u], AssetCategory::IDENTITY, 'gsc');
+                        $caPlatformIds[] = $pId;
                     }
                     $pageMap = $identityMapper('pages', ['urls' => $urls]) ?? [];
                     $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $caPlatformIds]) ?? [];
@@ -576,7 +581,9 @@
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
 
-                    if ($targetAccountId && $targetAccountId !== $siteUrl) {
+                    // Use the formal platform ID calculation (same as Scheduler)
+                    $currentPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
+                    if ($targetAccountId && $targetAccountId !== $currentPlatformId) {
                         continue;
                     }
 
