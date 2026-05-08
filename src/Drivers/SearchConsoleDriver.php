@@ -563,7 +563,8 @@
                         $siteUrl = (string)($site['url'] ?? $site);
                         // Use the formal platform ID calculation (same as Scheduler)
                         $pId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
-                        if ($targetAccountId && $targetAccountId !== $pId) {
+                        $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+                        if ($cleanTargetId && $cleanTargetId !== $pId) {
                             continue;
                         }
                         $urls[] = $siteUrl;
@@ -578,13 +579,16 @@
                 $endDateCarbon = Carbon::instance($endDate);
 
                 $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
+                error_log("DEBUG GSC: Target Account ID is [" . ($targetAccountId ?? 'NULL') . "]");
 
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
 
                     // Use the formal platform ID calculation (same as Scheduler)
                     $currentPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
-                    if ($targetAccountId && $targetAccountId !== $currentPlatformId) {
+                    $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+                    error_log("DEBUG GSC: Comparing Target [$targetAccountId] (Clean: [$cleanTargetId]) with Current [$currentPlatformId] for site [$siteUrl]");
+                    if ($cleanTargetId && $cleanTargetId !== $currentPlatformId) {
                         continue;
                     }
 
