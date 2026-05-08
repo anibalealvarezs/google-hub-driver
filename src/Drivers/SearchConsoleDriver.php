@@ -247,6 +247,7 @@
          *
          * @return string
          */
+
         public static function getChannelIcon(): string
         {
             return 'G';
@@ -555,7 +556,7 @@
                 $pageMap = [];
                 $caMap = [];
                 $accountMap = [];
-                $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
+                $targetAccountId = $config['account_id'] ?? null;
                 if ($identityMapper && !empty($sitesToProcess)) {
                     $urls = [];
                     $caPlatformIds = [];
@@ -578,8 +579,7 @@
                 $startDateCarbon = Carbon::instance($startDate);
                 $endDateCarbon = Carbon::instance($endDate);
 
-                $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
-                error_log("DEBUG GSC: Target Account ID is [" . ($targetAccountId ?? 'NULL') . "]");
+                $targetAccountId = $config['account_id'] ?? null;
 
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
@@ -587,7 +587,6 @@
                     // Use the formal platform ID calculation (same as Scheduler)
                     $currentPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                     $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
-                    error_log("DEBUG GSC: Comparing Target [$targetAccountId] (Clean: [$cleanTargetId]) with Current [$currentPlatformId] for site [$siteUrl]");
                     if ($cleanTargetId && $cleanTargetId !== $currentPlatformId) {
                         continue;
                     }
