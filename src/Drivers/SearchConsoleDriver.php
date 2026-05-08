@@ -555,7 +555,7 @@
                 $pageMap = [];
                 $caMap = [];
                 $accountMap = [];
-                $targetAccountId = $config['account_id'] ?? null;
+                $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
                 if ($identityMapper && !empty($sitesToProcess)) {
                     $urls = [];
                     $caPlatformIds = [];
@@ -577,7 +577,7 @@
                 $startDateCarbon = Carbon::instance($startDate);
                 $endDateCarbon = Carbon::instance($endDate);
 
-                $targetAccountId = $config['account_id'] ?? null;
+                $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
 
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
