@@ -5,6 +5,7 @@ window.ConfigHandlers['google_search_console'] = {
         const payload = {
             enabled: document.getElementById('gsc-channel-enabled')?.checked,
             granular_sync: document.getElementById('gsc-granular-sync')?.checked,
+            max_workers: document.getElementById('gsc-max-workers')?.value,
             cache_history_range: document.getElementById('gsc-history-range')?.value,
             feature_toggles: {
                 cron_recent_hour: document.getElementById('gsc-cron-hour')?.value,
