@@ -568,6 +568,9 @@
                         // Use the formal platform ID calculation (same as Scheduler)
                         $pId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                         $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+                        if ($cleanTargetId) {
+                            $cleanTargetId = self::getPlatformId(['url' => $cleanTargetId], AssetCategory::IDENTITY, 'gsc');
+                        }
                         if ($cleanTargetId && $cleanTargetId !== $pId) {
                             continue;
                         }
@@ -590,6 +593,9 @@
                     // Use the formal platform ID calculation (same as Scheduler)
                     $currentPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                     $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+                    if ($cleanTargetId) {
+                        $cleanTargetId = self::getPlatformId(['url' => $cleanTargetId], AssetCategory::IDENTITY, 'gsc');
+                    }
                     if ($cleanTargetId && $cleanTargetId !== $currentPlatformId) {
                         continue;
                     }
