@@ -4,6 +4,7 @@
 
     use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
     use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
     use Closure;
     use Exception;
@@ -186,5 +187,29 @@
         public function getDateFilterMapping(): array
         {
             return [];
+        }
+
+        /**
+         * @inheritdoc
+         */
+        public function validateConfig(array $config): array
+        {
+            $config = ConfigSchemaRegistryService::hydrate(
+                $this->getChannel(),
+                'global',
+                $config,
+                $this->getConfigSchema()
+            );
+
+            $envOverrides = $this->getEnvMapping();
+
+            foreach ($envOverrides as $envKey => $configPath) {
+                $val = getenv($envKey);
+                if ($val !== false && $val !== '') {
+                    $config[$configPath] = $val;
+                }
+            }
+
+            return $config;
         }
     }
