@@ -2,17 +2,13 @@
 
     namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-    use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
     use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
     use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
-    use Closure;
     use DateTime;
-    use Exception;
-    use Psr\Log\LoggerInterface;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
@@ -95,6 +91,18 @@
                     'html'       => true
                 ]
             ]);
+        }
+
+        /**
+         * Get the routes that should be whitelisted from rate limiting.
+         *
+         * @return array
+         */
+        public static function getRateLimitWhitelist(): array
+        {
+            return [
+                '/ga-reports',
+            ];
         }
 
         /**
