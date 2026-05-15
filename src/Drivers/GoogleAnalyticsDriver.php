@@ -4,7 +4,6 @@
 
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
-    use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
     use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
@@ -29,6 +28,7 @@
             GoogleSyncDriverTrait::initializeApi insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
 
         }
 
