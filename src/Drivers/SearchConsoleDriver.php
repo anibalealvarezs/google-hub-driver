@@ -848,30 +848,6 @@
         /**
          * @inheritdoc
          */
-        public function validateConfig(array $config): array
-        {
-            $config = ConfigSchemaRegistryService::hydrate(
-                $this->getChannel(),
-                'global',
-                $config,
-                $this->getConfigSchema()
-            );
-
-            $envOverrides = $this->getEnvMapping();
-
-            foreach ($envOverrides as $envKey => $configPath) {
-                $val = getenv($envKey);
-                if ($val !== false && $val !== '') {
-                    $config[$configPath] = $val;
-                }
-            }
-
-            return $config;
-        }
-
-        /**
-         * @inheritdoc
-         */
         public function seedDemoData(SeederInterface $seeder, array $config = []): void
         {
             $output = $config['output'] ?? null;
