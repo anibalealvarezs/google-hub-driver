@@ -8,6 +8,8 @@
     use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
     use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
+    use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
+    use Closure;
     use DateTime;
     use Exception;
     use Psr\Log\LoggerInterface;
@@ -20,40 +22,18 @@
 
     class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface
     {
-        use SyncDriverTrait;
+        use SyncDriverTrait, GoogleSyncDriverTrait {
+            GoogleSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getApi insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::boot insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getCommonConfigKey insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getProviderLabel insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getProviderName insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::initializeApi insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
 
-        public static function getCommonConfigKey(): ?string
-        {
-            return 'google';
-        }
-
-        /**
-         * Store credentials for this driver.
-         *
-         * @param array $credentials
-         * @return void
-         */
-        public static function storeCredentials(array $credentials): void
-        {
-            $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd().'/storage/tokens/google_tokens.json');
-            $tokenKey = 'google_auth';
-
-            if (!is_dir(dirname($tokenPath))) {
-                mkdir(dirname($tokenPath), 0755, true);
-            }
-
-            $tokens = file_exists($tokenPath) ? (json_decode(file_get_contents($tokenPath), true) ?? []) : [];
-
-            $tokens[$tokenKey] = [
-                'access_token'  => $credentials['access_token'] ?? null,
-                'refresh_token' => $credentials['refresh_token'] ?? null,
-                'user_id'       => $credentials['user_id'] ?? null,
-                'scopes'        => $credentials['scopes'] ?? [],
-                'updated_at'    => date('Y-m-d H:i:s'),
-                'expires_at'    => date('Y-m-d H:i:s', strtotime('+3600 seconds'))
-            ];
-
-            file_put_contents($tokenPath, json_encode($tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
 
         /**
@@ -137,35 +117,9 @@
             ];
         }
 
-        public array $updatableCredentials = [
-            'GOOGLE_REFRESH_TOKEN',
-            'GOOGLE_USER_ID',
-            'GOOGLE_CLIENT_ID',
-            'GOOGLE_CLIENT_SECRET'
-        ];
-
-        private ?AuthProviderInterface $authProvider;
-        private ?LoggerInterface $logger;
-
-        public function __construct(?AuthProviderInterface $authProvider = null, ?LoggerInterface $logger = null)
-        {
-            $this->authProvider = $authProvider;
-            $this->logger = $logger;
-        }
-
         public function getChannel(): string
         {
             return GoogleChannel::ANALYTICS->value;
-        }
-
-        public function setAuthProvider(AuthProviderInterface $provider): void
-        {
-            $this->authProvider = $provider;
-        }
-
-        public function getAuthProvider(): ?AuthProviderInterface
-        {
-            return $this->authProvider;
         }
 
         public function sync(
@@ -183,11 +137,6 @@
                 'status'  => 'skipped',
                 'message' => 'Google Analytics driver (Modular) placeholder executed successfully.'
             ]));
-        }
-
-        public function getApi(array $config = []): mixed
-        {
-            return null;
         }
 
         /**
@@ -212,6 +161,7 @@
             if (isset($newData['granular_sync'])) {
                 $currentConfig['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
             }
+
             return $currentConfig;
         }
 
@@ -234,13 +184,7 @@
                 $this->getConfigSchema()
             );
 
-            $envOverrides = [
-                'GOOGLE_CLIENT_ID'     => 'client_id',
-                'GOOGLE_CLIENT_SECRET' => 'client_secret',
-                'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
-                'GOOGLE_REDIRECT_URI'  => 'redirect_uri',
-                'GOOGLE_USER_ID'       => 'user_id',
-            ];
+            $envOverrides = $this->getEnvMapping();
 
             foreach ($envOverrides as $envKey => $configPath) {
                 $val = getenv($envKey);
@@ -258,10 +202,6 @@
         public function seedDemoData(SeederInterface $seeder, array $config = []): void
         {
             // Placeholder for future implementation
-        }
-
-        public function boot(): void
-        {
         }
 
         /**
@@ -314,27 +254,6 @@
         /**
          * @inheritdoc
          */
-        public function reset(string $mode = 'all', array $config = []): array
-        {
-            $resetCallback = $config['resetCallback'] ?? null;
-            if ($resetCallback instanceof \Closure) {
-                return $resetCallback($this->getChannel(), $mode);
-            }
-
-            throw new Exception("Reset callback not provided for ".$this->getChannel());
-        }
-
-        /**
-         * @inheritdoc
-         */
-        public function getDateFilterMapping(): array
-        {
-            return [];
-        }
-
-        /**
-         * @inheritdoc
-         */
         public static function getInstanceRules(): array
         {
             return [
@@ -351,6 +270,7 @@
         public static function getPlatformEntityIdField(): string
         {
             // TODO: Implement getPlatformEntityIdField() method.
+            return '';
         }
     }
 
