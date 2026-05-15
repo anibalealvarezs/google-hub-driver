@@ -2,13 +2,11 @@
 
     namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
-    use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
     use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
     use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
-    use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
@@ -31,7 +29,6 @@
     use Exception;
     use Faker\Factory;
     use GuzzleHttp\Exception\GuzzleException;
-    use Psr\Log\LoggerInterface;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
