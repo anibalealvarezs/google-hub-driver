@@ -91,7 +91,7 @@
 
         public static function getCommonConfigKey(): ?string
         {
-            return 'google';
+            return self::getProviderName();
         }
 
         public function setAuthProvider(AuthProviderInterface $provider): void
@@ -158,12 +158,14 @@
         public static function getEnvMapping(): array
         {
             return [
-                'GOOGLE_CLIENT_ID'     => 'client_id',
-                'GOOGLE_CLIENT_SECRET' => 'client_secret',
-                'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
-                'GOOGLE_USER_ID'       => 'user_id',
-                'GOOGLE_REDIRECT_URI'  => 'redirect_uri',
-                'GOOGLE_TOKEN_PATH'    => 'token_path',
+                self::getProviderName() => [
+                    'GOOGLE_CLIENT_ID'     => 'client_id',
+                    'GOOGLE_CLIENT_SECRET' => 'client_secret',
+                    'GOOGLE_REFRESH_TOKEN' => 'refresh_token',
+                    'GOOGLE_USER_ID'       => 'user_id',
+                    'GOOGLE_REDIRECT_URI'  => 'redirect_uri',
+                    'GOOGLE_TOKEN_PATH'    => 'token_path',
+                ]
             ];
         }
 
