@@ -51,6 +51,7 @@
             GoogleSyncDriverTrait::initializeApi insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
         }
 
         // Dimensions from legacy GoogleSearchConsoleHelpers
