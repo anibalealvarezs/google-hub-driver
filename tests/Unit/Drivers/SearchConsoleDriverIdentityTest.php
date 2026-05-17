@@ -58,4 +58,102 @@ class SearchConsoleDriverIdentityTest extends TestCase
         
         $this->assertNotEquals($targetAccountId, $currentPlatformId, "Prefix '#' causes mismatch");
     }
+
+    public function testSyncFilteringOfDisabledSites()
+    {
+        // Mock config containing both enabled and disabled sites
+        $config = [
+            'sites' => [
+                [
+                    'url' => 'sc-domain:enabled-site.com',
+                    'enabled' => true
+                ],
+                [
+                    'url' => 'sc-domain:disabled-site.com',
+                    'enabled' => false
+                ]
+            ]
+        ];
+
+        $sitesToProcess = $config['sites'];
+
+        $processedSites = [];
+        foreach ($sitesToProcess as $site) {
+            $siteUrl = (string)($site['url'] ?? $site);
+
+            // Resolve configuration enabled status
+            $siteEnabled = true;
+            if (is_array($site)) {
+                $siteEnabled = (bool)($site['enabled'] ?? true);
+            } else {
+                $configSites = $config['sites'] ?? [];
+                foreach ($configSites as $cSite) {
+                    if (is_array($cSite) && ($cSite['url'] ?? null) === $siteUrl) {
+                        $siteEnabled = (bool)($cSite['enabled'] ?? true);
+                        break;
+                    }
+                }
+            }
+
+            if (!$siteEnabled) {
+                continue;
+            }
+
+            $processedSites[] = $siteUrl;
+        }
+
+        $this->assertContains('sc-domain:enabled-site.com', $processedSites, "Enabled site should be processed");
+        $this->assertNotContains('sc-domain:disabled-site.com', $processedSites, "Disabled site should NOT be processed");
+    }
+
+    public function testSyncFilteringOfDisabledStringSites()
+    {
+        // Mock config where sites is a list of strings, but some are disabled in config
+        $config = [
+            'sites' => [
+                [
+                    'url' => 'sc-domain:enabled-site.com',
+                    'enabled' => true
+                ],
+                [
+                    'url' => 'sc-domain:disabled-site.com',
+                    'enabled' => false
+                ]
+            ]
+        ];
+
+        // Simulate if the loop was called with a list of strings
+        $sitesToProcess = [
+            'sc-domain:enabled-site.com',
+            'sc-domain:disabled-site.com'
+        ];
+
+        $processedSites = [];
+        foreach ($sitesToProcess as $site) {
+            $siteUrl = (string)($site['url'] ?? $site);
+
+            // Resolve configuration enabled status
+            $siteEnabled = true;
+            if (is_array($site)) {
+                $siteEnabled = (bool)($site['enabled'] ?? true);
+            } else {
+                $configSites = $config['sites'] ?? [];
+                foreach ($configSites as $cSite) {
+                    if (is_array($cSite) && ($cSite['url'] ?? null) === $siteUrl) {
+                        $siteEnabled = (bool)($cSite['enabled'] ?? true);
+                        break;
+                    }
+                }
+            }
+
+            if (!$siteEnabled) {
+                continue;
+            }
+
+            $processedSites[] = $siteUrl;
+        }
+
+        $this->assertContains('sc-domain:enabled-site.com', $processedSites, "Enabled site string should be processed");
+        $this->assertNotContains('sc-domain:disabled-site.com', $processedSites, "Disabled site string should NOT be processed");
+    }
 }

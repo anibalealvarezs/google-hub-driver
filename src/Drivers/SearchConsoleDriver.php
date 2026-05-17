@@ -508,6 +508,24 @@
                     $caPlatformIds = [];
                     foreach ($sitesToProcess as $site) {
                         $siteUrl = (string)($site['url'] ?? $site);
+
+                        // Resolve configuration enabled status
+                        $siteEnabled = true;
+                        if (is_array($site)) {
+                            $siteEnabled = (bool)($site['enabled'] ?? true);
+                        } else {
+                            $configSites = $config['sites'] ?? $chanCfg['sites'] ?? [];
+                            foreach ($configSites as $cSite) {
+                                if (is_array($cSite) && ($cSite['url'] ?? null) === $siteUrl) {
+                                    $siteEnabled = (bool)($cSite['enabled'] ?? true);
+                                    break;
+                                }
+                            }
+                        }
+                        if (!$siteEnabled) {
+                            continue;
+                        }
+
                         // Use the formal platform ID calculation (same as Scheduler)
                         $pId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                         $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
@@ -533,6 +551,24 @@
                 foreach ($sitesToProcess as $site) {
                     $siteUrl = (string)($site['url'] ?? $site);
 
+                    // Resolve configuration enabled status
+                    $siteEnabled = true;
+                    if (is_array($site)) {
+                        $siteEnabled = (bool)($site['enabled'] ?? true);
+                    } else {
+                        $configSites = $config['sites'] ?? $chanCfg['sites'] ?? [];
+                        foreach ($configSites as $cSite) {
+                            if (is_array($cSite) && ($cSite['url'] ?? null) === $siteUrl) {
+                                $siteEnabled = (bool)($cSite['enabled'] ?? true);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!$siteEnabled) {
+                        continue;
+                    }
+
                     // Use the formal platform ID calculation (same as Scheduler)
                     $currentPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
                     $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
@@ -543,7 +579,11 @@
                         continue;
                     }
 
-                    if (!($site['enabled'] ?? true) && is_array($site)) continue;
+                    $caPlatformId = self::getPlatformId(['url' => $siteUrl], AssetCategory::IDENTITY, 'gsc');
+                    $ca = $caMap[$caPlatformId] ?? null;
+                    if ($ca && method_exists($ca, 'isEnabled') && !$ca->isEnabled()) {
+                        continue;
+                    }
 
                     $pLevel = $site['permissionLevel'] ?? null;
                     if (in_array($pLevel, ['siteRestrictedUser', 'siteUnverifiedUser'])) {
