@@ -6,6 +6,7 @@
     use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
     use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
+    use Anibalealvarezs\ApiDriverCore\Enums\InstanceTier;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
@@ -25,6 +26,7 @@
     use Anibalealvarezs\GoogleHubDriver\Helpers\Helpers;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use Carbon\Carbon;
+    use Classes\DriverInitializer;
     use DateTime;
     use Exception;
     use Faker\Factory;
@@ -694,12 +696,12 @@
          * @throws GuzzleException
          */
         protected function fetchGSCPeriodData(
-            object $api,
-            string $siteUrl,
-            string $startDate,
-            string $endDate,
-            int    $rowLimit = 25000,
-            bool   $calculateSynthetics = true,
+            object    $api,
+            string    $siteUrl,
+            string    $startDate,
+            string    $endDate,
+            int       $rowLimit = 25000,
+            bool      $calculateSynthetics = true,
             ?callable $shouldContinue = null
         ): array
         {
@@ -1255,5 +1257,25 @@
             $jsPath = __DIR__.'/js/SearchConsoleConfigHandler.js';
 
             return file_exists($jsPath) ? file_get_contents($jsPath) : "";
+        }
+
+        /**
+         * @return InstanceTier
+         */
+        public function getRequiredInstanceTier(): InstanceTier
+        {
+            // Resolve calculate_synthetics configuration (defaulting to true for GSC)
+            $calculateSynthetics = true;
+
+            try {
+                $chanConfig = DriverInitializer::validateConfig($this->getChannel());
+                if (isset($chanConfig['calculate_synthetics'])) {
+                    $calculateSynthetics = filter_var($chanConfig['calculate_synthetics'], FILTER_VALIDATE_BOOLEAN);
+                }
+            } catch (\Exception $e) {
+                // If we can't fetch it dynamically, try to see if it's set as an env var or fallback
+            }
+
+            return $calculateSynthetics ? InstanceTier::POWERED : InstanceTier::BASIC;
         }
     }
