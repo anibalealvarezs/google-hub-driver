@@ -6,6 +6,7 @@
     use Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity;
     use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
+    use Anibalealvarezs\ApiDriverCore\Enums\InstanceTier;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
@@ -1259,9 +1260,9 @@
         }
 
         /**
-         * @return int
+         * @return InstanceTier
          */
-        public function getRequiredWorkerTier(): int
+        public function getRequiredInstanceTier(): InstanceTier
         {
             // Resolve calculate_synthetics configuration (defaulting to true for GSC)
             $calculateSynthetics = true;
@@ -1275,6 +1276,6 @@
                 // If we can't fetch it dynamically, try to see if it's set as an env var or fallback
             }
 
-            return $calculateSynthetics ? 2 : 1;
+            return $calculateSynthetics ? InstanceTier::POWERED : InstanceTier::BASIC;
         }
     }
