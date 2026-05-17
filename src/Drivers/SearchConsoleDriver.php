@@ -582,7 +582,8 @@
                                 startDate: $chunkStartStr,
                                 endDate: $chunkEndStr,
                                 rowLimit: $rowLimit,
-                                calculateSynthetics: $calculateSynthetics
+                                calculateSynthetics: $calculateSynthetics,
+                                shouldContinue: $shouldContinue
                             );
 
                             if (empty($rows)) {
@@ -618,6 +619,7 @@
                             }
                         } catch (Exception $e) {
                             $this->logger?->error("!!! ERROR: Fallo al sincronizar ventana $chunkStartStr a $chunkEndStr para $siteUrl: ".$e->getMessage());
+                            if (str_contains($e->getMessage(), 'Sync aborted')) throw $e;
                             if ($this->isAuthenticationError($e)) throw $e;
                             // For other errors, we continue with next chunk
                         }
@@ -657,7 +659,8 @@
             string $startDate,
             string $endDate,
             int    $rowLimit = 25000,
-            bool   $calculateSynthetics = true
+            bool   $calculateSynthetics = true,
+            ?callable $shouldContinue = null
         ): array
         {
             $finalRows = [];
@@ -665,6 +668,9 @@
             $end = Carbon::parse($endDate);
 
             while ($current <= $end) {
+                if ($shouldContinue && !$shouldContinue()) {
+                    throw new Exception("Sync aborted by the orchestrator.");
+                }
                 $dayStr = $current->format('Y-m-d');
                 $this->logger?->info(">>> Fetching GSC Data for Date: $dayStr");
 
