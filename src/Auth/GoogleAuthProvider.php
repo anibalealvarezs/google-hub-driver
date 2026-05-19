@@ -70,7 +70,7 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
 
     public function hasCredentials(): bool
     {
-        if (!$this->tokenPath || !file_exists($this->tokenPath)) {
+        if (!$this->filePath || !file_exists($this->filePath)) {
             return false;
         }
         return !empty($this->data['google_auth']['access_token']) || !empty($this->data['google_auth']['refresh_token']);
@@ -91,7 +91,7 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
      */
     public function refresh(): bool
     {
-        if (!$this->tokenPath || !file_exists($this->tokenPath)) {
+        if (!$this->filePath || !file_exists($this->filePath)) {
             return false;
         }
 
