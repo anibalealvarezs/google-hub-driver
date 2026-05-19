@@ -449,6 +449,14 @@
          */
         public function validateAuthentication(): array
         {
+            if (!$this->authProvider || !$this->authProvider->getAccessToken()) {
+                return [
+                    'success' => false,
+                    'message' => 'Zero-network guard triggered: Token file or access token is empty. Please complete Google login to acquire a token.',
+                    'details' => []
+                ];
+            }
+
             try {
                 $api = $this->getApi();
                 $api->getSites();
