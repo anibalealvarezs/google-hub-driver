@@ -281,7 +281,7 @@
          */
         public function fetchAvailableAssets(bool $throwOnError = false): array
         {
-            if (!$this->authProvider) {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
                 return [];
             }
 
