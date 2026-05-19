@@ -68,6 +68,11 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
         return !empty($this->getAccessToken());
     }
 
+    public function hasCredentials(): bool
+    {
+        return !empty($this->data['google_auth']['access_token']) || !empty($this->data['google_auth']['refresh_token']);
+    }
+
     /**
      * @inheritdoc
      */
@@ -107,6 +112,7 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
                 'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
                 'method'  => 'POST',
                 'content' => http_build_query($postData),
+                'timeout' => 5.0,
             ],
         ];
 

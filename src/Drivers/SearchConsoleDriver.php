@@ -449,10 +449,10 @@
          */
         public function validateAuthentication(): array
         {
-            if (!$this->authProvider || !$this->authProvider->getAccessToken()) {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
                 return [
                     'success' => false,
-                    'message' => 'Zero-network guard triggered: Token file or access token is empty. Please complete Google login to acquire a token.',
+                    'message' => 'Credentials not configured. Please complete Google login to acquire a token.',
                     'details' => []
                 ];
             }
