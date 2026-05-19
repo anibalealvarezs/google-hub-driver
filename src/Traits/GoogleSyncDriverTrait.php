@@ -68,6 +68,10 @@
          */
         public function getApi(array $config = []): SearchConsoleApi
         {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                throw new Exception("Credentials not configured.");
+            }
+
             if (empty($config) && $this->authProvider instanceof BaseAuthProvider) {
                 $config = $this->authProvider->getConfig();
             }
@@ -110,6 +114,10 @@
          */
         protected function initializeApi(array $config): SearchConsoleApi
         {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                throw new Exception("Credentials not configured.");
+            }
+
             $className = (new ReflectionClass($this))->getShortName();
             $this->logger?->info("DEBUG: $className::initializeApi - START");
             $scopes = $this->authProvider->getScopes();

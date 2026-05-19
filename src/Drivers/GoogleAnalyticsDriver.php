@@ -118,6 +118,14 @@
          */
         public function validateAuthentication(): array
         {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                return [
+                    'success' => false,
+                    'message' => 'Credentials not configured. Please complete Google login to acquire a token.',
+                    'details' => []
+                ];
+            }
+
             return [
                 'success' => true,
                 'message' => 'Status unknown for this driver.',
