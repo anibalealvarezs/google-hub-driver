@@ -45,10 +45,6 @@
             $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd().'/storage/tokens/google_tokens.json');
             $tokenKey = 'google_auth';
 
-            if (!is_dir(dirname($tokenPath))) {
-                mkdir(dirname($tokenPath), 0755, true);
-            }
-
             $tokens = file_exists($tokenPath) ? (json_decode(file_get_contents($tokenPath), true) ?? []) : [];
 
             $tokens[$tokenKey] = [
@@ -60,7 +56,7 @@
                 'expires_at'    => date('Y-m-d H:i:s', strtotime('+3600 seconds'))
             ];
 
-            file_put_contents($tokenPath, json_encode($tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            \Anibalealvarezs\ApiDriverCore\Helpers\Helpers::writeTokenFile($tokenPath, $tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         }
 
         public function boot(): void
