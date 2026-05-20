@@ -91,4 +91,31 @@
             return $collection;
         }
 
+        /**
+         * Legacy metric aggregator to combine impression, click, position, and CTR rows.
+         */
+        public static function aggregateMetrics(array $data, array $new): array
+        {
+            $totalImpressions = ($data['impressions'] ?? 0) + ($new['impressions'] ?? 0);
+            $totalClicks = ($data['clicks'] ?? 0) + ($new['clicks'] ?? 0);
+            $count = ($data['count'] ?? 1) + 1;
+
+            $ctr = $totalImpressions > 0 ? $totalClicks / $totalImpressions : 0.0;
+
+            $p1 = $data['position'] ?? 0.0;
+            $p2 = $new['position'] ?? 0.0;
+            $i1 = $data['impressions'] ?? 0;
+            $i2 = $new['impressions'] ?? 0;
+
+            $position = $totalImpressions > 0 ? (($i1 * $p1) + ($i2 * $p2)) / $totalImpressions : 0.0;
+
+            return [
+                'impressions' => $totalImpressions,
+                'clicks' => $totalClicks,
+                'position' => $position,
+                'ctr' => $ctr,
+                'count' => $count,
+            ];
+        }
+
     }
