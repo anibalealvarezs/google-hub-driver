@@ -6,3 +6,5 @@ vendor
 **/.php-cs-fixer.dist.php
 
 scratch/verify_config.php
+
+.copilot/composer-path-repositories.backup.json
