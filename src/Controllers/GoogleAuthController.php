@@ -62,9 +62,14 @@ class GoogleAuthController
             'openid',
             'email',
             'profile',
-            'https://www.googleapis.com/auth/webmasters.readonly',
-            'https://www.googleapis.com/auth/analytics.readonly',
         ];
+
+        $allConfigs = class_exists('\Helpers\Helpers') ? \Helpers\Helpers::getChannelsConfig() : [];
+        $gscConfig = $allConfigs['google_search_console'] ?? [];
+        
+        if (!empty($gscConfig['enabled'])) {
+            $scopes[] = 'https://www.googleapis.com/auth/webmasters.readonly';
+        }
 
         $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query([
             'client_id' => $this->clientId,

@@ -158,9 +158,15 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
             'openid',
             'email',
             'profile',
-            'https://www.googleapis.com/auth/webmasters.readonly', // Search Console
-            'https://www.googleapis.com/auth/analytics.readonly',   // Google Analytics
         ];
+
+        // Check if google_search_console channel is enabled
+        $gscConfig = $config['google_search_console'] ?? $config;
+        $isGscEnabled = $gscConfig['enabled'] ?? false;
+        
+        if ($isGscEnabled) {
+            $scopes[] = 'https://www.googleapis.com/auth/webmasters.readonly';
+        }
 
         $state = $config['state'] ?? bin2hex(random_bytes(16));
 
