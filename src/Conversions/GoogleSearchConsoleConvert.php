@@ -12,6 +12,7 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
     use Carbon\Carbon;
+    use Anibalealvarezs\ApiSkeleton\Enums\Country;
 
     /**
      * GoogleSearchConsoleConvert
@@ -50,6 +51,19 @@
             $pagePlatformId = SearchConsoleDriver::getPlatformId(['url' => $pageUrl ?? $siteUrl], \Anibalealvarezs\ApiDriverCore\Enums\AssetCategory::PAGEABLE, 'gsc');
 
             $logger?->info(sprintf("Starting GSC metrics conversion for %d rows...", $rowCount));
+
+            foreach ($rows as &$row) {
+                if (!isset($row['keys']) || !is_array($row['keys'])) {
+                    $row['query'] = $row['query'] ?? 'unknown';
+                    $row['country'] = $row['country'] ?? Country::UNK->value;
+                } else {
+                    // Assuming the order: date, query, page, country, device, searchAppearance
+                    $row['query'] = $row['keys'][1] ?? 'unknown';
+                    $row['country'] = $row['keys'][3] ?? Country::UNK->value;
+                }
+            }
+            unset($row); // Break the reference with the last element
+
             $collection = UniversalMetricConverter::convert($rows, [
                 'channel'              => GoogleChannel::SEARCH_CONSOLE->value,
                 'period'               => $periodValue,
