@@ -193,4 +193,57 @@ class GoogleAnalyticsDriverTest extends TestCase
         $this->assertEquals('custom_mode', $res['mode']);
         $this->assertTrue($res['success']);
     }
+
+    public function testInitializeApiPassesTokenRefresherCallback()
+    {
+        $authMock = $this->createMock(AuthProviderInterface::class);
+        $callback = function () { return 'new_token'; };
+        $authMock->method('getTokenRefresherCallback')->willReturn($callback);
+        $authMock->method('getAccessToken')->willReturn('fake_token');
+        $authMock->method('getScopes')->willReturn(['fake_scope']);
+        $authMock->method('hasCredentials')->willReturn(true);
+
+        $driver = new GoogleAnalyticsDriver($authMock, $this->logger);
+
+        // Access the protected initializeApi method via Reflection
+        $reflection = new \ReflectionClass(GoogleAnalyticsDriver::class);
+        $method = $reflection->getMethod('initializeApi');
+        $method->setAccessible(true);
+
+        // Call initializeApi
+        $api = $method->invoke($driver, ['client_id' => '123', 'client_secret' => '456', 'refresh_token' => '789']);
+
+        // Check if the API was returned
+        $this->assertInstanceOf(\Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi::class, $api);
+        
+        // Use reflection to check the callback property on the API client
+        $apiReflection = new \ReflectionClass(\Anibalealvarezs\ApiSkeleton\Client::class);
+        $callbackProperty = $apiReflection->getProperty('tokenRefresherCallback');
+        $callbackProperty->setAccessible(true);
+        $this->assertSame($callback, $callbackProperty->getValue($api));
+    }
+
+    public function testInitializeApiWithNullTokenRefresherCallback()
+    {
+        $authMock = $this->createMock(AuthProviderInterface::class);
+        $authMock->method('getTokenRefresherCallback')->willReturn(null);
+        $authMock->method('getAccessToken')->willReturn('fake_token');
+        $authMock->method('getScopes')->willReturn(['fake_scope']);
+        $authMock->method('hasCredentials')->willReturn(true);
+
+        $driver = new GoogleAnalyticsDriver($authMock, $this->logger);
+
+        $reflection = new \ReflectionClass(GoogleAnalyticsDriver::class);
+        $method = $reflection->getMethod('initializeApi');
+        $method->setAccessible(true);
+
+        $api = $method->invoke($driver, ['client_id' => '123', 'client_secret' => '456', 'refresh_token' => '789']);
+
+        $this->assertInstanceOf(\Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi::class, $api);
+        
+        $apiReflection = new \ReflectionClass(\Anibalealvarezs\ApiSkeleton\Client::class);
+        $callbackProperty = $apiReflection->getProperty('tokenRefresherCallback');
+        $callbackProperty->setAccessible(true);
+        $this->assertNull($callbackProperty->getValue($api));
+    }
 }

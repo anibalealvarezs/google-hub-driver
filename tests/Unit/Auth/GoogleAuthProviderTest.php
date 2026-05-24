@@ -99,7 +99,9 @@ class GoogleAuthProviderTest extends TestCase
 
         $provider = new GoogleAuthProvider($this->tempFile);
         $url = $provider->getAuthUrl('https://gsc.callback/auth', [
-            'state' => 'googlesecretstate'
+            'state' => 'googlesecretstate',
+            'google_search_console' => ['enabled' => true],
+            'google_analytics' => ['enabled' => true],
         ]);
 
         $this->assertStringStartsWith('https://accounts.google.com/o/oauth2/v2/auth', $url);

@@ -137,7 +137,8 @@
                 scopes: $scopes,
                 token: $token,
                 tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
-                logger: $this->logger
+                logger: $this->logger,
+                tokenRefresherCallback: $this->authProvider->getTokenRefresherCallback()
             );
         }
 
