@@ -168,6 +168,14 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
             $scopes[] = 'https://www.googleapis.com/auth/webmasters.readonly';
         }
 
+        // Check if google_analytics channel is enabled
+        $gaConfig = $config['google_analytics'] ?? $config;
+        $isGaEnabled = $gaConfig['enabled'] ?? false;
+        
+        if ($isGaEnabled) {
+            $scopes[] = 'https://www.googleapis.com/auth/analytics.readonly';
+        }
+
         $state = $config['state'] ?? bin2hex(random_bytes(16));
 
         $params = [
