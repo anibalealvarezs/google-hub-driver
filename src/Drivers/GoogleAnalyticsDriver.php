@@ -14,8 +14,12 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
+    use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
+    use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
+    use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
 
-    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface
+    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface
     {
         use SyncDriverTrait, GoogleSyncDriverTrait {
             GoogleSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
@@ -29,44 +33,23 @@
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
-
         }
 
-        /**
-         * Get the public resources exposed by this driver.
-         *
-         * @return array
-         */
         public static function getPublicResources(): array
         {
-            return ['metrics' => 'gsc_metrics'];
+            return ['metrics' => 'ga_metrics'];
         }
 
-        /**
-         * Get the display label for the channel.
-         *
-         * @return string
-         */
         public static function getChannelLabel(): string
         {
-            return 'GoogleAnalytics';
+            return 'Google Analytics';
         }
 
-        /**
-         * Get the display icon for the channel.
-         *
-         * @return string
-         */
         public static function getChannelIcon(): string
         {
             return 'A';
         }
 
-        /**
-         * Get the routes served by this driver.
-         *
-         * @return array
-         */
         public static function getRoutes(): array
         {
             return array_merge(AssetRoutes::get(), [
@@ -93,11 +76,6 @@
             ]);
         }
 
-        /**
-         * Get the routes that should be whitelisted from rate limiting.
-         *
-         * @return array
-         */
         public static function getRateLimitWhitelist(): array
         {
             return [
@@ -105,17 +83,38 @@
             ];
         }
 
-        /**
-         * @inheritdoc
-         */
         public function fetchAvailableAssets(bool $throwOnError = false): array
         {
-            return [];
+            try {
+                $credentials = $this->getUpdatableCredentials();
+                $api = new AnalyticsAdminApi(
+                    redirectUrl: $this->authProvider->getRedirectUrl(),
+                    clientId: $this->authProvider->getClientId(),
+                    clientSecret: $this->authProvider->getClientSecret(),
+                    refreshToken: $credentials['refreshToken'] ?? '',
+                    userId: $this->authProvider->getUserId()
+                );
+
+                $properties = $api->getProperties();
+
+                return array_map(function ($property) {
+                    // Extract numeric ID from 'properties/123456789'
+                    $platformId = str_replace('properties/', '', $property['property'] ?? $property['name']);
+                    return [
+                        'platformId' => $platformId,
+                        'name' => $property['displayName'] ?? 'Unknown Property',
+                        'data' => $property,
+                    ];
+                }, $properties);
+            } catch (\Exception $e) {
+                if ($throwOnError) {
+                    throw $e;
+                }
+                $this->logger?->error("GoogleAnalyticsDriver: Error fetching GA4 properties", ['error' => $e->getMessage()]);
+                return [];
+            }
         }
 
-        /**
-         * @inheritdoc
-         */
         public function validateAuthentication(): array
         {
             if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
@@ -128,7 +127,7 @@
 
             return [
                 'success' => true,
-                'message' => 'Status unknown for this driver.',
+                'message' => 'Connected successfully.',
                 'details' => []
             ];
         }
@@ -138,6 +137,64 @@
             return GoogleChannel::ANALYTICS->value;
         }
 
+        public function syncEntities(
+            DateTime  $startDate,
+            DateTime  $endDate,
+            array     $config = [],
+            ?callable $shouldContinue = null,
+            ?callable $identityMapper = null
+        ): Response
+        {
+            $credentials = $this->getUpdatableCredentials();
+            $api = new AnalyticsDataApi(
+                redirectUrl: $this->authProvider->getRedirectUrl(),
+                clientId: $this->authProvider->getClientId(),
+                clientSecret: $this->authProvider->getClientSecret(),
+                refreshToken: $credentials['refreshToken'] ?? '',
+                userId: $this->authProvider->getUserId()
+            );
+
+            $channeledAccountId = $config['account_id'] ?? null;
+            $propertyId = $config['platform_id'] ?? null;
+            if (!$propertyId) {
+                return new Response(json_encode(['error' => 'Property ID is required']));
+            }
+
+            $entities = [];
+
+            try {
+                // Discover Campaigns using sessionCampaignName
+                $campaignResponse = $api->runSimpleReport(
+                    propertyId: $propertyId,
+                    metrics: ['activeUsers'],
+                    dimensions: ['sessionCampaignName'],
+                    startDate: $startDate->format('Y-m-d'),
+                    endDate: $endDate->format('Y-m-d')
+                );
+
+                $processedCampaigns = GoogleAnalyticsMetricConvert::preprocessRows($campaignResponse);
+                foreach ($processedCampaigns as $row) {
+                    if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
+                        $entities[] = [
+                            'platformId' => $row['sessionCampaignName'], // using name as platform ID
+                            'name' => $row['sessionCampaignName'],
+                            'type' => 'campaign'
+                        ];
+                    }
+                }
+                
+                // Discover Pages using pagePath (if needed, otherwise we rely on syncMetrics inline creation)
+                // We'll skip pages here to keep entity sync light, since pages are handled via DimensionKeys.
+            } catch (\Exception $e) {
+                $this->logger?->error("GA4 Entity Sync Error: " . $e->getMessage());
+                return new Response(json_encode(['error' => $e->getMessage()]), 500);
+            }
+
+            return new Response(json_encode([
+                'entities' => $entities
+            ]));
+        }
+
         public function sync(
             DateTime  $startDate,
             DateTime  $endDate,
@@ -145,19 +202,59 @@
             ?callable $shouldContinue = null,
             ?callable $identityMapper = null
         ): Response
-
         {
-            $this->logger->info("GoogleAnalyticsDriver: Placeholder sync for GA4.");
+            $credentials = $this->getUpdatableCredentials();
+            $api = new AnalyticsDataApi(
+                redirectUrl: $this->authProvider->getRedirectUrl(),
+                clientId: $this->authProvider->getClientId(),
+                clientSecret: $this->authProvider->getClientSecret(),
+                refreshToken: $credentials['refreshToken'] ?? '',
+                userId: $this->authProvider->getUserId()
+            );
 
-            return new Response(json_encode([
-                'status'  => 'skipped',
-                'message' => 'Google Analytics driver (Modular) placeholder executed successfully.'
-            ]));
+            $channeledAccount = $config['channeledAccount'] ?? null;
+            $propertyId = $config['platform_id'] ?? null;
+            $level = $config['level'] ?? 'account';
+            $metricsList = $config['metrics'] ?? ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'];
+            
+            if (!$propertyId) {
+                return new Response(json_encode(['error' => 'Property ID is required']));
+            }
+
+            $dimensions = match($level) {
+                'campaign' => ['date', 'sessionSourceMedium', 'sessionCampaignName'],
+                'page' => ['date', 'sessionSourceMedium', 'pagePath'],
+                default => ['date', 'sessionSourceMedium']
+            };
+
+            try {
+                $payload = [
+                    'dateRanges' => [['startDate' => $startDate->format('Y-m-d'), 'endDate' => $endDate->format('Y-m-d')]],
+                    'dimensions' => array_map(fn ($d) => ['name' => $d], $dimensions),
+                    'metrics' => array_map(fn ($m) => ['name' => $m], $metricsList),
+                ];
+
+                $response = $api->runAllReports($propertyId, $payload);
+                $response['property_id'] = $propertyId;
+
+                $metricsCollection = GoogleAnalyticsMetricConvert::metrics(
+                    response: $response,
+                    channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
+                    level: $level,
+                    logger: $this->logger,
+                    account: $config['account'] ?? null
+                );
+
+                return new Response(json_encode([
+                    'status' => 'success',
+                    'metrics' => $metricsCollection->toArray()
+                ]));
+            } catch (\Exception $e) {
+                $this->logger?->error("GA4 Metrics Sync Error: " . $e->getMessage());
+                return new Response(json_encode(['error' => $e->getMessage()]), 500);
+            }
         }
 
-        /**
-         * @inheritdoc
-         */
         public function getConfigSchema(): array
         {
             return [
@@ -188,64 +285,48 @@
             ];
         }
 
-        /**
-         * @inheritdoc
-         */
         public function seedDemoData(SeederInterface $seeder, array $config = []): void
         {
             // Placeholder for future implementation
         }
 
-        /**
-         * @inheritdoc
-         */
         public static function getAssetPatterns(): array
         {
             return [
-                'google_business' => [
-                    'key'          => 'locations',
-                    'prefix'       => 'gb:location',
+                'google_analytics' => [
+                    'key'          => 'properties',
+                    'prefix'       => 'ga:property',
                     'hostnames'    => [],
                     'url_id_regex' => null,
-                    'type'         => GoogleEntityType::LOCATION->value
+                    'type'         => 'property'
                 ]
             ];
         }
 
-        /**
-         * @inheritdoc
-         */
         public static function getCanonicalMetricDictionary(): array
         {
             return [
                 'conversions' => ['conversions'],
-                'reach'       => ['totalUsers'],
+                'reach'       => ['activeUsers'],
                 'impressions' => ['screenPageViews'],
+                'sessions'    => ['sessions'],
+                'spend'       => ['totalRevenue'],
+                'revenue'     => ['totalRevenue'],
             ];
         }
 
-        /**
-         * @inheritdoc
-         */
         public static function getPageTypes(): array
         {
             return [
-                GoogleEntityType::LOCATION->value => 'Google Business Profile'
+                'property' => 'Google Analytics 4 Property'
             ];
         }
 
-        /**
-         * @inheritdoc
-         */
         public function initializeEntities(array $config = []): array
-
         {
             return ['initialized' => 0, 'skipped' => 0];
         }
 
-        /**
-         * @inheritdoc
-         */
         public static function getInstanceRules(): array
         {
             return [
@@ -256,13 +337,35 @@
             ];
         }
 
-        /**
-         * @return string
-         */
         public static function getPlatformEntityIdField(): string
         {
-            // TODO: Implement getPlatformEntityIdField() method.
-            return '';
+            return 'property_id';
+        }
+
+        // --- ChanneledAccountableInterface Methods ---
+
+        public static function getChanneledAccountPlatformId(array $asset, ?string $key = null): string
+        {
+            return $asset['platformId'] ?? '';
+        }
+
+        public static function getChanneledAccountPlatformCreatedAt(array $asset, ?string $key = null): string
+        {
+            return $asset['createTime'] ?? '';
+        }
+
+        public static function getChanneledAccountName(array $asset, ?string $key = null): string
+        {
+            return $asset['name'] ?? '';
+        }
+
+        public static function getChanneledAccountType(): string
+        {
+            return 'google_analytics';
+        }
+
+        public static function getChanneledAccountData(array $asset, ?string $key = null): array
+        {
+            return $asset['data'] ?? [];
         }
     }
-
