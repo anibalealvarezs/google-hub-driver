@@ -246,4 +246,19 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
             ]
         ];
     }
+
+    public function getClientId(): string
+    {
+        return $this->data['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '';
+    }
+
+    public function getClientSecret(): string
+    {
+        return $this->data['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '';
+    }
+
+    public function getRedirectUrl(): string
+    {
+        return $this->data['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '';
+    }
 }
