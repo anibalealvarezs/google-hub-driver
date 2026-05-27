@@ -318,6 +318,10 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
 
     public function getConfigurationJs(): string
     {
+        $file = __DIR__ . '/js/GoogleBusinessProfileConfigHandler.js';
+        if (file_exists($file)) {
+            return file_get_contents($file);
+        }
         return "";
     }
 
