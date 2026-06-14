@@ -57,9 +57,10 @@
                     $row['query'] = $row['query'] ?? 'unknown';
                     $row['country'] = $row['country'] ?? Country::UNK->value;
                 } else {
-                    // Assuming the order: date, query, page, country, device, searchAppearance
-                    $row['query'] = $row['keys'][1] ?? 'unknown';
-                    $row['country'] = $row['keys'][3] ?? Country::UNK->value;
+                    // Keys order from cubeToRecords: date, query, country, page, device
+                    // Prefer named field (set by cubeToRecords), fall back to key position
+                    $row['query'] = $row['query'] ?? ($row['keys'][1] ?? 'unknown');
+                    $row['country'] = $row['country'] ?? ($row['keys'][2] ?? Country::UNK->value);
                 }
             }
             unset($row); // Break the reference with the last element
