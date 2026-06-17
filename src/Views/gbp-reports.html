@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIs Hub | Google Business Profile Insights</title>
+    <link rel="icon" type="image/png" href="/driver-assets/core/images/apishub-favicon.png">
+
+    <link rel="stylesheet" href="/driver-assets/core/css/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/driver-assets/core/navbar.js"></script>
+    <script src="/driver-assets/core/footer.js"></script>
+
+    <link rel="stylesheet" href="/driver-assets/google_business_profile/css/gbp-reports.css">
+</head>
+<body class="full-screen">
+
+    <div id="loader" class="loader-overlay-gbp">
+        <div class="spinner"></div>
+        <p class="loader-text">SYNCING PERFORMANCE DATA...</p>
+    </div>
+
+    <main>
+        <div class="gbp-header-row">
+            <div class="gbp-header-info">
+                <h1 class="gbp-header-title">
+                    <i data-lucide="store" style="color: #4285f4;"></i> Google Business Profile
+                </h1>
+                <p class="gbp-header-subtitle">Performance insights for your business locations</p>
+            </div>
+            <div class="controls-card gbp-header-controls">
+                <div class="control-group">
+                    <label for="locationSelector" class="visually-hidden">Location</label>
+                    <i data-lucide="map-pin" class="control-icon"></i>
+                    <select id="locationSelector" class="date-input location-selector" onchange="loadReport()"></select>
+                </div>
+                <div class="date-container">
+                    <label for="reportRange" class="visually-hidden">Date range</label>
+                    <i data-lucide="calendar"></i>
+                    <input type="text" id="reportRange" placeholder="Select Range" class="date-input">
+                </div>
+                <button class="btn btn-primary" onclick="loadReport()">
+                    <i data-lucide="refresh-cw"></i> Update
+                </button>
+                <button class="btn btn-outline btn-flush-cache" onclick="flushCache()" title="Clear Dashboard Cache">
+                    <i data-lucide="zap" style="width: 16px; height: 16px;"></i> FLUSH CACHE
+                </button>
+            </div>
+        </div>
+
+        <div class="report-section-gbp" id="summarySection">
+            <div class="section-status-gbp" id="summaryStatus" aria-live="polite"></div>
+            <div class="metrics-grid-gbp" id="summaryGrid">
+                <div class="card-stat-gbp active" data-metric="impressions" onclick="toggleMetric('impressions')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
+                    <div class="gbp-label">Total Impressions</div>
+                    <div class="card-metric-value" id="val-impressions">0</div>
+                    <div class="card-metric-trend" id="trend-impressions">--</div>
+                </div>
+                <div class="card-stat-gbp active" data-metric="website_clicks" onclick="toggleMetric('website_clicks')" style="--color: #7e57c2; border-bottom-color: #7e57c2; opacity: 1;">
+                    <div class="gbp-label">Website Clicks</div>
+                    <div class="card-metric-value" id="val-website_clicks">0</div>
+                    <div class="card-metric-trend" id="trend-website_clicks">--</div>
+                </div>
+                <div class="card-stat-gbp active" data-metric="calls" onclick="toggleMetric('calls')" style="--color: #0097a7; border-bottom-color: #0097a7; opacity: 1;">
+                    <div class="gbp-label">Calls</div>
+                    <div class="card-metric-value" id="val-calls">0</div>
+                    <div class="card-metric-trend" id="trend-calls">--</div>
+                </div>
+                <div class="card-stat-gbp active" data-metric="directions" onclick="toggleMetric('directions')" style="--color: #f4511e; border-bottom-color: #f4511e; opacity: 1;">
+                    <div class="gbp-label">Direction Requests</div>
+                    <div class="card-metric-value" id="val-directions">0</div>
+                    <div class="card-metric-trend" id="trend-directions">--</div>
+                </div>
+                <div class="card-stat-gbp" data-metric="conversations" onclick="toggleMetric('conversations')" style="--color: #0f9d58; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gbp-label">Conversations</div>
+                    <div class="card-metric-value" id="val-conversations">0</div>
+                    <div class="card-metric-trend" id="trend-conversations">--</div>
+                </div>
+                <div class="card-stat-gbp" data-metric="bookings" onclick="toggleMetric('bookings')" style="--color: #f9ab00; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gbp-label">Bookings</div>
+                    <div class="card-metric-value" id="val-bookings">0</div>
+                    <div class="card-metric-trend" id="trend-bookings">--</div>
+                </div>
+                <div class="card-stat-gbp" data-metric="food_orders" onclick="toggleMetric('food_orders')" style="--color: #ab47bc; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gbp-label">Food Orders</div>
+                    <div class="card-metric-value" id="val-food_orders">0</div>
+                    <div class="card-metric-trend" id="trend-food_orders">--</div>
+                </div>
+                <div class="card-stat-gbp" data-metric="menu_clicks" onclick="toggleMetric('menu_clicks')" style="--color: #26a69a; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="gbp-label">Menu Clicks</div>
+                    <div class="card-metric-value" id="val-menu_clicks">0</div>
+                    <div class="card-metric-trend" id="trend-menu_clicks">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container-gbp report-section-gbp" id="chartSection">
+            <div class="section-status-gbp section-status-inline-gbp" id="chartStatus" aria-live="polite"></div>
+            <canvas id="mainChart"></canvas>
+        </div>
+    </main>
+
+    <!-- GBP_CONFIG_PLACEHOLDER -->
+    <script src="/driver-assets/google_business_profile/views/gbp-reports.js"></script>
+</body>
+</html>
