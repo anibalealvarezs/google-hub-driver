@@ -5,7 +5,7 @@ window.ConfigHandlers['google_business_profile'] = {
         const payload = {
             enabled: document.getElementById('gbp-enabled')?.checked || false,
             granular_sync: document.getElementById('gbp-granular-sync')?.checked || false,
-            assets: { locations: [] }
+            assets: { gbp: [] }
         };
 
         document.querySelectorAll('.gbp-location-config-card').forEach(card => {
@@ -16,14 +16,15 @@ window.ConfigHandlers['google_business_profile'] = {
             const original = availableAssetsMaps.locations[locationId] || {};
             
             const locationData = {
+                location_id: locationId,
                 platformId: locationId,
+                title: original.title || original.name || null,
                 enabled: !card.classList.contains('lost-access') && mainToggle.checked,
                 lost_access: card.classList.contains('lost-access'),
-                name: original.name || null,
-                data: original.data || []
+                data: original.data || {}
             };
 
-            payload.assets.locations.push(locationData);
+            payload.assets.gbp.push(locationData);
         });
 
         return payload;
