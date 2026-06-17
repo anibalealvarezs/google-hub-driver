@@ -19,12 +19,6 @@
     "doctrine/orm": "^2.12.3 || ^3.0",
     "php": ">=8.3"
   },
-  "repositories": [
-    {
-      "type": "composer",
-      "url": "https://satis.anibalalvarez.com/"
-    }
-  ],
   "autoload": {
     "psr-4": {
       "Anibalealvarezs\\GoogleHubDriver\\": "src/"
@@ -40,5 +34,11 @@
       "php": "8.3.0"
     }
   },
-  "prefer-stable": true
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://satis.anibalalvarez.com/"
+    }
+  ]
 }
