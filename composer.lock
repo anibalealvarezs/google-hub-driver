@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a56dfdae2b1007d232315c59c0d276f9",
+    "content-hash": "a52b65806d91f193dfaee1f2f7601fd2",
     "packages": [
         {
             "name": "anibalealvarezs/api-client-skeleton",
@@ -71,17 +71,17 @@
         },
         {
             "name": "anibalealvarezs/api-driver-core",
-            "version": "v1.0.0",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-driver-core.git",
-                "reference": "bca155bdb80255373b1836af67631ae007591544"
+                "reference": "1c16d791858f0ae7373a7336762bf71e0853cc5a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-bca155bdb80255373b1836af67631ae007591544-zip-b0cf5b.zip",
-                "reference": "bca155bdb80255373b1836af67631ae007591544",
-                "shasum": "422aefc8a6fab826cb0c6a688a23725613b189d2"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-1c16d791858f0ae7373a7336762bf71e0853cc5a-zip-ede394.zip",
+                "reference": "1c16d791858f0ae7373a7336762bf71e0853cc5a",
+                "shasum": "bf85e07763ab4586db34514ca857fa4fdd7c6e79"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -115,7 +115,7 @@
                 }
             ],
             "description": "Core interfaces and orchestration logic for APIs Hub drivers.",
-            "time": "2026-06-09T12:12:37+00:00"
+            "time": "2026-06-17T15:15:52+00:00"
         },
         {
             "name": "anibalealvarezs/google-api",
@@ -123,13 +123,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/google-api.git",
-                "reference": "310f8c4270c7188fcd2cc3ccc667a28a930fb476"
+                "reference": "556797826658795a0fc4dc9625ad512c9d8817a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-310f8c4270c7188fcd2cc3ccc667a28a930fb476-zip-8d9c40.zip",
-                "reference": "310f8c4270c7188fcd2cc3ccc667a28a930fb476",
-                "shasum": "33f8edc0b21d70b415a72a4d6334aed0b1bb058c"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-556797826658795a0fc4dc9625ad512c9d8817a9-zip-4699de.zip",
+                "reference": "556797826658795a0fc4dc9625ad512c9d8817a9",
+                "shasum": "a2168818acee73eb31323bcc0d5f9dd04d800757"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -186,7 +186,7 @@
             "support": {
                 "issues": "https://github.com/anibalealvarezs/google-api/issues"
             },
-            "time": "2026-05-27T21:08:51+00:00"
+            "time": "2026-06-17T15:08:40+00:00"
         },
         {
             "name": "anibalealvarezs/oauth-v1",
