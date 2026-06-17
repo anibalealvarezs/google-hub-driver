@@ -76,17 +76,6 @@ class GoogleAuthController
             $scopes[] = 'https://www.googleapis.com/auth/business.manage';
         }
 
-        // Debug: show scopes and related configs if requested
-        if (!empty($_GET['show_scopes'])) {
-            $debug = [
-                'scopes' => $scopes,
-                'gscConfig' => $gscConfig,
-                'gbpConfig' => $gbpConfig,
-            ];
-            $html = '<pre>' . htmlspecialchars(print_r($debug, true)) . '</pre>';
-            return new Response($html, 200, ['Content-Type' => 'text/html']);
-        }
-
         $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query([
             'client_id' => $this->clientId,
             'redirect_uri' => $this->redirectUri,
