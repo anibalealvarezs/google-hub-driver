@@ -12,6 +12,12 @@ class ReportController
         return $this->renderFacebookReport($html, 'google_search_console', '<!-- GSC_CONFIG_PLACEHOLDER -->', $args);
     }
 
+    public function gbp(array $args = []): Response
+    {
+        $html = file_get_contents(__DIR__ . '/../Views/gbp-reports.html');
+        return $this->renderFacebookReport($html, 'google_business_profile', '<!-- GBP_CONFIG_PLACEHOLDER -->', $args);
+    }
+
     private function renderFacebookReport(string $html, string $channel, string $placeholder, array $args): Response
     {
         $channelsConfig = $args['channelsConfig'] ?? [];
