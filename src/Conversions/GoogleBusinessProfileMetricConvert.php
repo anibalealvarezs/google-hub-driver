@@ -16,10 +16,17 @@ class GoogleBusinessProfileMetricConvert
     public static function convert(
         array              $response,
         object|string|null $channeledAccount = null,
-        ?LoggerInterface   $logger = null
+        ?LoggerInterface   $logger = null,
+        object|string|null $location = null,
+        object|string|null $state = null,
+        object|string|null $city = null
     ): ArrayCollection {
         $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
         $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
+
+        $locationPlatformId = is_object($location) ? (method_exists($location, 'getPlatformId') ? $location->getPlatformId() : (string)$location) : (string)$location;
+        $stateName = is_object($state) ? (method_exists($state, 'getName') ? $state->getName() : (string)$state) : (string)$state;
+        $cityName = is_object($city) ? (method_exists($city, 'getName') ? $city->getName() : (string)$city) : (string)$city;
 
         $rowsByDate = [];
         $timeSeriesList = $response['timeSeries']['dailyMetricTimeSeries'] ?? $response['dailyMetricTimeSeries'] ?? [];
@@ -62,6 +69,12 @@ class GoogleBusinessProfileMetricConvert
                     $rowsByDate[$dateStr]['directions'] = $value;
                 } elseif ($metricName === 'BUSINESS_CONVERSATIONS') {
                     $rowsByDate[$dateStr]['conversations'] = $value;
+                } elseif ($metricName === 'BUSINESS_BOOKINGS') {
+                    $rowsByDate[$dateStr]['bookings'] = $value;
+                } elseif ($metricName === 'BUSINESS_FOOD_ORDERS') {
+                    $rowsByDate[$dateStr]['food_orders'] = $value;
+                } elseif ($metricName === 'BUSINESS_FOOD_MENU_CLICKS') {
+                    $rowsByDate[$dateStr]['menu_clicks'] = $value;
                 }
             }
         }
@@ -77,10 +90,13 @@ class GoogleBusinessProfileMetricConvert
                 'conversions' => 'conversions',
             ],
             'dimensions'           => [],
-            'metadata_fields'      => ['calls', 'directions', 'conversations'],
+            'metadata_fields'      => ['calls', 'directions', 'conversations', 'bookings', 'food_orders', 'menu_clicks'],
             'context'              => UniversalMetricConverter::getUniversalContext([
                 'channeledAccount'   => $channeledAccount,
                 'channeledAccountId' => $channeledAccountId,
+                'location'           => $locationPlatformId ?: null,
+                'state'              => $stateName ?: null,
+                'city'               => $cityName ?: null,
             ]),
             'row_key_fields'       => [
                 'location_id' => ['channeledAccount'],
