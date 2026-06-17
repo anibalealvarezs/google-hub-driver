@@ -648,6 +648,14 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
                 if (!empty($selectedMap[$normId]['platformId'])) {
                     $location['platformId'] = $selectedMap[$normId]['platformId'];
                 }
+                
+                $schemaMetrics = array_keys($this->getConfigSchema()['metrics'] ?? []);
+                foreach ($schemaMetrics as $metricKey) {
+                    if (isset($selectedMap[$normId][$metricKey])) {
+                        $location[$metricKey] = $selectedMap[$normId][$metricKey];
+                    }
+                }
+
                 $newLocationsList[] = $location;
                 $processedNormIds[] = $normId;
             }
@@ -665,6 +673,14 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
                 if (!empty($sel['platformId'])) {
                     $entry['platformId'] = $sel['platformId'];
                 }
+                
+                $schemaMetrics = array_keys($this->getConfigSchema()['metrics'] ?? []);
+                foreach ($schemaMetrics as $metricKey) {
+                    if (isset($sel[$metricKey])) {
+                        $entry[$metricKey] = $sel[$metricKey];
+                    }
+                }
+
                 $newLocationsList[] = $entry;
             }
         }
@@ -689,6 +705,9 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
             $locId = $location['location_id'];
             if (class_exists('\Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService')) {
                 $hydrated = ConfigSchemaRegistryService::hydrate('google_business_profile', 'entity', $location);
+                $hydratedMetrics = ConfigSchemaRegistryService::hydrate('google_business_profile', 'metrics', $location);
+                $hydrated = array_merge($hydrated, $hydratedMetrics);
+                
                 if (!empty($location['platformId'])) {
                     $hydrated['platformId'] = $location['platformId'];
                 }

@@ -3,13 +3,13 @@ window.ConfigHandlers['google_business_profile'] = {
     getPayload: function () {
         console.log('Executing Google Business Profile getPayload');
         const payload = {
-            enabled: document.getElementById('google_business_profile-channel-enabled')?.checked,
-            granular_sync: document.getElementById('google_business_profile-granular-sync')?.checked,
-            max_workers: document.getElementById('google_business_profile-max-workers')?.value,
-            cache_history_range: document.getElementById('google_business_profile-history-range')?.value,
+            enabled: document.getElementById('gbp-channel-enabled')?.checked,
+            granular_sync: document.getElementById('gbp-granular-sync')?.checked,
+            max_workers: document.getElementById('gbp-max-workers')?.value,
+            cache_history_range: document.getElementById('gbp-history-range')?.value,
             feature_toggles: {
-                cron_recent_hour: document.getElementById('google_business_profile-cron-hour')?.value,
-                cron_recent_minute: document.getElementById('google_business_profile-cron-minute')?.value
+                cron_recent_hour: document.getElementById('gbp-cron-hour')?.value,
+                cron_recent_minute: document.getElementById('gbp-cron-minute')?.value
             },
             assets: {gbp: []}
         };
@@ -18,8 +18,9 @@ window.ConfigHandlers['google_business_profile'] = {
             const mainToggle = card.querySelector('.gbp-location-main-toggle');
             if (!mainToggle) return;
 
-            const locationId = String(mainToggle.dataset.id);
-            const original = availableAssetsMaps.locations[locationId] || {};
+            const locationId = String(card.dataset.locationId);
+            const originalDataStr = card.dataset.rawData;
+            const original = originalDataStr ? JSON.parse(originalDataStr) : {};
 
             const locationData = {
                 location_id: locationId,
@@ -29,6 +30,13 @@ window.ConfigHandlers['google_business_profile'] = {
                 lost_access: card.classList.contains('lost-access'),
                 data: original.data || {}
             };
+
+            card.querySelectorAll('.gbp-metric-toggle').forEach(metricCb => {
+                const metricId = metricCb.dataset.metric;
+                if (metricId) {
+                    locationData[metricId] = { enabled: metricCb.checked };
+                }
+            });
 
             payload.assets.gbp.push(locationData);
         });
