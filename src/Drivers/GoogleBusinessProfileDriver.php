@@ -135,7 +135,7 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
             ],
             '/gbp-reports'       => [
                 'httpMethod' => 'GET',
-                'callable'   => fn(...$args) => (new ReportController())->index($args),
+                'callable'   => fn(...$args) => (new ReportController())->gbp($args),
                 'public'     => true,
                 'admin'      => false,
                 'html'       => true
