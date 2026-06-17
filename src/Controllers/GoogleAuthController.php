@@ -66,9 +66,14 @@ class GoogleAuthController
 
         $allConfigs = class_exists('\Helpers\Helpers') ? \Helpers\Helpers::getChannelsConfig() : [];
         $gscConfig = $allConfigs['google_search_console'] ?? [];
+        $gbpConfig = $allConfigs['google_business_profile'] ?? [];
         
         if (!empty($gscConfig['enabled'])) {
             $scopes[] = 'https://www.googleapis.com/auth/webmasters.readonly';
+        }
+
+        if (!empty($gbpConfig['enabled'])) {
+            $scopes[] = 'https://www.googleapis.com/auth/business.manage';
         }
 
         $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query([
