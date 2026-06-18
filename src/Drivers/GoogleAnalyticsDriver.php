@@ -269,6 +269,13 @@
                     'cache_aggregations'  => false,
                     'metrics_strategy'    => 'default',
                 ],
+                'PROPERTY'   => [
+                    'platformId'           => '',
+                    'name'                 => '',
+                    'enabled'              => true,
+                    'exclude_from_caching' => false,
+                    'lost_access'          => false,
+                ],
                 'entity'     => [
                     'platformId'           => '',
                     'name'                 => '',
