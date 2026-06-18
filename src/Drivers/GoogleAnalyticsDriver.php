@@ -260,13 +260,30 @@
         public function getConfigSchema(): array
         {
             return [
-                'global' => [
+                'global'     => [
                     'enabled'             => false,
+                    'max_workers'         => self::DEFAULT_MAX_WORKERS,
                     'cache_history_range' => '30 days',
                     'cache_aggregations'  => false,
+                    'metrics_strategy'    => 'default',
                 ],
-                'entity' => [
-                    'enabled' => true,
+                'entity'     => [
+                    'platformId'           => '',
+                    'name'                 => '',
+                    'enabled'              => true,
+                    'exclude_from_caching' => false,
+                    'lost_access'          => false,
+                ],
+                'metrics'    => [
+                    'sessions'              => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'totalUsers'            => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'activeUsers'           => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'newUsers'              => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'screenPageViews'       => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'bounceRate'            => ['enabled' => false, 'format' => 'percent', 'precision' => 2, 'sparkline_direction' => 'inverted'],
+                    'averageSessionDuration'=> ['enabled' => false, 'format' => 'number', 'precision' => 2],
+                    'conversions'           => ['enabled' => false, 'format' => 'number', 'precision' => 2],
+                    'totalRevenue'          => ['enabled' => false, 'format' => 'currency', 'precision' => 2],
                 ]
             ];
         }

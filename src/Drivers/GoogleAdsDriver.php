@@ -357,14 +357,37 @@
         public function getConfigSchema(): array
         {
             return [
-                'global'      => [
+                'global'     => [
                     'enabled'             => false,
                     'max_workers'         => self::DEFAULT_MAX_WORKERS,
                     'cache_history_range' => '2 years',
                     'cache_aggregations'  => false,
                     'metrics_strategy'    => 'default',
                 ],
-                'ad_accounts' => [],
+                'AD_ACCOUNT' => [
+                    'ad_account_metrics' => false,
+                    'campaigns'          => true,
+                    'campaign_metrics'   => false,
+                    'adgroups'           => true,
+                    'adgroup_metrics'    => false,
+                    'ads'                => true,
+                    'ad_metrics'         => true,
+                ],
+                'entity'     => [
+                    'id'                   => '',
+                    'name'                 => '',
+                    'enabled'              => true,
+                    'exclude_from_caching' => false,
+                    'lost_access'          => false,
+                ],
+                'metrics'    => [
+                    'spend'               => ['enabled' => false, 'format' => 'currency', 'precision' => 2],
+                    'clicks'              => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'impressions'         => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'conversions'         => ['enabled' => false, 'format' => 'number', 'precision' => 2],
+                    'conversions_value'   => ['enabled' => false, 'format' => 'currency', 'precision' => 2],
+                    'cost_per_conversion' => ['enabled' => false, 'format' => 'currency', 'precision' => 2, 'sparkline_direction' => 'inverted'],
+                ]
             ];
         }
 
