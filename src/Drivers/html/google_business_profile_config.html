@@ -1,0 +1,89 @@
+      <div id="tab-google-business-profile" class="tab-content" style="display: none">
+        <div class="settings-horizontal-grid">
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small cfg-toggle-label">
+                <i data-lucide="power"></i> Channel Status
+              </div>
+              <div class="cfg-subtitle">Enable GBP Data Extraction</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="gbp-channel-enabled" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small hierarchy-item-premium cfg-toggle-label">
+                <i data-lucide="shield-check"></i> Account Isolation
+              </div>
+              <div class="cfg-subtitle">Enable Granular Sync (1 Job per Location)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="gbp-granular-sync" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="calendar"></i> Sync Window</div>
+            <div class="cfg-select-row">
+              <select id="gbp-history-range" class="cfg-select-full control-select">
+                <option value="1 month">1 Month</option>
+                <option value="3 months">3 Months</option>
+                <option value="6 months">6 Months</option>
+                <option value="12 months">12 Months</option>
+                <option value="18 months">18 Months</option>
+                <option value="30 months">30 Months</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="clock"></i> Cron Scheduling (Hours)</div>
+            <div class="cfg-cron-grid">
+              <div>
+                <div class="cfg-cron-label">Metrics Data</div>
+                <div class="cfg-cron-row">
+                  <input type="number" id="gbp-cron-hour" min="0" max="23" placeholder="10" class="config-cron-mini-input" />
+                  <span class="cfg-time-sep">:</span>
+                  <input type="number" id="gbp-cron-minute" min="0" max="59" placeholder="0" class="config-cron-mini-input" />
+                  <span id="gbp-cron-sync-status" class="cron-dot" title="Status check"></span>
+                </div>
+              </div>
+            </div>
+            <div id="gbp-cron-sync-warning" class="cron-warning-box cfg-cron-warning">
+              <i data-lucide="alert-triangle" size="12"></i> Deployment required
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="users"></i> Max Workers</div>
+            <div class="cfg-bottom-content">
+              <input type="number" id="gbp-max-workers" min="1" max="10" placeholder="3" class="cfg-number-input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title small cfg-section-actions">
+            <span><i data-lucide="map-pin"></i> Business Locations</span>
+            <div class="cfg-action-btns">
+              <a href="/google-login" class="btn btn-mini btn-google">
+                <i data-lucide="log-in" size="14"></i> Connect Google
+              </a>
+              <button class="btn btn-mini btn-sync" onclick="forceRefresh('google_business_profile')">
+                <i data-lucide="refresh-cw" size="14"></i> Sync from Google
+              </button>
+            </div>
+            <button class="btn btn-mini btn-disabled-feature" disabled title="Force Sync (Feature disabled for now.)">
+              <i data-lucide="zap" size="14"></i> Force Data Sync
+            </button>
+          </div>
+          <div id="gbp-locations-list" class="asset-grid"></div>
+        </div>
+        <button class="btn btn-save-fixed" onclick="updateConfig('google_business_profile')">
+          <i data-lucide="save"></i> Save GBP Settings
+        </button>
+      </div>

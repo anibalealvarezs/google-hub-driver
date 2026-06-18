@@ -1,0 +1,97 @@
+      <div id="tab-google" class="tab-content" style="display: none">
+        <div class="settings-horizontal-grid">
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small cfg-toggle-label">
+                <i data-lucide="power"></i> Channel Status
+              </div>
+              <div class="cfg-subtitle">Enable GSC Data Extraction</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="gsc-channel-enabled" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small hierarchy-item-premium cfg-toggle-label">
+                <i data-lucide="shield-check"></i> Account Isolation
+              </div>
+              <div class="cfg-subtitle">Enable Granular Sync (1 Job per Site)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="gsc-granular-sync" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small cfg-toggle-label">
+                <i data-lucide="calculator"></i> Calculate Synthetics
+              </div>
+              <div class="cfg-subtitle">Generate synthetic records</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="gsc-calculate-synthetics" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="clock"></i> Dawn Resync Hour</div>
+            <div class="cfg-bottom-content">
+              <div class="cfg-cron-row">
+                <input type="number" id="gsc-cron-hour" min="0" max="23" placeholder="5" class="config-cron-mini-input" />
+                <span class="cfg-time-sep">:</span>
+                <input type="number" id="gsc-cron-minute" min="0" max="59" placeholder="0" class="config-cron-mini-input" />
+                <span class="cfg-subtitle">UTC</span>
+                <div id="gsc-cron-sync-status" class="cron-status-indicator"></div>
+              </div>
+              <div class="cron-explanation">Execution hour for daily metrics.</div>
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="calendar"></i> History Range</div>
+            <div class="cfg-bottom-content">
+              <select id="gsc-history-range" class="control-select cfg-select-full">
+                <option value="1 month">Last Month</option>
+                <option value="3 months">Last 3 Months</option>
+                <option value="6 months">Last 6 Months</option>
+                <option value="12 months">Last 12 Months</option>
+                <option value="16 months" selected>Max (16 Months)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="users"></i> Max Workers</div>
+            <div class="cfg-bottom-content">
+              <input type="number" id="gsc-max-workers" min="1" max="10" placeholder="3" class="cfg-number-input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title small cfg-section-actions">
+            <span><i data-lucide="layers"></i> Search Console properties</span>
+            <div class="cfg-action-btns">
+              <a href="/google-login" class="btn btn-mini btn-google">
+                <i data-lucide="log-in" size="14"></i> Connect Google
+              </a>
+              <button class="btn btn-mini btn-sync" onclick="forceRefresh('google_search_console')">
+                <i data-lucide="refresh-cw" size="14"></i> Sync from Google
+              </button>
+            </div>
+            <button class="btn btn-mini btn-disabled-feature" disabled title="Force Sync (Feature disabled for now. This will allow triggering a full historical sync for all Google Search Console assets in future updates.)">
+              <i data-lucide="zap" size="14"></i> Force Data Sync
+            </button>
+          </div>
+          <div id="gsc-list" class="asset-grid"></div>
+        </div>
+        <button class="btn btn-save-fixed" onclick="updateConfig('google_search_console')">
+          <i data-lucide="save"></i> Save GSC Settings
+        </button>
+      </div>

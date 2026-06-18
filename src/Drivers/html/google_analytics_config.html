@@ -1,0 +1,49 @@
+      <div id="tab-google-analytics" class="tab-content" style="display: none">
+        <div class="settings-horizontal-grid">
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small cfg-toggle-label"><i data-lucide="power"></i> Channel Status</div>
+              <div class="cfg-subtitle">Enable Google Analytics Integration</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="google_analytics-channel-enabled">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="calendar"></i> History Range</div>
+            <div class="cfg-bottom-content">
+              <select id="google_analytics-history-range" class="control-select cfg-select-full">
+                <option value="1 month">Last Month</option>
+                <option value="3 months">Last 3 Months</option>
+                <option value="6 months">Last 6 Months</option>
+                <option value="1 year" selected>Last 12 Months</option>
+                <option value="2 years">Last 2 Years</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="google_analytics-metrics-card" style="display: none;">
+          <div class="section-title small"><i data-lucide="activity"></i> Custom Metrics Definition</div>
+          <div class="metric-config-grid" id="google_analytics-metrics-custom-grid"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title small cfg-section-actions">
+            <span><i data-lucide="layers"></i> Google Analytics Properties</span>
+            <div class="cfg-action-btns">
+              <a href="/google-login" class="btn btn-mini btn-google">
+                <i data-lucide="log-in" size="14"></i> Connect Google
+              </a>
+              <button class="btn btn-mini btn-sync" onclick="forceRefresh('google_analytics')">
+                <i data-lucide="refresh-cw" size="14"></i> Sync from Google
+              </button>
+            </div>
+          </div>
+          <div id="google_analytics-list" class="asset-grid"></div>
+        </div>
+        <button class="btn btn-save-fixed" onclick="updateConfig('google_analytics')">
+          <i data-lucide="save"></i> Save Google Analytics Settings
+        </button>
+      </div>
