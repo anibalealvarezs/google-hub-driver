@@ -10,6 +10,19 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div class="card compact-card cfg-toggle-card">
+            <div>
+              <div class="section-title small hierarchy-item-premium cfg-toggle-label">
+                <i data-lucide="shield-check"></i> Account Isolation
+              </div>
+              <div class="cfg-subtitle">Enable Granular Sync (1 Job per Property)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="ga-granular-sync" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
           <div class="card compact-card">
             <div class="section-title small"><i data-lucide="calendar"></i> History Range</div>
             <div class="cfg-bottom-content">
@@ -20,6 +33,31 @@
                 <option value="1 year" selected>Last 12 Months</option>
                 <option value="2 years">Last 2 Years</option>
               </select>
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="clock"></i> Cron Scheduling (Hours)</div>
+            <div class="cfg-cron-grid">
+              <div>
+                <div class="cfg-cron-label">Metrics Data</div>
+                <div class="cfg-cron-row">
+                  <input type="number" id="ga-cron-hour" min="0" max="23" placeholder="10" class="config-cron-mini-input" />
+                  <span class="cfg-time-sep">:</span>
+                  <input type="number" id="ga-cron-minute" min="0" max="59" placeholder="0" class="config-cron-mini-input" />
+                  <span id="ga-cron-sync-status" class="cron-dot" title="Status check"></span>
+                </div>
+              </div>
+            </div>
+            <div id="ga-cron-sync-warning" class="cron-warning-box cfg-cron-warning">
+              <i data-lucide="alert-triangle" size="12"></i> Deployment required
+            </div>
+          </div>
+
+          <div class="card compact-card">
+            <div class="section-title small"><i data-lucide="users"></i> Max Workers</div>
+            <div class="cfg-bottom-content">
+              <input type="number" id="ga-max-workers" min="1" max="10" placeholder="3" class="cfg-number-input" />
             </div>
           </div>
         </div>
