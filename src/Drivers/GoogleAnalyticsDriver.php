@@ -12,7 +12,6 @@
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
-    use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
@@ -107,12 +106,20 @@
                 $mappedProperties = array_map(function ($property) {
                     // Extract numeric ID from 'properties/123456789'
                     $platformId = str_replace('properties/', '', $property['property'] ?? $property['name']);
+
                     return [
                         'platformId' => $platformId,
-                        'name' => $property['displayName'] ?? 'Unknown Property',
-                        'data' => $property,
+                        'name'       => $property['displayName'] ?? 'Unknown Property',
+                        'data'       => $property,
                     ];
                 }, $properties);
+
+                $propertyCount = count($mappedProperties);
+                if ($propertyCount === 0) {
+                    $this->logger?->info("--- INFO: No GA4 properties discovered for this account");
+                } else {
+                    $this->logger?->info("<<< EXITO: Descubrimiento GA4 completado. Properties: $propertyCount");
+                }
 
                 return ['properties' => $mappedProperties];
             } catch (\Exception $e) {
@@ -120,6 +127,7 @@
                     throw $e;
                 }
                 $this->logger?->error("GoogleAnalyticsDriver: Error fetching GA4 properties", ['error' => $e->getMessage()]);
+
                 return ['properties' => []];
             }
         }
@@ -176,13 +184,18 @@
 
             $entities = [];
 
+            $startDateStr = $startDate->format('Y-m-d');
+            $endDateStr = $endDate->format('Y-m-d');
+
             try {
+                $this->logger?->info(">>> INICIO: Sincronizando Entidades GA4 para Property: $propertyId (Timeframe: $startDateStr a $endDateStr)");
+
                 $campaignResponse = $api->runSimpleReport(
                     propertyId: $propertyId,
                     metrics: ['activeUsers'],
                     dimensions: ['sessionCampaignName'],
-                    startDate: $startDate->format('Y-m-d'),
-                    endDate: $endDate->format('Y-m-d')
+                    startDate: $startDateStr,
+                    endDate: $endDateStr
                 );
 
                 $processedCampaigns = GoogleAnalyticsMetricConvert::preprocessRows($campaignResponse);
@@ -190,13 +203,22 @@
                     if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
                         $entities[] = [
                             'platformId' => $row['sessionCampaignName'],
-                            'name' => $row['sessionCampaignName'],
-                            'type' => 'campaign'
+                            'name'       => $row['sessionCampaignName'],
+                            'type'       => 'campaign'
                         ];
                     }
                 }
+
+                $entityCount = count($entities);
+
+                if ($entityCount === 0) {
+                    $this->logger?->info("--- INFO: No se encontraron Entidades GA4 (campañas) para Property: $propertyId");
+                } else {
+                    $this->logger?->info("<<< EXITO: Sincronización de Entidades completada para Property: $propertyId. Entidades: $entityCount");
+                }
             } catch (\Exception $e) {
-                $this->logger?->error("GA4 Entity Sync Error: " . $e->getMessage());
+                $this->logger?->error("GA4 Entity Sync Error: ".$e->getMessage());
+
                 return new Response(json_encode(['error' => $e->getMessage()]), 500);
             }
 
@@ -231,22 +253,27 @@
             $propertyId = $config['platform_id'] ?? null;
             $level = $config['level'] ?? 'account';
             $metricsList = $config['metrics'] ?? ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'];
-            
+
             if (!$propertyId) {
                 return new Response(json_encode(['error' => 'Property ID is required']));
             }
 
-            $dimensions = match($level) {
+            $dimensions = match ($level) {
                 'campaign' => ['date', 'sessionSourceMedium', 'sessionCampaignName'],
                 'page' => ['date', 'sessionSourceMedium', 'pagePath'],
                 default => ['date', 'sessionSourceMedium']
             };
 
+            $startDateStr = $startDate->format('Y-m-d');
+            $endDateStr = $endDate->format('Y-m-d');
+
             try {
+                $this->logger?->info(">>> INICIO: Sincronizando GA4 para Property: $propertyId (Level: $level | Timeframe: $startDateStr a $endDateStr)");
+
                 $payload = [
-                    'dateRanges' => [['startDate' => $startDate->format('Y-m-d'), 'endDate' => $endDate->format('Y-m-d')]],
-                    'dimensions' => array_map(fn ($d) => ['name' => $d], $dimensions),
-                    'metrics' => array_map(fn ($m) => ['name' => $m], $metricsList),
+                    'dateRanges' => [['startDate' => $startDateStr, 'endDate' => $endDateStr]],
+                    'dimensions' => array_map(fn($d) => ['name' => $d], $dimensions),
+                    'metrics'    => array_map(fn($m) => ['name' => $m], $metricsList),
                 ];
 
                 $response = $api->runAllReports($propertyId, $payload);
@@ -260,12 +287,21 @@
                     account: $config['account'] ?? null
                 );
 
+                $metricsCount = $metricsCollection->count() ?? 0;
+
+                if ($metricsCount === 0) {
+                    $this->logger?->info("--- INFO: No se encontraron datos GA4 para Property: $propertyId (Level: $level)");
+                } else {
+                    $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $metricsCount");
+                }
+
                 return new Response(json_encode([
-                    'status' => 'success',
+                    'status'  => 'success',
                     'metrics' => $metricsCollection->toArray()
                 ]));
             } catch (\Exception $e) {
-                $this->logger?->error("GA4 Metrics Sync Error: " . $e->getMessage());
+                $this->logger?->error("GA4 Metrics Sync Error: ".$e->getMessage());
+
                 return new Response(json_encode(['error' => $e->getMessage()]), 500);
             }
         }
@@ -273,37 +309,37 @@
         public function getConfigSchema(): array
         {
             return [
-                'global'     => [
+                'global'   => [
                     'enabled'             => false,
                     'max_workers'         => self::DEFAULT_MAX_WORKERS,
                     'cache_history_range' => '30 days',
                     'cache_aggregations'  => false,
                     'metrics_strategy'    => 'default',
                 ],
-                'PROPERTY'   => [
+                'PROPERTY' => [
                     'platformId'           => '',
                     'name'                 => '',
                     'enabled'              => true,
                     'exclude_from_caching' => false,
                     'lost_access'          => false,
                 ],
-                'entity'     => [
+                'entity'   => [
                     'platformId'           => '',
                     'name'                 => '',
                     'enabled'              => true,
                     'exclude_from_caching' => false,
                     'lost_access'          => false,
                 ],
-                'metrics'    => [
-                    'sessions'              => ['enabled' => false, 'format' => 'number', 'precision' => 0],
-                    'totalUsers'            => ['enabled' => false, 'format' => 'number', 'precision' => 0],
-                    'activeUsers'           => ['enabled' => false, 'format' => 'number', 'precision' => 0],
-                    'newUsers'              => ['enabled' => false, 'format' => 'number', 'precision' => 0],
-                    'screenPageViews'       => ['enabled' => false, 'format' => 'number', 'precision' => 0],
-                    'bounceRate'            => ['enabled' => false, 'format' => 'percent', 'precision' => 2, 'sparkline_direction' => 'inverted'],
-                    'averageSessionDuration'=> ['enabled' => false, 'format' => 'number', 'precision' => 2],
-                    'conversions'           => ['enabled' => false, 'format' => 'number', 'precision' => 2],
-                    'totalRevenue'          => ['enabled' => false, 'format' => 'currency', 'precision' => 2],
+                'metrics'  => [
+                    'sessions'               => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'totalUsers'             => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'activeUsers'            => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'newUsers'               => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'screenPageViews'        => ['enabled' => false, 'format' => 'number', 'precision' => 0],
+                    'bounceRate'             => ['enabled' => false, 'format' => 'percent', 'precision' => 2, 'sparkline_direction' => 'inverted'],
+                    'averageSessionDuration' => ['enabled' => false, 'format' => 'number', 'precision' => 2],
+                    'conversions'            => ['enabled' => false, 'format' => 'number', 'precision' => 2],
+                    'totalRevenue'           => ['enabled' => false, 'format' => 'currency', 'precision' => 2],
                 ]
             ];
         }
@@ -366,6 +402,7 @@
                 'ga_max_workers'         => $channelConfig['max_workers'] ?? 3,
                 'ga_properties'          => $channelConfig['properties'] ?? [],
             ];
+
             return $ui;
         }
 
@@ -455,10 +492,11 @@
 
         public function getConfigurationJs(): string
         {
-            $file = __DIR__ . '/js/GoogleAnalyticsConfigHandler.js';
+            $file = __DIR__.'/js/GoogleAnalyticsConfigHandler.js';
             if (file_exists($file)) {
                 return file_get_contents($file);
             }
+
             return "";
         }
     }
