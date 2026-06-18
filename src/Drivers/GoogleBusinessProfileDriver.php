@@ -157,13 +157,18 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
         }
 
         try {
-            $credentials = $this->getUpdatableCredentials();
+            $creds = $this->resolveGoogleCredentials();
             $infoApi = new BusinessInformationApi(
-                redirectUrl: $this->authProvider->getRedirectUrl(),
-                clientId: $this->authProvider->getClientId(),
-                clientSecret: $this->authProvider->getClientSecret(),
-                refreshToken: $credentials['refreshToken'] ?? '',
-                userId: $this->authProvider->getUserId()
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
 
             $accounts = [];
@@ -236,13 +241,18 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
         }
 
         try {
-            $credentials = $this->getUpdatableCredentials();
+            $creds = $this->resolveGoogleCredentials();
             $api = new BusinessInformationApi(
-                redirectUrl: $this->authProvider->getRedirectUrl(),
-                clientId: $this->authProvider->getClientId(),
-                clientSecret: $this->authProvider->getClientSecret(),
-                refreshToken: $credentials['refreshToken'] ?? '',
-                userId: $this->authProvider->getUserId()
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
             $api->getAccounts();
 
@@ -281,12 +291,18 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
         }
 
         try {
+            $creds = $this->resolveGoogleCredentials();
             $api = new BusinessPerformanceApi(
-                redirectUrl: $this->authProvider->getRedirectUrl(),
-                clientId: $this->authProvider->getClientId(),
-                clientSecret: $this->authProvider->getClientSecret(),
-                refreshToken: $this->getUpdatableCredentials()['refreshToken'] ?? '',
-                userId: $this->authProvider->getUserId()
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
 
             $totalStats = ['metrics' => 0, 'locations' => 0, 'errors' => 0];

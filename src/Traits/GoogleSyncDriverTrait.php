@@ -110,6 +110,32 @@
         }
 
         /**
+         * Resolve Google API credentials from config/auth provider/env with full fallback chain.
+         */
+        protected function resolveGoogleCredentials(array $config = []): array
+        {
+            $scopes = $this->authProvider?->getScopes() ?? [];
+            $token = $this->authProvider?->getAccessToken() ?? '';
+
+            $providerConfig = [];
+            if ($this->authProvider instanceof BaseAuthProvider) {
+                $providerConfig = $this->authProvider->getConfig();
+            }
+
+            return [
+                'redirectUrl'           => $config['redirect_uri'] ?? $config['google']['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '',
+                'clientId'              => $config['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '',
+                'clientSecret'          => $config['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '',
+                'refreshToken'          => $providerConfig['google_auth']['refresh_token'] ?? $providerConfig['google']['refresh_token'] ?? $config['refresh_token'] ?? $config['google']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
+                'userId'                => $providerConfig['google_auth']['user_id'] ?? $providerConfig['google']['user_id'] ?? $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
+                'scopes'                => $scopes,
+                'token'                 => $token,
+                'tokenPath'             => $config['token_path'] ?? $config['google']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
+                'tokenRefresherCallback'=> $this->authProvider?->getTokenRefresherCallback(),
+            ];
+        }
+
+        /**
          * @throws Exception
          */
         protected function initializeApi(array $config): SearchConsoleApi
@@ -120,25 +146,20 @@
 
             $className = (new ReflectionClass($this))->getShortName();
             $this->logger?->info("DEBUG: $className::initializeApi - START");
-            $scopes = $this->authProvider->getScopes();
-            $token = $this->authProvider->getAccessToken();
 
-            $providerConfig = [];
-            if ($this->authProvider instanceof BaseAuthProvider) {
-                $providerConfig = $this->authProvider->getConfig();
-            }
+            $creds = $this->resolveGoogleCredentials($config);
 
             return new SearchConsoleApi(
-                redirectUrl: $config['redirect_uri'] ?? $config['google']['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '',
-                clientId: $config['client_id'] ?? $config['google']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '',
-                clientSecret: $config['client_secret'] ?? $config['google']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '',
-                refreshToken: $providerConfig['google_auth']['refresh_token'] ?? $providerConfig['google']['refresh_token'] ?? $config['refresh_token'] ?? $config['google']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
-                userId: $providerConfig['google_auth']['user_id'] ?? $providerConfig['google']['user_id'] ?? $config['user_id'] ?? $config['google']['user_id'] ?? 'default',
-                scopes: $scopes,
-                token: $token,
-                tokenPath: $config['token_path'] ?? $config['google']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
                 logger: $this->logger,
-                tokenRefresherCallback: $this->authProvider->getTokenRefresherCallback()
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
         }
 

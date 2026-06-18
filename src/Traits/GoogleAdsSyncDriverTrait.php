@@ -3,68 +3,12 @@
     namespace Anibalealvarezs\GoogleHubDriver\Traits;
 
     use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
-    use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
-    use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
     use Anibalealvarezs\GoogleApi\Services\GoogleAds\GoogleAdsApi;
-    use Closure;
     use Exception;
-    use Psr\Log\LoggerInterface;
     use ReflectionClass;
 
     trait GoogleAdsSyncDriverTrait
     {
-
-        private ?AuthProviderInterface $authProvider;
-        private ?LoggerInterface $logger;
-        /** @var callable|null */
-        private $dataProcessor = null;
-        public array $updatableCredentials = [
-            'GOOGLE_REFRESH_TOKEN',
-            'GOOGLE_USER_ID',
-            'GOOGLE_CLIENT_ID',
-            'GOOGLE_CLIENT_SECRET',
-            'GOOGLE_ADS_DEVELOPER_TOKEN',
-            'GOOGLE_ADS_LOGIN_CUSTOMER_ID'
-        ];
-
-        public function __construct(
-            ?AuthProviderInterface $authProvider = null,
-            ?LoggerInterface       $logger = null,
-        )
-        {
-            $this->authProvider = $authProvider;
-            $this->logger = $logger;
-        }
-
-        /**
-         * Store credentials for this driver.
-         *
-         * @param array $credentials
-         * @return void
-         */
-        public static function storeCredentials(array $credentials): void
-        {
-            $tokenPath = $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: (getcwd().'/storage/tokens/google_tokens.json');
-            $tokenKey = 'google_auth';
-
-            $tokens = file_exists($tokenPath) ? (json_decode(file_get_contents($tokenPath), true) ?? []) : [];
-
-            $tokens[$tokenKey] = [
-                'access_token'  => $credentials['access_token'] ?? null,
-                'refresh_token' => $credentials['refresh_token'] ?? null,
-                'user_id'       => $credentials['user_id'] ?? null,
-                'scopes'        => $credentials['scopes'] ?? [],
-                'updated_at'    => date('Y-m-d H:i:s'),
-                'expires_at'    => date('Y-m-d H:i:s', strtotime('+3600 seconds'))
-            ];
-
-            \Anibalealvarezs\ApiDriverCore\Helpers\Helpers::writeTokenFile($tokenPath, $tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        }
-
-        public function boot(): void
-        {
-        }
-
         /**
          * @throws Exception
          */
@@ -96,21 +40,6 @@
             return self::getProviderName();
         }
 
-        public function setAuthProvider(AuthProviderInterface $provider): void
-        {
-            $this->authProvider = $provider;
-        }
-
-        public function getAuthProvider(): ?AuthProviderInterface
-        {
-            return $this->authProvider;
-        }
-
-        public function setDataProcessor(callable $processor): void
-        {
-            $this->dataProcessor = $processor;
-        }
-
         /**
          * @throws Exception
          */
@@ -122,27 +51,22 @@
 
             $className = (new ReflectionClass($this))->getShortName();
             $this->logger?->info("DEBUG: $className::initializeApi - START");
-            $scopes = $this->authProvider->getScopes();
-            $token = $this->authProvider->getAccessToken();
 
-            $providerConfig = [];
-            if ($this->authProvider instanceof BaseAuthProvider) {
-                $providerConfig = $this->authProvider->getConfig();
-            }
+            $creds = $this->resolveGoogleCredentials($config);
 
             return new GoogleAdsApi(
-                redirectUrl: $config['redirect_uri'] ?? $config['google_ads']['redirect_uri'] ?? $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: '',
-                clientId: $config['client_id'] ?? $config['google_ads']['client_id'] ?? $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '',
-                clientSecret: $config['client_secret'] ?? $config['google_ads']['client_secret'] ?? $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '',
-                refreshToken: $providerConfig['google_auth']['refresh_token'] ?? $providerConfig['google_ads']['refresh_token'] ?? $config['refresh_token'] ?? $config['google_ads']['refresh_token'] ?? $_ENV['GOOGLE_REFRESH_TOKEN'] ?? getenv('GOOGLE_REFRESH_TOKEN') ?: '',
-                userId: $providerConfig['google_auth']['user_id'] ?? $providerConfig['google_ads']['user_id'] ?? $config['user_id'] ?? $config['google_ads']['user_id'] ?? 'default',
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
                 developerToken: $config['developer_token'] ?? $config['google_ads']['developer_token'] ?? $_ENV['GOOGLE_ADS_DEVELOPER_TOKEN'] ?? getenv('GOOGLE_ADS_DEVELOPER_TOKEN') ?: '',
                 loginCustomerId: $config['login_customer_id'] ?? $config['google_ads']['login_customer_id'] ?? $_ENV['GOOGLE_ADS_LOGIN_CUSTOMER_ID'] ?? getenv('GOOGLE_ADS_LOGIN_CUSTOMER_ID') ?: null,
-                scopes: $scopes,
-                token: $token,
-                tokenPath: $config['token_path'] ?? $config['google_ads']['token_path'] ?? $_ENV['GOOGLE_TOKEN_PATH'] ?? getenv('GOOGLE_TOKEN_PATH') ?: "",
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
                 logger: $this->logger,
-                tokenRefresherCallback: $this->authProvider->getTokenRefresherCallback()
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
         }
 
@@ -178,51 +102,5 @@
                     'GOOGLE_ADS_LOGIN_CUSTOMER_ID' => 'login_customer_id',
                 ]
             ];
-        }
-
-        /**
-         * @inheritdoc
-         * @throws Exception
-         */
-        public function reset(string $mode = 'all', array $config = []): array
-        {
-            $resetCallback = $config['resetCallback'] ?? null;
-            if ($resetCallback instanceof Closure) {
-                return $resetCallback($this->getChannel(), $mode);
-            }
-
-            throw new Exception("Reset callback not provided for ".$this->getChannel());
-        }
-
-        /**
-         * @inheritdoc
-         */
-        public function getDateFilterMapping(): array
-        {
-            return [];
-        }
-
-        /**
-         * @inheritdoc
-         */
-        public function validateConfig(array $config): array
-        {
-            $config = ConfigSchemaRegistryService::hydrate(
-                $this->getChannel(),
-                'global',
-                $config,
-                $this->getConfigSchema()
-            );
-
-            $envOverrides = $this->getEnvMapping();
-
-            foreach ($envOverrides as $envKey => $configPath) {
-                $val = getenv($envKey);
-                if ($val !== false && $val !== '') {
-                    $config[$configPath] = $val;
-                }
-            }
-
-            return $config;
         }
     }

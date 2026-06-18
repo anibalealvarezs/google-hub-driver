@@ -13,6 +13,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleAdsSyncDriverTrait;
+    use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\GoogleApi\Services\GoogleAds\GoogleAdsApi;
     use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAdsMetricConvert;
@@ -27,15 +28,29 @@
     class GoogleAdsDriver implements SyncDriverInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
     {
         use HasHierarchicalValidationTrait;
-        use SyncDriverTrait, GoogleAdsSyncDriverTrait {
-            GoogleAdsSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getCommonConfigKey insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getProviderLabel insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getProviderName insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::reset insteadof SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
+        use SyncDriverTrait, GoogleSyncDriverTrait, GoogleAdsSyncDriverTrait {
+            GoogleAdsSyncDriverTrait::getApi insteadof GoogleSyncDriverTrait;
+            GoogleAdsSyncDriverTrait::initializeApi insteadof GoogleSyncDriverTrait;
+            GoogleAdsSyncDriverTrait::getProviderLabel insteadof GoogleSyncDriverTrait, SyncDriverTrait;
+            GoogleAdsSyncDriverTrait::getProviderName insteadof GoogleSyncDriverTrait, SyncDriverTrait;
+            GoogleAdsSyncDriverTrait::getCommonConfigKey insteadof GoogleSyncDriverTrait, SyncDriverTrait;
+            GoogleAdsSyncDriverTrait::getEnvMapping insteadof GoogleSyncDriverTrait, SyncDriverTrait;
+            GoogleAdsSyncDriverTrait::isAuthenticationError insteadof GoogleSyncDriverTrait;
+            GoogleSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::boot insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
         }
+
+        public array $updatableCredentials = [
+            'GOOGLE_REFRESH_TOKEN',
+            'GOOGLE_USER_ID',
+            'GOOGLE_CLIENT_ID',
+            'GOOGLE_CLIENT_SECRET',
+            'GOOGLE_ADS_DEVELOPER_TOKEN',
+            'GOOGLE_ADS_LOGIN_CUSTOMER_ID'
+        ];
 
         private const int DEFAULT_MAX_WORKERS = 2;
 

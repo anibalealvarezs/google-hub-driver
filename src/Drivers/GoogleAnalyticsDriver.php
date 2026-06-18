@@ -88,13 +88,18 @@
         public function fetchAvailableAssets(bool $throwOnError = false): array
         {
             try {
-                $credentials = $this->getUpdatableCredentials();
+                $creds = $this->resolveGoogleCredentials();
                 $api = new AnalyticsAdminApi(
-                    redirectUrl: $this->authProvider->getRedirectUrl(),
-                    clientId: $this->authProvider->getClientId(),
-                    clientSecret: $this->authProvider->getClientSecret(),
-                    refreshToken: $credentials['refreshToken'] ?? '',
-                    userId: $this->authProvider->getUserId()
+                    redirectUrl: $creds['redirectUrl'],
+                    clientId: $creds['clientId'],
+                    clientSecret: $creds['clientSecret'],
+                    refreshToken: $creds['refreshToken'],
+                    userId: $creds['userId'],
+                    scopes: $creds['scopes'],
+                    token: $creds['token'],
+                    tokenPath: $creds['tokenPath'],
+                    logger: $this->logger,
+                    tokenRefresherCallback: $creds['tokenRefresherCallback']
                 );
 
                 $properties = $api->getProperties();
@@ -149,13 +154,18 @@
             ?callable $identityMapper = null
         ): Response
         {
-            $credentials = $this->getUpdatableCredentials();
+            $creds = $this->resolveGoogleCredentials();
             $api = new AnalyticsDataApi(
-                redirectUrl: $this->authProvider->getRedirectUrl(),
-                clientId: $this->authProvider->getClientId(),
-                clientSecret: $this->authProvider->getClientSecret(),
-                refreshToken: $credentials['refreshToken'] ?? '',
-                userId: $this->authProvider->getUserId()
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
 
             $channeledAccountId = $config['account_id'] ?? null;
@@ -167,7 +177,6 @@
             $entities = [];
 
             try {
-                // Discover Campaigns using sessionCampaignName
                 $campaignResponse = $api->runSimpleReport(
                     propertyId: $propertyId,
                     metrics: ['activeUsers'],
@@ -180,15 +189,12 @@
                 foreach ($processedCampaigns as $row) {
                     if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
                         $entities[] = [
-                            'platformId' => $row['sessionCampaignName'], // using name as platform ID
+                            'platformId' => $row['sessionCampaignName'],
                             'name' => $row['sessionCampaignName'],
                             'type' => 'campaign'
                         ];
                     }
                 }
-                
-                // Discover Pages using pagePath (if needed, otherwise we rely on syncMetrics inline creation)
-                // We'll skip pages here to keep entity sync light, since pages are handled via DimensionKeys.
             } catch (\Exception $e) {
                 $this->logger?->error("GA4 Entity Sync Error: " . $e->getMessage());
                 return new Response(json_encode(['error' => $e->getMessage()]), 500);
@@ -207,13 +213,18 @@
             ?callable $identityMapper = null
         ): Response
         {
-            $credentials = $this->getUpdatableCredentials();
+            $creds = $this->resolveGoogleCredentials();
             $api = new AnalyticsDataApi(
-                redirectUrl: $this->authProvider->getRedirectUrl(),
-                clientId: $this->authProvider->getClientId(),
-                clientSecret: $this->authProvider->getClientSecret(),
-                refreshToken: $credentials['refreshToken'] ?? '',
-                userId: $this->authProvider->getUserId()
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
             );
 
             $channeledAccount = $config['channeledAccount'] ?? null;
