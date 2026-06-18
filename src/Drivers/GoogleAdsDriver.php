@@ -43,14 +43,17 @@
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
         }
 
-        public array $updatableCredentials = [
-            'GOOGLE_REFRESH_TOKEN',
-            'GOOGLE_USER_ID',
-            'GOOGLE_CLIENT_ID',
-            'GOOGLE_CLIENT_SECRET',
-            'GOOGLE_ADS_DEVELOPER_TOKEN',
-            'GOOGLE_ADS_LOGIN_CUSTOMER_ID'
-        ];
+        public function getUpdatableCredentials(): array
+        {
+            return [
+                'GOOGLE_REFRESH_TOKEN',
+                'GOOGLE_USER_ID',
+                'GOOGLE_CLIENT_ID',
+                'GOOGLE_CLIENT_SECRET',
+                'GOOGLE_ADS_DEVELOPER_TOKEN',
+                'GOOGLE_ADS_LOGIN_CUSTOMER_ID'
+            ];
+        }
 
         private const int DEFAULT_MAX_WORKERS = 2;
 
