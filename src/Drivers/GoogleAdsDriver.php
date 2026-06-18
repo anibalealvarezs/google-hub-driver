@@ -142,9 +142,48 @@
 
         public function updateConfiguration(array $newData, array $currentConfig): array
         {
-            if (isset($newData['granular_sync'])) {
-                $currentConfig['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            $selectedAssets = $newData['assets']['google_ads'] ?? [];
+            $enabled = $newData['enabled'] ?? false;
+            $historyRange = $newData['cache_history_range'] ?? null;
+            $featureToggles = $newData['feature_toggles'] ?? [];
+
+            if (!isset($currentConfig['channels']['google_ads'])) {
+                $currentConfig['channels']['google_ads'] = [];
             }
+
+            $chanCfg = &$currentConfig['channels']['google_ads'];
+
+            if ($historyRange) {
+                $chanCfg['cache_history_range'] = $historyRange;
+            }
+
+            foreach (['cron_recent_hour', 'cron_recent_minute'] as $key) {
+                if (isset($featureToggles[$key])) {
+                    $chanCfg[$key] = (int)$featureToggles[$key];
+                }
+            }
+
+            $chanCfg['enabled'] = $enabled;
+            if (isset($newData['granular_sync'])) {
+                $chanCfg['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (isset($newData['max_workers'])) {
+                $chanCfg['max_workers'] = (int)$newData['max_workers'];
+            }
+
+            $newAccountsList = [];
+            foreach ($selectedAssets as $pData) {
+                $item = [
+                    'id'          => $pData['id'] ?? null,
+                    'name'        => $pData['name'] ?? null,
+                    'enabled'     => filter_var($pData['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'lost_access' => filter_var($pData['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'data'        => $pData['data'] ?? [],
+                ];
+                $newAccountsList[] = $item;
+            }
+            $chanCfg['ad_accounts'] = $newAccountsList;
+
             return $currentConfig;
         }
 
@@ -352,11 +391,15 @@
 
         public function prepareUiConfig(array $channelConfig): array
         {
-            $ui = [];
-            $ui['google_ads_enabled'] = $channelConfig['enabled'] ?? false;
-            $ui['google_ads_history_range'] = $channelConfig['cache_history_range'] ?? '2 years';
-            $ui['google_ads_max_workers'] = (int)($channelConfig['max_workers'] ?? self::DEFAULT_MAX_WORKERS);
-            $ui['google_ads_ad_accounts'] = $channelConfig['ad_accounts'] ?? [];
+            $ui = [
+                'gads_enabled'             => $channelConfig['enabled'] ?? false,
+                'gads_granular_sync'       => $channelConfig['granular_sync'] ?? false,
+                'gads_cache_history_range' => $channelConfig['cache_history_range'] ?? '2 years',
+                'gads_cron_recent_hour'    => $channelConfig['cron_recent_hour'] ?? 5,
+                'gads_cron_recent_minute'  => $channelConfig['cron_recent_minute'] ?? 30,
+                'gads_max_workers'         => (int)($channelConfig['max_workers'] ?? self::DEFAULT_MAX_WORKERS),
+                'gads_ad_accounts'         => $channelConfig['ad_accounts'] ?? [],
+            ];
             return $ui;
         }
 
@@ -377,6 +420,10 @@
 
         public function getConfigurationJs(): string
         {
+            $file = __DIR__ . '/js/GoogleAdsConfigHandler.js';
+            if (file_exists($file)) {
+                return file_get_contents($file);
+            }
             return "";
         }
 

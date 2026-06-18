@@ -153,7 +153,7 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
     public function fetchAvailableAssets(bool $throwOnError = false): array
     {
         if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
-            return [];
+            return ['accounts' => [], 'locations' => []];
         }
 
         try {
@@ -221,7 +221,7 @@ class GoogleBusinessProfileDriver implements SyncDriverInterface, CanonicalMetri
                 throw $e;
             }
 
-            return [];
+            return ['accounts' => [], 'locations' => []];
         }
     }
 

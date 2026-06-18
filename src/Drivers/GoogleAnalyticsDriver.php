@@ -97,7 +97,7 @@
 
                 $properties = $api->getProperties();
 
-                return array_map(function ($property) {
+                $mappedProperties = array_map(function ($property) {
                     // Extract numeric ID from 'properties/123456789'
                     $platformId = str_replace('properties/', '', $property['property'] ?? $property['name']);
                     return [
@@ -106,12 +106,14 @@
                         'data' => $property,
                     ];
                 }, $properties);
+
+                return ['properties' => $mappedProperties];
             } catch (\Exception $e) {
                 if ($throwOnError) {
                     throw $e;
                 }
                 $this->logger?->error("GoogleAnalyticsDriver: Error fetching GA4 properties", ['error' => $e->getMessage()]);
-                return [];
+                return ['properties' => []];
             }
         }
 
@@ -271,18 +273,63 @@
 
         public function updateConfiguration(array $newData, array $currentConfig): array
         {
-            if (isset($newData['granular_sync'])) {
-                $currentConfig['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            $selectedAssets = $newData['assets']['google_analytics'] ?? [];
+            $enabled = $newData['enabled'] ?? false;
+            $historyRange = $newData['cache_history_range'] ?? null;
+            $featureToggles = $newData['feature_toggles'] ?? [];
+
+            if (!isset($currentConfig['channels']['google_analytics'])) {
+                $currentConfig['channels']['google_analytics'] = [];
             }
+
+            $chanCfg = &$currentConfig['channels']['google_analytics'];
+
+            if ($historyRange) {
+                $chanCfg['cache_history_range'] = $historyRange;
+            }
+
+            foreach (['cron_recent_hour', 'cron_recent_minute'] as $key) {
+                if (isset($featureToggles[$key])) {
+                    $chanCfg[$key] = (int)$featureToggles[$key];
+                }
+            }
+
+            $chanCfg['enabled'] = $enabled;
+            if (isset($newData['granular_sync'])) {
+                $chanCfg['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (isset($newData['max_workers'])) {
+                $chanCfg['max_workers'] = (int)$newData['max_workers'];
+            }
+
+            $newPropertiesList = [];
+            foreach ($selectedAssets as $pData) {
+                $item = [
+                    'platformId'  => $pData['platformId'] ?? null,
+                    'name'        => $pData['name'] ?? null,
+                    'enabled'     => filter_var($pData['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'lost_access' => filter_var($pData['lost_access'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'data'        => $pData['data'] ?? [],
+                ];
+                $newPropertiesList[] = $item;
+            }
+            $chanCfg['properties'] = $newPropertiesList;
 
             return $currentConfig;
         }
 
         public function prepareUiConfig(array $channelConfig): array
         {
-            return [
-                'ga_granular_sync' => $channelConfig['granular_sync'] ?? false
+            $ui = [
+                'ga_enabled'             => $channelConfig['enabled'] ?? false,
+                'ga_granular_sync'       => $channelConfig['granular_sync'] ?? false,
+                'ga_cache_history_range' => $channelConfig['cache_history_range'] ?? '30 days',
+                'ga_cron_recent_hour'    => $channelConfig['cron_recent_hour'] ?? 10,
+                'ga_cron_recent_minute'  => $channelConfig['cron_recent_minute'] ?? 0,
+                'ga_max_workers'         => $channelConfig['max_workers'] ?? 3,
+                'ga_properties'          => $channelConfig['properties'] ?? [],
             ];
+            return $ui;
         }
 
         public function seedDemoData(SeederInterface $seeder, array $config = []): void
@@ -367,5 +414,14 @@
         public static function getChanneledAccountData(array $asset, ?string $key = null): array
         {
             return $asset['data'] ?? [];
+        }
+
+        public function getConfigurationJs(): string
+        {
+            $file = __DIR__ . '/js/GoogleAnalyticsConfigHandler.js';
+            if (file_exists($file)) {
+                return file_get_contents($file);
+            }
+            return "";
         }
     }
