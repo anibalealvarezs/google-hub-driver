@@ -176,6 +176,14 @@ class GoogleAuthProvider extends BaseAuthProvider implements AuthProviderInterfa
             $scopes[] = 'https://www.googleapis.com/auth/analytics.readonly';
         }
 
+        // Check if google_ads channel is enabled
+        $gadsConfig = $config['google_ads'] ?? $config;
+        $isGadsEnabled = $gadsConfig['enabled'] ?? false;
+        
+        if ($isGadsEnabled) {
+            $scopes[] = 'https://www.googleapis.com/auth/adwords';
+        }
+
         // Check if google_business_profile channel is enabled
         $gbpConfig = $config['google_business_profile'] ?? $config;
         $isGbpEnabled = $gbpConfig['enabled'] ?? false;

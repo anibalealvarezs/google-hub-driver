@@ -67,6 +67,8 @@ class GoogleAuthController
         $allConfigs = class_exists('\Helpers\Helpers') ? \Helpers\Helpers::getChannelsConfig() : [];
         $gscConfig = $allConfigs['google_search_console'] ?? [];
         $gbpConfig = $allConfigs['google_business_profile'] ?? [];
+        $gaConfig = $allConfigs['google_analytics'] ?? [];
+        $gadsConfig = $allConfigs['google_ads'] ?? [];
         
         if (!empty($gscConfig['enabled'])) {
             $scopes[] = 'https://www.googleapis.com/auth/webmasters.readonly';
@@ -74,6 +76,14 @@ class GoogleAuthController
 
         if (!empty($gbpConfig['enabled'])) {
             $scopes[] = 'https://www.googleapis.com/auth/business.manage';
+        }
+
+        if (!empty($gaConfig['enabled'])) {
+            $scopes[] = 'https://www.googleapis.com/auth/analytics.readonly';
+        }
+
+        if (!empty($gadsConfig['enabled'])) {
+            $scopes[] = 'https://www.googleapis.com/auth/adwords';
         }
 
         $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query([
