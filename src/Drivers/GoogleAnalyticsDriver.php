@@ -21,6 +21,8 @@
 
     class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface
     {
+        public const DEFAULT_MAX_WORKERS = 3;
+
         use SyncDriverTrait, GoogleSyncDriverTrait {
             GoogleSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getApi insteadof SyncDriverTrait;
