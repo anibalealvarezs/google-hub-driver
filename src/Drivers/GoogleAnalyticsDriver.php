@@ -465,6 +465,20 @@
 
         // --- ChanneledAccountableInterface Methods ---
 
+        public static function getChanneledAccounts(array $asset): array
+        {
+            return [
+                [
+                    'platformId'        => self::getChanneledAccountPlatformId($asset),
+                    'platformCreatedAt' => self::getChanneledAccountPlatformCreatedAt($asset),
+                    'name'              => self::getChanneledAccountName($asset),
+                    'type'              => self::getChanneledAccountType(),
+                    'enabled'           => filter_var($asset['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                    'data'              => self::getChanneledAccountData($asset)
+                ]
+            ];
+        }
+
         public static function getChanneledAccountPlatformId(array $asset, ?string $key = null): string
         {
             return $asset['platformId'] ?? '';
