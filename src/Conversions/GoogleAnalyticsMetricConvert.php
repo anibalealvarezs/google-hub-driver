@@ -137,7 +137,6 @@
                     'sessionGoogleAdsAdGroupName'   => ['channeledAdGroup'],
                     'sessionManualTerm'          => ['channeledAdGroup'],
                     'sessionManualAdContent'     => ['channeledAd'],
-                    'landingPagePlusQueryString' => ['page'],
                     'deviceCategory'             => ['device'],
                     'countryId'                  => ['country'],
                 ],
@@ -146,7 +145,6 @@
                     'sessionGoogleAdsAdGroupName'   => 'channeledAdGroup',
                     'sessionManualTerm'          => 'channeledAdGroup',
                     'sessionManualAdContent'     => 'channeledAd',
-                    'landingPagePlusQueryString' => 'page',
                     'deviceCategory'             => 'device',
                     'countryId'                  => 'country',
                 ],
@@ -197,8 +195,7 @@
                     'sessionManualAdContent'   => ['channeledAd'],
                     'pagePath'                 => ['page'],
                     'eventName'                => ['event'],
-                    'deviceCategory'           => ['device'],
-                    'countryId'                => ['country'],
+                    
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
@@ -207,8 +204,7 @@
                     'sessionManualAdContent'   => 'channeledAd',
                     'pagePath'                 => 'page',
                     'eventName'                => 'event',
-                    'deviceCategory'           => 'device',
-                    'countryId'                => 'country',
+                    
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
