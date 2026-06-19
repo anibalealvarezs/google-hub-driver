@@ -138,7 +138,7 @@
                     'sessionManualAdContent'     => ['channeledAd'],
                     'landingPagePlusQueryString' => ['page'],
                     'deviceCategory'             => ['device'],
-                    'country'                    => ['country'],
+                    'countryId'                  => ['country'],
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'        => 'channeledCampaign',
@@ -146,7 +146,7 @@
                     'sessionManualAdContent'     => 'channeledAd',
                     'landingPagePlusQueryString' => 'page',
                     'deviceCategory'             => 'device',
-                    'country'                    => 'country',
+                    'countryId'                  => 'country',
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
@@ -195,7 +195,7 @@
                     'pagePath'                 => ['page'],
                     'eventName'                => ['event'],
                     'deviceCategory'           => ['device'],
-                    'country'                  => ['country'],
+                    'countryId'                => ['country'],
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
@@ -204,7 +204,7 @@
                     'pagePath'                 => 'page',
                     'eventName'                => 'event',
                     'deviceCategory'           => 'device',
-                    'country'                  => 'country',
+                    'countryId'                => 'country',
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
@@ -365,15 +365,16 @@
             string             $level = 'account',
             ?LoggerInterface   $logger = null,
             object|string|null $account = null,
+            array              $metricsToProcess = []
         ): ArrayCollection
         {
             return match ($level) {
-                'traffic_matrix' => self::trafficMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                'event_matrix' => self::eventMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                'acquisition_matrix' => self::acquisitionMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                'touchpoint_matrix' => self::touchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                'ad_touchpoint_matrix' => self::adTouchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                default => self::propertyMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
+                'traffic_matrix' => self::trafficMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
+                'event_matrix' => self::eventMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
+                'acquisition_matrix' => self::acquisitionMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
+                'touchpoint_matrix' => self::touchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
+                'ad_touchpoint_matrix' => self::adTouchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
+                default => self::propertyMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
             };
         }
 
@@ -419,12 +420,12 @@
                             $processed['sessionCampaignName'] = $val;
                         }
                     } elseif ($dimName === 'deviceCategory') {
-                        $processed['device'] = $val;
-                        $processed[$dimName] = $val;
+                        $processed['device'] = strtolower($val);
+                        $processed[$dimName] = strtolower($val);
                     } elseif ($dimName === 'landingPagePlusQueryString') {
                         $processed['landing_page'] = $val;
                         $processed[$dimName] = $val;
-                    } elseif ($dimName === 'country') {
+                    } elseif ($dimName === 'countryId' || $dimName === 'country') {
                         $processed['country'] = $val;
                         $processed[$dimName] = $val;
                     } else {

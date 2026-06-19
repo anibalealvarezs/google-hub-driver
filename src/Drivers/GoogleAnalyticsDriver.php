@@ -255,7 +255,7 @@
                     $countryResponse = $api->runSimpleReport(
                         propertyId: $propertyId,
                         metrics: ['activeUsers'],
-                        dimensions: ['country'],
+                        dimensions: ['countryId'],
                         startDate: $startDateStr,
                         endDate: $endDateStr
                     );
@@ -398,7 +398,7 @@
                     $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Ads): " . $buffer->count());
                 }
 
-                // --- PAGES (BaseURL) ---
+                // --- PAGES (BaseURL & Paths) ---
                 if ($syncPages) {
                     $adminApi = $this->initializeAdminApi($config);
                     
@@ -422,6 +422,42 @@
                                  ]);
                             $buffer->add($item);
                         }
+                    }
+
+                    $pageResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['landingPagePlusQueryString', 'pagePath'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedPages = GoogleAnalyticsMetricConvert::preprocessRows($pageResponse);
+                    $uniquePaths = [];
+
+                    foreach ($processedPages as $row) {
+                        if (!empty($row['landing_page']) && $row['landing_page'] !== '(not set)') {
+                            $uniquePaths[$row['landing_page']] = true;
+                        }
+                        if (!empty($row['page']) && $row['page'] !== '(not set)') {
+                            $uniquePaths[$row['page']] = true;
+                        }
+                    }
+
+                    foreach (array_keys($uniquePaths) as $path) {
+                        $entities[] = [
+                            'platformId' => $path,
+                            'name'       => $path,
+                            'type'       => 'page'
+                        ];
+
+                        $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                        $item->setPlatformId($path)
+                             ->setTitle($path)
+                             ->setContext([
+                                 'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                             ]);
+                        $buffer->add($item);
                     }
                     
                     if ($this->dataProcessor && $buffer->count() > 0) {
@@ -536,8 +572,8 @@
             $metricsList = $config['metrics'] ?? $defaultMetrics;
 
             $dimensions = match ($level) {
-                'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'country', 'landingPagePlusQueryString'],
-                'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'country'],
+                'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
+                'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId'],
                 'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserManualAdGroupName', 'firstUserManualAdContent'],
                 'touchpoint_matrix' => ['date', 'sessionCampaignName'],
                 'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent'],
@@ -569,7 +605,8 @@
                     channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
                     level: $level,
                     logger: $this->logger,
-                    account: $config['account'] ?? null
+                    account: $config['account'] ?? null,
+                    metricsToProcess: $metricsList
                 );
 
                 $metricsCount = $metricsCollection->count() ?? 0;
