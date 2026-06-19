@@ -181,7 +181,7 @@
             );
 
             $channeledAccountId = $config['account_id'] ?? null;
-            $propertyId = $config['platform_id'] ?? null;
+            $propertyId = $config['platform_id'] ?? $config['account_id'] ?? null;
             if (!$propertyId) {
                 return new Response(json_encode(['error' => 'Property ID is required']));
             }
@@ -356,7 +356,7 @@
             );
 
             $channeledAccount = $config['channeledAccount'] ?? null;
-            $propertyId = $config['platform_id'] ?? null;
+            $propertyId = $config['platform_id'] ?? $config['account_id'] ?? null;
             $level = $config['level'] ?? 'account';
             $defaultMetrics = match ($level) {
                 'event' => ['eventCount', 'conversions'],
