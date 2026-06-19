@@ -21,8 +21,10 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
     use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
+    use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 
-    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface
+    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface, PageableInterface
     {
         public const DEFAULT_MAX_WORKERS = 3;
 
@@ -439,10 +441,14 @@
                     foreach ($dataStreams as $stream) {
                         if (isset($stream['webStreamData']['defaultUri'])) {
                             $baseUrl = $stream['webStreamData']['defaultUri'];
+                            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+                            $canonicalId = 'ga4:domain:' . str_replace('www.', '', $hostname);
                             
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($baseUrl)
+                                 ->setCanonicalId($canonicalId)
+                                 ->setHostname($hostname)
                                  ->setTitle($baseUrl)
                                  ->setUrl($baseUrl)
                                  ->setContext([
@@ -871,6 +877,47 @@
                     label: 'Google Analytics Campaign Flow'
                 ),
             ];
+        }
+
+        // PAGE FIELDS
+
+        public static function getPagePlatformId(array $asset, ?string $key = null): string
+        {
+            $idKey = $key ?: 'platformId';
+            return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+        }
+
+        public static function getPageCanonicalId(array $asset, ?string $key = null): string
+        {
+            $idKey = $key ?: 'canonicalId';
+            if (isset($asset[$idKey]) && $asset[$idKey]) {
+                return FieldsNormalizerHelper::getCleanString($asset[$idKey]);
+            }
+            return 'ga4:domain:'.self::getPageHostname($asset, $key);
+        }
+
+        public static function getPageHostname(array $asset, ?string $key = null): string
+        {
+            $idKey = $key ?: 'hostname';
+            return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+        }
+
+        public static function getPageTitle(array $asset, ?string $key = null): string
+        {
+            $idKey = $key ?: 'title';
+            return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+        }
+
+        public static function getPageUrl(array $asset, ?string $key = null): string
+        {
+            $idKey = $key ?: 'url';
+            return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanString($asset[$idKey]) : '';
+        }
+
+        public static function getPageData(array $asset, ?string $key = null): array
+        {
+            $idKey = $key ?: 'data';
+            return isset($asset[$idKey]) && $asset[$idKey] ? FieldsNormalizerHelper::getCleanArray($asset[$idKey]) : [];
         }
 
         public static function getPageTypes(): array
