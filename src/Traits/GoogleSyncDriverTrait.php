@@ -136,11 +136,6 @@
         }
 
         /**
-         * @throws Exception
-         */
-        abstract protected function initializeApi(array $config);
-
-        /**
          * Check if the exception is related to authentication failure.
          */
         private function isAuthenticationError(Exception $e): bool

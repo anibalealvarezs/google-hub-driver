@@ -293,15 +293,19 @@
 
                     foreach ($processedEvents as $row) {
                         if (!empty($row['eventName']) && !empty($row['conversions']) && (int)$row['conversions'] > 0) {
+                            $sourceKey = $row['eventName'];
+                            $unifiedKey = \Anibalealvarezs\ApiDriverCore\Classes\GlobalEventDictionary::getGlobalKey($sourceKey, 'google_analytics');
+                            
                             $entities[] = [
-                                'platformId' => $row['eventName'],
-                                'name'       => $row['eventName'],
+                                'platformId' => $sourceKey,
+                                'name'       => $unifiedKey,
                                 'type'       => 'event'
                             ];
 
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
-                            $item->setPlatformId($row['eventName'])
-                                 ->setName($row['eventName'])
+                            $item->setPlatformId($sourceKey)
+                                 ->setName($unifiedKey)
+                                 ->setData(['source_key' => $sourceKey])
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
                                  ]);
@@ -548,6 +552,19 @@
                         'platform_created_at_key' => 'createTime',
                         'name_key'                => 'name',
                         'type'                    => 'google_analytics_property',
+                        'data_key'                => 'data'
+                    ]
+                ],
+                GoogleEntityType::EVENT->value => [
+                    'category'          => [AssetCategory::EVENT],
+                    'key'               => 'events',
+                    'channeled_account' => [
+                        'platform_id'             => [
+                            'type' => 'raw',
+                            'key'  => 'platformId'
+                        ],
+                        'name_key'                => 'name',
+                        'type'                    => 'google_analytics_event',
                         'data_key'                => 'data'
                     ]
                 ]
