@@ -181,7 +181,28 @@
             );
 
             $channeledAccountId = $config['account_id'] ?? null;
-            $propertyId = $config['platform_id'] ?? $config['account_id'] ?? null;
+            $propertiesToProcess = $config['properties'] ?? $config[GoogleChannel::ANALYTICS->value]['properties'] ?? [];
+            $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
+            $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+
+            $propertyId = null;
+            if (!empty($propertiesToProcess)) {
+                foreach ($propertiesToProcess as $prop) {
+                    $pId = $prop['platformId'] ?? $prop['id'] ?? null;
+                    if ($pId && $cleanTargetId && $pId == $cleanTargetId) {
+                        if (isset($prop['enabled']) && !$prop['enabled']) {
+                            return new Response(json_encode(['status' => 'skipped', 'message' => 'Property is disabled.']));
+                        }
+                        $propertyId = $pId;
+                        break;
+                    }
+                }
+            }
+
+            if (!$propertyId) {
+                $propertyId = $config['platform_id'] ?? $targetAccountId ?? null;
+            }
+
             if (!$propertyId) {
                 return new Response(json_encode(['error' => 'Property ID is required']));
             }
@@ -356,17 +377,39 @@
             );
 
             $channeledAccount = $config['channeledAccount'] ?? null;
-            $propertyId = $config['platform_id'] ?? $config['account_id'] ?? null;
+            $propertiesToProcess = $config['properties'] ?? $config[GoogleChannel::ANALYTICS->value]['properties'] ?? [];
+            $targetAccountId = $config['account_id'] ?? $config['params']['account_id'] ?? null;
+            $cleanTargetId = $targetAccountId ? ltrim($targetAccountId, '#') : null;
+
+            $propertyId = null;
+            if (!empty($propertiesToProcess)) {
+                foreach ($propertiesToProcess as $prop) {
+                    $pId = $prop['platformId'] ?? $prop['id'] ?? null;
+                    if ($pId && $cleanTargetId && $pId == $cleanTargetId) {
+                        if (isset($prop['enabled']) && !$prop['enabled']) {
+                            return new Response(json_encode(['status' => 'skipped', 'message' => 'Property is disabled.']));
+                        }
+                        $propertyId = $pId;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback for cases where properties aren't explicitly passed but an account_id is
+            if (!$propertyId) {
+                $propertyId = $config['platform_id'] ?? $targetAccountId ?? null;
+            }
+
+            if (!$propertyId) {
+                return new Response(json_encode(['error' => 'Property ID is required']));
+            }
+            
             $level = $config['level'] ?? 'account';
             $defaultMetrics = match ($level) {
                 'event' => ['eventCount', 'conversions'],
                 default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
             };
             $metricsList = $config['metrics'] ?? $defaultMetrics;
-
-            if (!$propertyId) {
-                return new Response(json_encode(['error' => 'Property ID is required']));
-            }
 
             $dimensions = match ($level) {
                 'campaign' => ['date', 'sessionSourceMedium', 'sessionCampaignName'],
