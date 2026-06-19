@@ -138,30 +138,7 @@
         /**
          * @throws Exception
          */
-        protected function initializeApi(array $config): SearchConsoleApi
-        {
-            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
-                throw new Exception("Credentials not configured.");
-            }
-
-            $className = (new ReflectionClass($this))->getShortName();
-            $this->logger?->info("DEBUG: $className::initializeApi - START");
-
-            $creds = $this->resolveGoogleCredentials($config);
-
-            return new SearchConsoleApi(
-                redirectUrl: $creds['redirectUrl'],
-                clientId: $creds['clientId'],
-                clientSecret: $creds['clientSecret'],
-                refreshToken: $creds['refreshToken'],
-                userId: $creds['userId'],
-                scopes: $creds['scopes'],
-                token: $creds['token'],
-                tokenPath: $creds['tokenPath'],
-                logger: $this->logger,
-                tokenRefresherCallback: $creds['tokenRefresherCallback']
-            );
-        }
+        abstract protected function initializeApi(array $config);
 
         /**
          * Check if the exception is related to authentication failure.

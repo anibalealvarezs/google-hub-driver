@@ -49,7 +49,6 @@
             GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getProviderLabel insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getProviderName insteadof SyncDriverTrait;
-            GoogleSyncDriverTrait::initializeApi insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
@@ -1261,9 +1260,37 @@
          */
         public function getConfigurationJs(): string
         {
-            $jsPath = __DIR__.'/js/SearchConsoleConfigHandler.js';
+            $file = __DIR__.'/js/SearchConsoleConfigHandler.js';
+            if (file_exists($file)) {
+                return file_get_contents($file);
+            }
 
-            return file_exists($jsPath) ? file_get_contents($jsPath) : "";
+            return "";
+        }
+
+        protected function initializeApi(array $config): SearchConsoleApi
+        {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                throw new \Exception("Credentials not configured.");
+            }
+
+            $className = (new \ReflectionClass($this))->getShortName();
+            $this->logger?->info("DEBUG: $className::initializeApi - START");
+
+            $creds = $this->resolveGoogleCredentials($config);
+
+            return new SearchConsoleApi(
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
+            );
         }
 
         /**

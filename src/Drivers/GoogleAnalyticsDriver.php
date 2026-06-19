@@ -34,7 +34,6 @@
             GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getProviderLabel insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getProviderName insteadof SyncDriverTrait;
-            GoogleSyncDriverTrait::initializeApi insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getEnvMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
