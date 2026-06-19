@@ -340,7 +340,7 @@
                     $googleAdsAdGroupResponse = $api->runSimpleReport(
                         propertyId: $propertyId,
                         metrics: ['activeUsers'],
-                        dimensions: ['sessionGoogleAdsAdGroupName'],
+                        dimensions: ['sessionCampaignName', 'sessionGoogleAdsAdGroupName'],
                         startDate: $startDateStr,
                         endDate: $endDateStr
                     );
@@ -348,7 +348,7 @@
                     $manualAdGroupResponse = $api->runSimpleReport(
                         propertyId: $propertyId,
                         metrics: ['activeUsers'],
-                        dimensions: ['sessionManualTerm'],
+                        dimensions: ['sessionCampaignName', 'sessionManualTerm'],
                         startDate: $startDateStr,
                         endDate: $endDateStr
                     );
@@ -362,6 +362,11 @@
                     $seenAdGroups = [];
 
                     foreach ($processedAdGroups as $row) {
+                        $campaignName = $row['sessionCampaignName'] ?? null;
+                        if (empty($campaignName) || in_array($campaignName, ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                            continue; // Hierarchical enforcement: require valid campaign
+                        }
+
                         $adGroupName = $row['sessionGoogleAdsAdGroupName'] ?? $row['sessionManualTerm'] ?? null;
                         
                         if (!empty($adGroupName) && !in_array($adGroupName, ['(not set)', '(direct)', '(organic)', '(not provided)']) && !isset($seenAdGroups[$adGroupName])) {
@@ -396,7 +401,7 @@
                     $adResponse = $api->runSimpleReport(
                         propertyId: $propertyId,
                         metrics: ['activeUsers'],
-                        dimensions: ['sessionManualAdContent'],
+                        dimensions: ['sessionCampaignName', 'sessionManualAdContent'],
                         startDate: $startDateStr,
                         endDate: $endDateStr
                     );
@@ -405,6 +410,11 @@
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
 
                     foreach ($processedAds as $row) {
+                        $campaignName = $row['sessionCampaignName'] ?? null;
+                        if (empty($campaignName) || in_array($campaignName, ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                            continue; // Hierarchical enforcement: require valid campaign
+                        }
+
                         if (!empty($row['sessionManualAdContent']) && !in_array($row['sessionManualAdContent'], ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
                             $entities[] = [
                                 'platformId' => $row['sessionManualAdContent'],
