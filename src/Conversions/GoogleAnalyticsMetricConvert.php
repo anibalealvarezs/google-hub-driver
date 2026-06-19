@@ -142,6 +142,50 @@
         }
 
         /**
+         * Converts GA4 Event API rows into metrics.
+         */
+        public static function eventMetrics(
+            array              $response,
+            ?LoggerInterface   $logger = null,
+            object|string|null $channeledAccount = null,
+            object|string|null $period = 'daily',
+            array              $metricsToProcess = [],
+            object|string|null $account = null,
+        ): ArrayCollection
+        {
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['reach', 'impressions', 'sessions', 'conversions'];
+
+            $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
+            $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
+            $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
+
+            $rows = self::preprocessRows($response);
+
+            return UniversalMetricConverter::convert($rows, [
+                'channel'              => 'google_analytics',
+                'period'               => $periodValue,
+                'platform_id_field'    => 'eventName',
+                'date_field'           => 'date',
+                'metrics'              => array_combine($metricsList, $metricsList),
+                'dimensions'           => ['source', 'medium'],
+                'metadata_fields'      => self::METADATA_FIELDS,
+                'context'              => UniversalMetricConverter::getUniversalContext([
+                    'account'            => $account,
+                    'channeledAccount'   => $channeledAccount,
+                    'channeledAccountId' => $channeledAccountId,
+                ]),
+                'row_key_fields'       => [
+                    'property_id' => ['channeledAccount'],
+                    'eventName'   => ['event', 'channeledEvent'],
+                ],
+                'row_entity_fields'    => [
+                    'eventName' => 'channeledEvent',
+                ],
+                'fallback_platform_id' => $channeledPlatformId
+            ], $logger);
+        }
+
+        /**
          * Metrics proxy for dynamic levels.
          */
         public static function metrics(
@@ -155,6 +199,7 @@
             return match ($level) {
                 'campaign' => self::campaignMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 'page' => self::pageMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
+                'event' => self::eventMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 default => self::propertyMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account),
             };
         }

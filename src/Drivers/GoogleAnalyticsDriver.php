@@ -6,14 +6,18 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
+    use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
+    use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
     use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use DateTime;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
-    use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
+    use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
+    use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
@@ -185,39 +189,137 @@
             }
 
             $entities = [];
-
             $startDateStr = $startDate->format('Y-m-d');
             $endDateStr = $endDate->format('Y-m-d');
+            
+            $targetEntity = $config['entity'] ?? null;
+            $level = $config['level'] ?? null;
+            
+            $syncCampaigns = ($targetEntity === 'entities' || $targetEntity === 'campaign' || $level === 'campaign');
+            $syncPages = ($targetEntity === 'entities' || $targetEntity === 'page' || $level === 'page');
+            $syncEvents = ($targetEntity === 'entities' || $targetEntity === 'event' || $level === 'event');
 
             try {
                 $this->logger?->info(">>> INICIO: Sincronizando Entidades GA4 para Property: $propertyId (Timeframe: $startDateStr a $endDateStr)");
+                $channeledAccount = $config['channeledAccount'] ?? null;
 
-                $campaignResponse = $api->runSimpleReport(
-                    propertyId: $propertyId,
-                    metrics: ['activeUsers'],
-                    dimensions: ['sessionCampaignName'],
-                    startDate: $startDateStr,
-                    endDate: $endDateStr
-                );
+                // --- CAMPAIGNS ---
+                if ($syncCampaigns) {
+                    $campaignResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['sessionCampaignName'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
 
-                $processedCampaigns = GoogleAnalyticsMetricConvert::preprocessRows($campaignResponse);
-                foreach ($processedCampaigns as $row) {
-                    if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
-                        $entities[] = [
-                            'platformId' => $row['sessionCampaignName'],
-                            'name'       => $row['sessionCampaignName'],
-                            'type'       => 'campaign'
-                        ];
+                    $processedCampaigns = GoogleAnalyticsMetricConvert::preprocessRows($campaignResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedCampaigns as $row) {
+                        if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
+                            $entities[] = [
+                                'platformId' => $row['sessionCampaignName'],
+                                'name'       => $row['sessionCampaignName'],
+                                'type'       => 'campaign'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['sessionCampaignName'])
+                                 ->setName($row['sessionCampaignName'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
                     }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'campaign');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Campaigns): " . $buffer->count());
                 }
 
-                $entityCount = count($entities);
-
-                if ($entityCount === 0) {
-                    $this->logger?->info("--- INFO: No se encontraron Entidades GA4 (campañas) para Property: $propertyId");
-                } else {
-                    $this->logger?->info("<<< EXITO: Sincronización de Entidades completada para Property: $propertyId. Entidades: $entityCount");
+                // --- PAGES (BaseURL) ---
+                if ($syncPages) {
+                    $adminApi = new AnalyticsAdminApi(
+                        redirectUrl: $creds['redirectUrl'],
+                        clientId: $creds['clientId'],
+                        clientSecret: $creds['clientSecret'],
+                        refreshToken: $creds['refreshToken'],
+                        userId: $creds['userId'],
+                        scopes: $creds['scopes'],
+                        token: $creds['token'],
+                        tokenPath: $creds['tokenPath'],
+                        logger: $this->logger,
+                        tokenRefresherCallback: $creds['tokenRefresherCallback']
+                    );
+                    
+                    $dataStreams = $adminApi->getDataStreams($propertyId);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+                    
+                    foreach ($dataStreams as $stream) {
+                        if (isset($stream['webStreamData']['defaultUri'])) {
+                            $baseUrl = $stream['webStreamData']['defaultUri'];
+                            $entities[] = [
+                                'platformId' => $baseUrl,
+                                'name'       => $baseUrl,
+                                'type'       => 'page'
+                            ];
+                            
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($baseUrl)
+                                 ->setName($baseUrl)
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+                    
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'page');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Pages): " . $buffer->count());
                 }
+
+                // --- CONVERSION EVENTS ---
+                if ($syncEvents) {
+                    $eventResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['conversions'],
+                        dimensions: ['eventName'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedEvents = GoogleAnalyticsMetricConvert::preprocessRows($eventResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedEvents as $row) {
+                        if (!empty($row['eventName']) && !empty($row['conversions']) && (int)$row['conversions'] > 0) {
+                            $entities[] = [
+                                'platformId' => $row['eventName'],
+                                'name'       => $row['eventName'],
+                                'type'       => 'event'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['eventName'])
+                                 ->setName($row['eventName'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'event');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Events): " . $buffer->count());
+                }
+
             } catch (\Exception $e) {
                 $this->logger?->error("GA4 Entity Sync Error: ".$e->getMessage());
 
@@ -237,6 +339,10 @@
             ?callable $identityMapper = null
         ): Response
         {
+            if (isset($config['entity']) && $config['entity'] === 'entities') {
+                return $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
+            }
+
             $creds = $this->resolveGoogleCredentials();
             $api = new AnalyticsDataApi(
                 redirectUrl: $creds['redirectUrl'],
@@ -263,11 +369,17 @@
             $dimensions = match ($level) {
                 'campaign' => ['date', 'sessionSourceMedium', 'sessionCampaignName'],
                 'page' => ['date', 'sessionSourceMedium', 'pagePath'],
+                'event' => ['date', 'sessionSourceMedium', 'eventName'],
                 default => ['date', 'sessionSourceMedium']
             };
 
             $startDateStr = $startDate->format('Y-m-d');
             $endDateStr = $endDate->format('Y-m-d');
+
+            if (in_array($level, ['campaign', 'page', 'event'])) {
+                $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
+                $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
+            }
 
             try {
                 $this->logger?->info(">>> INICIO: Sincronizando GA4 para Property: $propertyId (Level: $level | Timeframe: $startDateStr a $endDateStr)");
@@ -442,6 +554,68 @@
                 'sessions'    => ['sessions'],
                 'spend'       => ['totalRevenue'],
                 'revenue'     => ['totalRevenue'],
+            ];
+        }
+
+        public static function getMetricProfiles(): array
+        {
+            return [
+                MetricProfileTemplates::pageTotals(
+                    channel: 'google_analytics',
+                    key: 'google_analytics_property',
+                    label: 'Google Analytics Property'
+                ),
+                MetricProfileTemplates::campaignBreakdown(
+                    channel: 'google_analytics',
+                    key: 'google_analytics_campaign',
+                    label: 'Google Analytics Campaign'
+                ),
+                [
+                    'key' => 'google_analytics_page',
+                    'channel' => 'google_analytics',
+                    'label' => 'Google Analytics Page',
+                    'metric_config' => [
+                        'required_fields' => ['account', 'channeledAccount', 'page', 'dimensionSet', 'channel', 'name', 'period'],
+                        'common_filters' => ['page', 'name', 'period'],
+                        'groupable_fields' => ['page'],
+                        'index_hints' => [
+                            ['channel', 'name', 'period', 'page'],
+                            ['channel', 'page', 'dimensionSet', 'name', 'id'],
+                        ],
+                    ],
+                ],
+                [
+                    'key' => 'google_analytics_event',
+                    'channel' => 'google_analytics',
+                    'label' => 'Google Analytics Event',
+                    'metric_config' => [
+                        'required_fields' => ['account', 'channeledAccount', 'event', 'dimensionSet', 'channel', 'name', 'period'],
+                        'common_filters' => ['event', 'name', 'period'],
+                        'groupable_fields' => ['event'],
+                        'index_hints' => [
+                            ['channel', 'name', 'period', 'event'],
+                        ],
+                    ],
+                ]
+            ];
+        }
+
+        public static function getAggregationProfiles(): array
+        {
+            return [
+                AggregationProfileTemplates::organicPageFlowProfile(
+                    channel: 'google_analytics',
+                    key: 'google_analytics_property_flow',
+                    label: 'Google Analytics Property Flow',
+                    overrides: [
+                        'asset_type' => 'account',
+                    ]
+                ),
+                AggregationProfileTemplates::flowCampaignProfile(
+                    channel: 'google_analytics',
+                    key: 'google_analytics_campaign_flow',
+                    label: 'Google Analytics Campaign Flow'
+                ),
             ];
         }
 
