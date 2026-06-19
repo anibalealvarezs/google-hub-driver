@@ -26,7 +26,6 @@
     use Anibalealvarezs\GoogleHubDriver\Helpers\Helpers;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use Carbon\Carbon;
-    use Classes\DriverInitializer;
     use DateTime;
     use Exception;
     use Faker\Factory;
@@ -1270,18 +1269,12 @@
         /**
          * @return InstanceTier
          */
-        public function getRequiredInstanceTier(): InstanceTier
+        public function getRequiredInstanceTier(array $config = []): InstanceTier
         {
-            // Resolve calculate_synthetics configuration (defaulting to true for GSC)
             $calculateSynthetics = true;
 
-            try {
-                $chanConfig = DriverInitializer::validateConfig($this->getChannel());
-                if (isset($chanConfig['calculate_synthetics'])) {
-                    $calculateSynthetics = filter_var($chanConfig['calculate_synthetics'], FILTER_VALIDATE_BOOLEAN);
-                }
-            } catch (\Exception $e) {
-                // If we can't fetch it dynamically, try to see if it's set as an env var or fallback
+            if (isset($config['calculate_synthetics'])) {
+                $calculateSynthetics = filter_var($config['calculate_synthetics'], FILTER_VALIDATE_BOOLEAN);
             }
 
             return $calculateSynthetics ? InstanceTier::POWERED : InstanceTier::BASIC;
