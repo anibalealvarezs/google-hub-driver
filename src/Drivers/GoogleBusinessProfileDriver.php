@@ -29,7 +29,6 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Carbon\Carbon;
-    use Classes\DriverInitializer;
     use Exception;
     use Symfony\Component\HttpFoundation\Request;
 
@@ -562,7 +561,69 @@
 
         public static function getLocationCountry(array $asset, ?string $key = null): ?string
         {
-            return $asset['country'] ?? $asset['data']['storefrontAddress']['regionCode'] ?? null;
+            $alpha2 = $asset['country'] ?? $asset['data']['storefrontAddress']['regionCode'] ?? null;
+            if ($alpha2) {
+                return self::convertAlpha2ToAlpha3($alpha2);
+            }
+            return null;
+        }
+
+        private static function convertAlpha2ToAlpha3(string $alpha2): string
+        {
+            $map = [
+                'AW' => 'ABW', 'AF' => 'AFG', 'AO' => 'AGO', 'AI' => 'AIA', 'AX' => 'ALA',
+                'AL' => 'ALB', 'AD' => 'AND', 'AR' => 'ARG', 'AM' => 'ARM', 'AS' => 'ASM',
+                'AQ' => 'ATA', 'AG' => 'ATG', 'AU' => 'AUS', 'AT' => 'AUT', 'AZ' => 'AZE',
+                'BI' => 'BDI', 'BE' => 'BEL', 'BJ' => 'BEN', 'BQ' => 'BES', 'BF' => 'BFA',
+                'BD' => 'BGD', 'BG' => 'BGR', 'BH' => 'BHR', 'BS' => 'BHS', 'BA' => 'BIH',
+                'BL' => 'BLM', 'BY' => 'BLR', 'BZ' => 'BLZ', 'BM' => 'BMU', 'BO' => 'BOL',
+                'BR' => 'BRA', 'BB' => 'BRB', 'BN' => 'BRN', 'BT' => 'BTN', 'BV' => 'BVT',
+                'BW' => 'BWA', 'CF' => 'CAF', 'CA' => 'CAN', 'CC' => 'CCK', 'CH' => 'CHE',
+                'CL' => 'CHL', 'CN' => 'CHN', 'CI' => 'CIV', 'CM' => 'CMR', 'CD' => 'COD',
+                'CG' => 'COG', 'CK' => 'COK', 'CO' => 'COL', 'KM' => 'COM', 'CV' => 'CPV',
+                'CR' => 'CRI', 'CU' => 'CUB', 'CW' => 'CUW', 'CX' => 'CXR', 'KY' => 'CYM',
+                'CY' => 'CYP', 'CZ' => 'CZE', 'DE' => 'DEU', 'DJ' => 'DJI', 'DM' => 'DMA',
+                'DK' => 'DNK', 'DO' => 'DOM', 'DZ' => 'DZA', 'EC' => 'ECU', 'EG' => 'EGY',
+                'ER' => 'ERI', 'EH' => 'ESH', 'ES' => 'ESP', 'EE' => 'EST', 'ET' => 'ETH',
+                'FI' => 'FIN', 'FJ' => 'FJI', 'FK' => 'FLK', 'FR' => 'FRA', 'FO' => 'FRO',
+                'FM' => 'FSM', 'GA' => 'GAB', 'GB' => 'GBR', 'GE' => 'GEO', 'GG' => 'GGY',
+                'GH' => 'GHA', 'GI' => 'GIB', 'GN' => 'GIN', 'GP' => 'GLP', 'GM' => 'GMB',
+                'GW' => 'GNB', 'GQ' => 'GNQ', 'GR' => 'GRC', 'GD' => 'GRD', 'GL' => 'GRL',
+                'GT' => 'GTM', 'GF' => 'GUF', 'GU' => 'GUM', 'GY' => 'GUY', 'HK' => 'HKG',
+                'HM' => 'HMD', 'HN' => 'HND', 'HR' => 'HRV', 'HT' => 'HTI', 'HU' => 'HUN',
+                'ID' => 'IDN', 'IM' => 'IMN', 'IN' => 'IND', 'IO' => 'IOT', 'IE' => 'IRL',
+                'IR' => 'IRN', 'IQ' => 'IRQ', 'IS' => 'ISL', 'IL' => 'ISR', 'IT' => 'ITA',
+                'JM' => 'JAM', 'JE' => 'JEY', 'JO' => 'JOR', 'JP' => 'JPN', 'KZ' => 'KAZ',
+                'KE' => 'KEN', 'KG' => 'KGZ', 'KH' => 'KHM', 'KI' => 'KIR', 'KN' => 'KNA',
+                'KR' => 'KOR', 'KW' => 'KWT', 'LA' => 'LAO', 'LB' => 'LBN', 'LR' => 'LBR',
+                'LY' => 'LBY', 'LC' => 'LCA', 'LI' => 'LIE', 'LK' => 'LKA', 'LS' => 'LSO',
+                'LT' => 'LTU', 'LU' => 'LUX', 'LV' => 'LVA', 'MO' => 'MAC', 'MF' => 'MAF',
+                'MA' => 'MAR', 'MC' => 'MCO', 'MD' => 'MDA', 'MG' => 'MDG', 'MV' => 'MDV',
+                'MX' => 'MEX', 'MH' => 'MHL', 'MK' => 'MKD', 'ML' => 'MLI', 'MT' => 'MLT',
+                'MM' => 'MMR', 'ME' => 'MNE', 'MN' => 'MNG', 'MP' => 'MNP', 'MZ' => 'MOZ',
+                'MR' => 'MRT', 'MS' => 'MSR', 'MQ' => 'MTQ', 'MU' => 'MUS', 'MW' => 'MWI',
+                'MY' => 'MYS', 'YT' => 'MYT', 'NA' => 'NAM', 'NC' => 'NCL', 'NE' => 'NER',
+                'NF' => 'NFK', 'NG' => 'NGA', 'NI' => 'NIC', 'NU' => 'NIU', 'NL' => 'NLD',
+                'NO' => 'NOR', 'NP' => 'NPL', 'NR' => 'NRU', 'NZ' => 'NZL', 'OM' => 'OMN',
+                'PK' => 'PAK', 'PA' => 'PAN', 'PN' => 'PCN', 'PE' => 'PER', 'PH' => 'PHL',
+                'PW' => 'PLW', 'PG' => 'PNG', 'PL' => 'POL', 'PR' => 'PRI', 'KP' => 'PRK',
+                'PT' => 'PRT', 'PY' => 'PRY', 'PS' => 'PSE', 'PF' => 'PYF', 'QA' => 'QAT',
+                'RE' => 'REU', 'RO' => 'ROU', 'RU' => 'RUS', 'RW' => 'RWA', 'SA' => 'SAU',
+                'SD' => 'SDN', 'SN' => 'SEN', 'SG' => 'SGP', 'GS' => 'SGS', 'SH' => 'SHN',
+                'SJ' => 'SJM', 'SB' => 'SLB', 'SL' => 'SLE', 'SV' => 'SLV', 'SM' => 'SMR',
+                'SO' => 'SOM', 'PM' => 'SPM', 'RS' => 'SRB', 'SS' => 'SSD', 'ST' => 'STP',
+                'SR' => 'SUR', 'SK' => 'SVK', 'SI' => 'SVN', 'SE' => 'SWE', 'SZ' => 'SWZ',
+                'SX' => 'SXM', 'SC' => 'SYC', 'SY' => 'SYR', 'TC' => 'TCA', 'TD' => 'TCD',
+                'TG' => 'TGO', 'TH' => 'THA', 'TJ' => 'TJK', 'TK' => 'TKL', 'TM' => 'TKM',
+                'TL' => 'TLS', 'TO' => 'TON', 'TT' => 'TTO', 'TN' => 'TUN', 'TR' => 'TUR',
+                'TV' => 'TUV', 'TW' => 'TWN', 'TZ' => 'TZA', 'UG' => 'UGA', 'UA' => 'UKR',
+                'UM' => 'UMI', 'UY' => 'URY', 'US' => 'USA', 'UZ' => 'UZB', 'VA' => 'VAT',
+                'VC' => 'VCT', 'VE' => 'VEN', 'VG' => 'VGB', 'VI' => 'VIR', 'VN' => 'VNM',
+                'VU' => 'VUT', 'WF' => 'WLF', 'WS' => 'WSM', 'YE' => 'YEM', 'ZA' => 'ZAF',
+                'ZM' => 'ZMB', 'ZW' => 'ZWE', 'AE' => 'ARE', 'TF' => 'ATF'
+            ];
+
+            return $map[strtoupper($alpha2)] ?? strtoupper($alpha2);
         }
 
         public static function getLocationData(array $asset, ?string $key = null): array
@@ -811,174 +872,7 @@
 
         public function initializeEntities(array $config = []): array
         {
-            $em = $config['manager'] ?? null;
-
-            if (!$em) {
-                return $this->fetchAvailableAssets(throwOnError: false);
-            }
-
-            $assets = $this->fetchAvailableAssets(throwOnError: false);
-            $accountEntities = $assets['accounts'] ?? [];
-            $initialized = 0;
-            $skipped = 0;
-
-            $channelEntity = $em->getRepository(\Entities\Analytics\Channel::class)
-                ->findOneBy(['name' => GoogleChannel::BUSINESS_PROFILE->value]);
-            $accountEntity = $em->getRepository(\Entities\Analytics\Account::class)
-                ->findOneBy(['name' => 'Google Business Profile']);
-
-            foreach ($accountEntities as $accAsset) {
-                // Create/update ChanneledAccount for this Business Account
-                $caPlatformId = $accAsset['platformId'];
-                $ca = $em->getRepository(\Entities\Analytics\Channeled\ChanneledAccount::class)
-                    ->findOneBy(['platformId' => $caPlatformId, 'channel' => $channelEntity]);
-
-                if (!$ca) {
-                    $ca = new \Entities\Analytics\Channeled\ChanneledAccount();
-                    $ca->addPlatformId($caPlatformId);
-                    if ($accountEntity) {
-                        $ca->addAccount($accountEntity);
-                    }
-                    if ($channelEntity) {
-                        $ca->addChannel($channelEntity);
-                    }
-                    $ca->addName($accAsset['name']);
-                    $ca->addType(GoogleEntityType::BUSINESS_ACCOUNT->value);
-                    $ca->addData($accAsset['data'] ?? []);
-                    $em->persist($ca);
-                    $initialized++;
-                }
-
-                // Create/update Location entities
-                foreach ($accAsset['locations'] ?? [] as $locAsset) {
-                    $locPlatformId = self::getLocationPlatformId($locAsset);
-                    $location = $em->getRepository(\Entities\Analytics\Location::class)
-                        ->findOneBy(['platformId' => $locPlatformId]);
-
-                    if (!$location) {
-                        $location = new \Entities\Analytics\Location();
-                        $location->addPlatformId($locPlatformId);
-                        $location->addTitle(self::getLocationTitle($locAsset));
-                        if ($ca) {
-                            $location->addChanneledAccount($ca);
-                        }
-                        if ($accountEntity) {
-                            $location->addAccount($accountEntity);
-                        }
-
-                        // Resolve country
-                        $countryCode = self::getLocationCountry($locAsset);
-                        $countryEntity = null;
-                        if ($countryCode) {
-                            $countryEntity = $em->getRepository(\Entities\Analytics\Country::class)
-                                ->findOneBy(['code' => self::convertAlpha2ToAlpha3($countryCode)]);
-                            if ($countryEntity) {
-                                $location->addCountry($countryEntity);
-                            }
-                        }
-
-                        // Resolve state
-                        $stateName = self::getLocationState($locAsset);
-                        if ($stateName && $countryEntity) {
-                            $state = $em->getRepository(\Entities\Analytics\State::class)
-                                ->findByNameAndCountry($stateName, $countryEntity->getId());
-                            if ($state) {
-                                $location->addState($state);
-                            }
-                        }
-
-                        // Resolve city
-                        $cityName = self::getLocationCity($locAsset);
-                        if ($cityName && $countryEntity) {
-                            $city = $em->getRepository(\Entities\Analytics\City::class)
-                                ->findOneBy(['name' => $cityName, 'country' => $countryEntity->getId()]);
-                            if ($city) {
-                                $location->addCity($city);
-                            }
-                        }
-
-                        $location->addLat(self::getLocationLat($locAsset));
-                        $location->addLng(self::getLocationLng($locAsset));
-                        $location->addZipCode(self::getLocationZipCode($locAsset));
-                        $location->addStoreCode(self::getLocationStoreCode($locAsset));
-                        $location->addData(self::getLocationData($locAsset));
-                        $em->persist($location);
-                        $initialized++;
-                    } else {
-                        $skipped++;
-                    }
-                }
-            }
-
-            $em->flush();
-
-            return [
-                'initialized' => $initialized,
-                'skipped'     => $skipped,
-                'accounts'    => $accountEntities,
-                'locations'   => $assets['locations'] ?? [],
-            ];
-        }
-
-        /**
-         * Convert ISO 3166-1 alpha-2 to alpha-3 for Country entity lookup.
-         */
-        private static function convertAlpha2ToAlpha3(string $alpha2): string
-        {
-            $map = [
-                'AF' => 'AFG', 'AX' => 'ALA', 'AL' => 'ALB', 'DZ' => 'DZA', 'AS' => 'ASM',
-                'AD' => 'AND', 'AO' => 'AGO', 'AI' => 'AIA', 'AQ' => 'ATA', 'AG' => 'ATG',
-                'AR' => 'ARG', 'AM' => 'ARM', 'AW' => 'ABW', 'AU' => 'AUS', 'AT' => 'AUT',
-                'AZ' => 'AZE', 'BS' => 'BHS', 'BH' => 'BHR', 'BD' => 'BGD', 'BB' => 'BRB',
-                'BY' => 'BLR', 'BE' => 'BEL', 'BZ' => 'BLZ', 'BJ' => 'BEN', 'BM' => 'BMU',
-                'BT' => 'BTN', 'BO' => 'BOL', 'BQ' => 'BES', 'BA' => 'BIH', 'BW' => 'BWA',
-                'BV' => 'BVT', 'BR' => 'BRA', 'IO' => 'IOT', 'BN' => 'BRN', 'BG' => 'BGR',
-                'BF' => 'BFA', 'BI' => 'BDI', 'CV' => 'CPV', 'KH' => 'KHM', 'CM' => 'CMR',
-                'CA' => 'CAN', 'KY' => 'CYM', 'CF' => 'CAF', 'TD' => 'TCD', 'CL' => 'CHL',
-                'CN' => 'CHN', 'CX' => 'CXR', 'CC' => 'CCK', 'CO' => 'COL', 'KM' => 'COM',
-                'CD' => 'COD', 'CG' => 'COG', 'CK' => 'COK', 'CR' => 'CRI', 'CI' => 'CIV',
-                'HR' => 'HRV', 'CU' => 'CUB', 'CW' => 'CUW', 'CY' => 'CYP', 'CZ' => 'CZE',
-                'DK' => 'DNK', 'DJ' => 'DJI', 'DM' => 'DMA', 'DO' => 'DOM', 'EC' => 'ECU',
-                'EG' => 'EGY', 'SV' => 'SLV', 'GQ' => 'GNQ', 'ER' => 'ERI', 'EE' => 'EST',
-                'SZ' => 'SWZ', 'ET' => 'ETH', 'FK' => 'FLK', 'FO' => 'FRO', 'FJ' => 'FJI',
-                'FI' => 'FIN', 'FR' => 'FRA', 'GF' => 'GUF', 'PF' => 'PYF', 'TF' => 'ATF',
-                'GA' => 'GAB', 'GM' => 'GMB', 'GE' => 'GEO', 'DE' => 'DEU', 'GH' => 'GHA',
-                'GI' => 'GIB', 'GR' => 'GRC', 'GL' => 'GRL', 'GD' => 'GRD', 'GP' => 'GLP',
-                'GU' => 'GUM', 'GT' => 'GTM', 'GG' => 'GGY', 'GN' => 'GIN', 'GW' => 'GNB',
-                'GY' => 'GUY', 'HT' => 'HTI', 'HM' => 'HMD', 'VA' => 'VAT', 'HN' => 'HND',
-                'HK' => 'HKG', 'HU' => 'HUN', 'IS' => 'ISL', 'IN' => 'IND', 'ID' => 'IDN',
-                'IR' => 'IRN', 'IQ' => 'IRQ', 'IE' => 'IRL', 'IM' => 'IMN', 'IL' => 'ISR',
-                'IT' => 'ITA', 'JM' => 'JAM', 'JP' => 'JPN', 'JE' => 'JEY', 'JO' => 'JOR',
-                'KZ' => 'KAZ', 'KE' => 'KEN', 'KI' => 'KIR', 'KP' => 'PRK', 'KR' => 'KOR',
-                'KW' => 'KWT', 'KG' => 'KGZ', 'LA' => 'LAO', 'LV' => 'LVA', 'LB' => 'LBN',
-                'LS' => 'LSO', 'LR' => 'LBR', 'LY' => 'LBY', 'LI' => 'LIE', 'LT' => 'LTU',
-                'LU' => 'LUX', 'MO' => 'MAC', 'MG' => 'MDG', 'MW' => 'MWI', 'MY' => 'MYS',
-                'MV' => 'MDV', 'ML' => 'MLI', 'MT' => 'MLT', 'MH' => 'MHL', 'MQ' => 'MTQ',
-                'MR' => 'MRT', 'MU' => 'MUS', 'YT' => 'MYT', 'MX' => 'MEX', 'FM' => 'FSM',
-                'MD' => 'MDA', 'MC' => 'MCO', 'MN' => 'MNG', 'ME' => 'MNE', 'MS' => 'MSR',
-                'MA' => 'MAR', 'MZ' => 'MOZ', 'MM' => 'MMR', 'NA' => 'NAM', 'NR' => 'NRU',
-                'NP' => 'NPL', 'NL' => 'NLD', 'NC' => 'NCL', 'NZ' => 'NZL', 'NI' => 'NIC',
-                'NE' => 'NER', 'NG' => 'NGA', 'NU' => 'NIU', 'NF' => 'NFK', 'MK' => 'MKD',
-                'MP' => 'MNP', 'NO' => 'NOR', 'OM' => 'OMN', 'PK' => 'PAK', 'PW' => 'PLW',
-                'PS' => 'PSE', 'PA' => 'PAN', 'PG' => 'PNG', 'PY' => 'PRY', 'PE' => 'PER',
-                'PH' => 'PHL', 'PN' => 'PCN', 'PL' => 'POL', 'PT' => 'PRT', 'PR' => 'PRI',
-                'QA' => 'QAT', 'RE' => 'REU', 'RO' => 'ROU', 'RU' => 'RUS', 'RW' => 'RWA',
-                'BL' => 'BLM', 'SH' => 'SHN', 'KN' => 'KNA', 'LC' => 'LCA', 'MF' => 'MAF',
-                'PM' => 'SPM', 'VC' => 'VCT', 'WS' => 'WSM', 'SM' => 'SMR', 'ST' => 'STP',
-                'SA' => 'SAU', 'SN' => 'SEN', 'RS' => 'SRB', 'SC' => 'SYC', 'SL' => 'SLE',
-                'SG' => 'SGP', 'SX' => 'SXM', 'SK' => 'SVK', 'SI' => 'SVN', 'SB' => 'SLB',
-                'SO' => 'SOM', 'ZA' => 'ZAF', 'GS' => 'SGS', 'SS' => 'SSD', 'ES' => 'ESP',
-                'LK' => 'LKA', 'SD' => 'SDN', 'SR' => 'SUR', 'SJ' => 'SJM', 'SE' => 'SWE',
-                'CH' => 'CHE', 'SY' => 'SYR', 'TW' => 'TWN', 'TJ' => 'TJK', 'TZ' => 'TZA',
-                'TH' => 'THA', 'TL' => 'TLS', 'TG' => 'TGO', 'TK' => 'TKL', 'TO' => 'TON',
-                'TT' => 'TTO', 'TN' => 'TUN', 'TR' => 'TUR', 'TM' => 'TKM', 'TC' => 'TCA',
-                'TV' => 'TUV', 'UG' => 'UGA', 'UA' => 'UKR', 'AE' => 'ARE', 'GB' => 'GBR',
-                'UM' => 'UMI', 'US' => 'USA', 'UY' => 'URY', 'UZ' => 'UZB', 'VU' => 'VUT',
-                'VE' => 'VEN', 'VN' => 'VNM', 'VG' => 'VGB', 'VI' => 'VIR', 'WF' => 'WLF',
-                'EH' => 'ESH', 'YE' => 'YEM', 'ZM' => 'ZMB', 'ZW' => 'ZWE',
-            ];
-
-            return $map[strtoupper($alpha2)] ?? strtoupper($alpha2);
+            return $this->fetchAvailableAssets(throwOnError: false);
         }
 
         public static function getInstanceRules(): array
@@ -995,7 +889,7 @@
         {
             return [
                 GoogleEntityType::LOCATION->value => [
-                    'category'          => [AssetCategory::IDENTITY, AssetCategory::PAGEABLE],
+                    'category'          => [AssetCategory::IDENTITY, AssetCategory::LOCATIONABLE],
                     'key'               => 'locations',
                     'channeled_account' => [
                         'platform_id'             => [
@@ -1007,24 +901,37 @@
                         'type'                    => GoogleEntityType::LOCATION->value,
                         'data_key'                => 'data'
                     ],
-                    'page'              => [
-                        'canonical_id' => [
-                            'prefix' => 'gbp:location',
-                            'field'  => 'platformId'
-                        ],
+                    'location' => [
                         'platform_id'  => [
                             'type' => 'raw',
                             'key'  => 'platformId'
                         ],
-                        'title_key'    => 'name',
-                        'url'          => [
-                            'type'   => 'custom',
-                            'prefix' => 'https://business.google.com/',
-                            'key'    => 'platformId'
-                        ],
-                        'hostname_key' => 'hostname',
+                        'title_key'    => 'title',
                         'data_key'     => 'data'
                     ]
+                ]
+            ];
+        }
+
+        public static function getLocations(array $asset): array
+        {
+            if (!($asset['enabled'] ?? true)) {
+                return [];
+            }
+
+            return [
+                [
+                    'platformId' => self::getLocationPlatformId($asset),
+                    'title'      => self::getLocationTitle($asset),
+                    'enabled'    => true,
+                    'lat'        => self::getLocationLat($asset),
+                    'lng'        => self::getLocationLng($asset),
+                    'zipCode'    => self::getLocationZipCode($asset),
+                    'city'       => self::getLocationCity($asset),
+                    'state'      => self::getLocationState($asset),
+                    'country'    => self::getLocationCountry($asset),
+                    'storeCode'  => self::getLocationStoreCode($asset),
+                    'data'       => self::getLocationData($asset)
                 ]
             ];
         }
@@ -1067,25 +974,6 @@
                     'data'              => self::getChanneledAccountData($asset),
                 ]
             ];
-        }
-
-        public static function getLocations(array $asset): array
-        {
-            $locations = $asset['locations'] ?? [];
-
-            return array_map(fn(array $loc) => [
-                'platformId' => self::getLocationPlatformId($loc),
-                'title'      => self::getLocationTitle($loc),
-                'storeCode'  => self::getLocationStoreCode($loc),
-                'lat'        => self::getLocationLat($loc),
-                'lng'        => self::getLocationLng($loc),
-                'zipCode'    => self::getLocationZipCode($loc),
-                'city'       => self::getLocationCity($loc),
-                'state'      => self::getLocationState($loc),
-                'country'    => self::getLocationCountry($loc),
-                'enabled'    => $loc['enabled'] ?? true,
-                'data'       => self::getLocationData($loc),
-            ], $locations);
         }
 
         public function getConfigurationJs(): string

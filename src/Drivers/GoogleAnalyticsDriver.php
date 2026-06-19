@@ -417,7 +417,7 @@
         {
             return [
                 GoogleEntityType::LOCATION->value => [
-                    'category'          => [AssetCategory::IDENTITY, AssetCategory::PAGEABLE],
+                    'category'          => [AssetCategory::IDENTITY],
                     'key'               => 'properties',
                     'channeled_account' => [
                         'platform_id'             => [
@@ -428,24 +428,6 @@
                         'name_key'                => 'name',
                         'type'                    => 'google_analytics_property',
                         'data_key'                => 'data'
-                    ],
-                    'page'              => [
-                        'canonical_id' => [
-                            'prefix' => 'ga:property',
-                            'field'  => 'platformId'
-                        ],
-                        'platform_id'  => [
-                            'type' => 'raw',
-                            'key'  => 'platformId'
-                        ],
-                        'title_key'    => 'name',
-                        'url'          => [
-                            'type'   => 'custom',
-                            'prefix' => 'https://analytics.google.com/analytics/web/',
-                            'key'    => 'platformId'
-                        ],
-                        'hostname_key' => 'hostname',
-                        'data_key'     => 'data'
                     ]
                 ]
             ];
