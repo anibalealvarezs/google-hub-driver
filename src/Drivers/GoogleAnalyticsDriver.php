@@ -201,9 +201,13 @@
             $targetEntity = $config['entity'] ?? null;
             $level = $config['level'] ?? null;
             
-            $syncCampaigns = ($targetEntity === 'entities' || $targetEntity === 'campaign' || $level === 'campaign');
-            $syncPages = ($targetEntity === 'entities' || $targetEntity === 'page' || $level === 'page');
-            $syncEvents = ($targetEntity === 'entities' || $targetEntity === 'event' || $level === 'event');
+            $syncCampaigns = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'touchpoint_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'touchpoint_matrix', 'acquisition_matrix']));
+            $syncPages = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
+            $syncEvents = ($targetEntity === 'entities' || in_array($targetEntity, ['event_matrix']) || in_array($level, ['event_matrix']));
+            $syncCountries = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
+            $syncDevices = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
+            $syncAdGroups = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']));
+            $syncAds = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']));
 
             try {
                 $this->logger?->info(">>> INICIO: Sincronizando Entidades GA4 para Property: $propertyId (Timeframe: $startDateStr a $endDateStr)");
@@ -232,7 +236,7 @@
 
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setPlatformId($row['sessionCampaignName'])
-                                 ->setName($row['sessionCampaignName'])
+                                 ->setTitle($row['sessionCampaignName'])
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
                                  ]);
@@ -244,6 +248,154 @@
                         ($this->dataProcessor)($buffer, 'campaign');
                     }
                     $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Campaigns): " . $buffer->count());
+                }
+
+                // --- COUNTRIES ---
+                if ($syncCountries) {
+                    $countryResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['country'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedCountries = GoogleAnalyticsMetricConvert::preprocessRows($countryResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedCountries as $row) {
+                        if (!empty($row['country']) && $row['country'] !== '(not set)') {
+                            $entities[] = [
+                                'platformId' => $row['country'],
+                                'name'       => $row['country'],
+                                'type'       => 'country'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['country'])
+                                 ->setTitle($row['country'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'country');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Countries): " . $buffer->count());
+                }
+
+                // --- DEVICES ---
+                if ($syncDevices) {
+                    $deviceResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['deviceCategory'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedDevices = GoogleAnalyticsMetricConvert::preprocessRows($deviceResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedDevices as $row) {
+                        if (!empty($row['device']) && $row['device'] !== '(not set)') {
+                            $entities[] = [
+                                'platformId' => $row['device'],
+                                'name'       => $row['device'],
+                                'type'       => 'device'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['device'])
+                                 ->setTitle($row['device'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'device');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Devices): " . $buffer->count());
+                }
+
+                // --- AD GROUPS ---
+                if ($syncAdGroups) {
+                    $adGroupResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['sessionManualAdGroupName'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedAdGroups = GoogleAnalyticsMetricConvert::preprocessRows($adGroupResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedAdGroups as $row) {
+                        if (!empty($row['sessionManualAdGroupName']) && !in_array($row['sessionManualAdGroupName'], ['(not set)', '(direct)', '(organic)'])) {
+                            $entities[] = [
+                                'platformId' => $row['sessionManualAdGroupName'],
+                                'name'       => $row['sessionManualAdGroupName'],
+                                'type'       => 'ad_group'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['sessionManualAdGroupName'])
+                                 ->setTitle($row['sessionManualAdGroupName'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'ad_group');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (AdGroups): " . $buffer->count());
+                }
+
+                // --- ADS ---
+                if ($syncAds) {
+                    $adResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['sessionManualAdContent'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedAds = GoogleAnalyticsMetricConvert::preprocessRows($adResponse);
+                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+
+                    foreach ($processedAds as $row) {
+                        if (!empty($row['sessionManualAdContent']) && !in_array($row['sessionManualAdContent'], ['(not set)', '(direct)', '(organic)'])) {
+                            $entities[] = [
+                                'platformId' => $row['sessionManualAdContent'],
+                                'name'       => $row['sessionManualAdContent'],
+                                'type'       => 'ad'
+                            ];
+
+                            $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
+                            $item->setPlatformId($row['sessionManualAdContent'])
+                                 ->setTitle($row['sessionManualAdContent'])
+                                 ->setContext([
+                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 ]);
+                            $buffer->add($item);
+                        }
+                    }
+
+                    if ($this->dataProcessor && $buffer->count() > 0) {
+                        ($this->dataProcessor)($buffer, 'ad');
+                    }
+                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Ads): " . $buffer->count());
                 }
 
                 // --- PAGES (BaseURL) ---
@@ -264,7 +416,7 @@
                             
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setPlatformId($baseUrl)
-                                 ->setName($baseUrl)
+                                 ->setTitle($baseUrl)
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
                                  ]);
@@ -304,7 +456,7 @@
 
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setPlatformId($sourceKey)
-                                 ->setName($unifiedKey)
+                                 ->setTitle($unifiedKey)
                                  ->setData(['source_key' => $sourceKey])
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
@@ -374,22 +526,28 @@
             
             $level = $config['level'] ?? 'account';
             $defaultMetrics = match ($level) {
-                'event' => ['eventCount', 'conversions'],
+                'event_matrix' => ['eventCount', 'conversions'],
+                'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue', 'conversions'],
+                'acquisition_matrix' => ['newUsers', 'activeUsers'],
+                'touchpoint_matrix', 'ad_touchpoint_matrix' => ['activeUsers'],
                 default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
             };
+
             $metricsList = $config['metrics'] ?? $defaultMetrics;
 
             $dimensions = match ($level) {
-                'campaign' => ['date', 'sessionSourceMedium', 'sessionCampaignName'],
-                'page' => ['date', 'sessionSourceMedium', 'pagePath'],
-                'event' => ['date', 'sessionSourceMedium', 'eventName'],
-                default => ['date', 'sessionSourceMedium']
+                'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'country', 'landingPagePlusQueryString'],
+                'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'country'],
+                'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserManualAdGroupName', 'firstUserManualAdContent'],
+                'touchpoint_matrix' => ['date', 'sessionCampaignName'],
+                'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent'],
+                default => ['date']
             };
 
             $startDateStr = $startDate->format('Y-m-d');
             $endDateStr = $endDate->format('Y-m-d');
 
-            if (in_array($level, ['campaign', 'page', 'event'])) {
+            if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix'])) {
                 $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
                 $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
             }
