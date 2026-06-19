@@ -420,6 +420,10 @@
                     $this->logger?->info("--- INFO: No se encontraron datos GA4 para Property: $propertyId (Level: $level)");
                 } else {
                     $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $metricsCount");
+                    
+                    if (isset($this->dataProcessor) && is_callable($this->dataProcessor)) {
+                        ($this->dataProcessor)($metricsCollection, $this->logger);
+                    }
                 }
 
                 return new Response(json_encode([
