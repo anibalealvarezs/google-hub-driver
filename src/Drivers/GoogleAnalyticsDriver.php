@@ -358,7 +358,11 @@
             $channeledAccount = $config['channeledAccount'] ?? null;
             $propertyId = $config['platform_id'] ?? null;
             $level = $config['level'] ?? 'account';
-            $metricsList = $config['metrics'] ?? ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'];
+            $defaultMetrics = match ($level) {
+                'event' => ['eventCount', 'conversions'],
+                default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
+            };
+            $metricsList = $config['metrics'] ?? $defaultMetrics;
 
             if (!$propertyId) {
                 return new Response(json_encode(['error' => 'Property ID is required']));
