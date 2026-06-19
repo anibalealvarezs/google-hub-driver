@@ -227,7 +227,7 @@
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
 
                     foreach ($processedCampaigns as $row) {
-                        if (!empty($row['sessionCampaignName']) && $row['sessionCampaignName'] !== '(not set)') {
+                        if (!empty($row['sessionCampaignName']) && !in_array($row['sessionCampaignName'], ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
                             $entities[] = [
                                 'platformId' => $row['sessionCampaignName'],
                                 'name'       => $row['sessionCampaignName'],
@@ -239,7 +239,8 @@
                             $item->setPlatformId($row['sessionCampaignName'])
                                  ->setTitle($row['sessionCampaignName'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $row['sessionCampaignName'];
                             $buffer->add($item);
@@ -278,7 +279,8 @@
                             $item->setPlatformId($row['country'])
                                  ->setTitle($row['country'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $row['country'];
                             $buffer->add($item);
@@ -317,7 +319,8 @@
                             $item->setPlatformId($row['device'])
                                  ->setTitle($row['device'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $row['device'];
                             $buffer->add($item);
@@ -359,7 +362,7 @@
                     foreach ($processedAdGroups as $row) {
                         $adGroupName = $row['sessionGoogleAdsAdGroupName'] ?? $row['sessionManualTerm'] ?? null;
                         
-                        if (!empty($adGroupName) && !in_array($adGroupName, ['(not set)', '(direct)', '(organic)']) && !isset($seenAdGroups[$adGroupName])) {
+                        if (!empty($adGroupName) && !in_array($adGroupName, ['(not set)', '(direct)', '(organic)', '(not provided)']) && !isset($seenAdGroups[$adGroupName])) {
                             $seenAdGroups[$adGroupName] = true;
                             $entities[] = [
                                 'platformId' => $adGroupName,
@@ -372,7 +375,8 @@
                             $item->setPlatformId($adGroupName)
                                  ->setTitle($adGroupName)
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $adGroupName;
                             $buffer->add($item);
@@ -399,7 +403,7 @@
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
 
                     foreach ($processedAds as $row) {
-                        if (!empty($row['sessionManualAdContent']) && !in_array($row['sessionManualAdContent'], ['(not set)', '(direct)', '(organic)'])) {
+                        if (!empty($row['sessionManualAdContent']) && !in_array($row['sessionManualAdContent'], ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
                             $entities[] = [
                                 'platformId' => $row['sessionManualAdContent'],
                                 'name'       => $row['sessionManualAdContent'],
@@ -411,7 +415,8 @@
                             $item->setPlatformId($row['sessionManualAdContent'])
                                  ->setTitle($row['sessionManualAdContent'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $row['sessionManualAdContent'];
                             $buffer->add($item);
@@ -424,7 +429,7 @@
                     $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Ads): " . $buffer->count());
                 }
 
-                // --- PAGES (BaseURL & Paths) ---
+                // --- PAGES (BaseURL) ---
                 if ($syncPages) {
                     $adminApi = $this->initializeAdminApi($config);
                     
@@ -434,11 +439,6 @@
                     foreach ($dataStreams as $stream) {
                         if (isset($stream['webStreamData']['defaultUri'])) {
                             $baseUrl = $stream['webStreamData']['defaultUri'];
-                            $entities[] = [
-                                'platformId' => $baseUrl,
-                                'name'       => $baseUrl,
-                                'type'       => 'page'
-                            ];
                             
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
@@ -446,50 +446,12 @@
                                  ->setTitle($baseUrl)
                                  ->setUrl($baseUrl)
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $baseUrl;
                             $buffer->add($item);
                         }
-                    }
-
-                    $pageResponse = $api->runSimpleReport(
-                        propertyId: $propertyId,
-                        metrics: ['activeUsers'],
-                        dimensions: ['landingPagePlusQueryString', 'pagePath'],
-                        startDate: $startDateStr,
-                        endDate: $endDateStr
-                    );
-
-                    $processedPages = GoogleAnalyticsMetricConvert::preprocessRows($pageResponse);
-                    $uniquePaths = [];
-
-                    foreach ($processedPages as $row) {
-                        if (!empty($row['landing_page']) && $row['landing_page'] !== '(not set)') {
-                            $uniquePaths[$row['landing_page']] = true;
-                        }
-                        if (!empty($row['page']) && $row['page'] !== '(not set)') {
-                            $uniquePaths[$row['page']] = true;
-                        }
-                    }
-
-                    foreach (array_keys($uniquePaths) as $path) {
-                        $entities[] = [
-                            'platformId' => $path,
-                            'name'       => $path,
-                            'type'       => 'page'
-                        ];
-
-                        $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
-                        $item->setChannel(GoogleChannel::ANALYTICS->value);
-                        $item->setPlatformId($path)
-                             ->setTitle($path)
-                             ->setUrl($path)
-                             ->setContext([
-                                 'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
-                             ]);
-                        $item->name = $path;
-                        $buffer->add($item);
                     }
                     
                     if ($this->dataProcessor && $buffer->count() > 0) {
@@ -497,6 +459,8 @@
                     }
                     $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Pages): " . $buffer->count());
                 }
+
+
 
                 // --- CONVERSION EVENTS ---
                 if ($syncEvents) {
@@ -528,7 +492,8 @@
                                  ->setTitle($unifiedKey)
                                  ->setData(['source_key' => $sourceKey])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                     'channeledAccountId' => $propertyId
                                  ]);
                             $item->name = $unifiedKey;
                             $buffer->add($item);
