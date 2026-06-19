@@ -583,6 +583,11 @@
             $startDateStr = $startDate->format('Y-m-d');
             $endDateStr = $endDate->format('Y-m-d');
 
+            $this->logger?->info("");
+            $this->logger?->info("========================================================================");
+            $this->logger?->info("========== START MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
+            $this->logger?->info("========================================================================");
+
             if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix'])) {
                 $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
                 $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
@@ -597,29 +602,42 @@
                     'metrics'    => array_map(fn($m) => ['name' => $m], $metricsList),
                 ];
 
-                $response = $api->runAllReports($propertyId, $payload);
-                $response['property_id'] = $propertyId;
+                $totalMetricsCount = 0;
+                $metricsCollection = new \Doctrine\Common\Collections\ArrayCollection(); // Dummy empty collection for response, real processing happens in chunks
+                
+                $api->runAllReportsAndProcess($propertyId, $payload, function ($rows) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                    $chunkResponse = [
+                        'property_id' => $propertyId,
+                        'rows' => $rows
+                    ];
 
-                $metricsCollection = GoogleAnalyticsMetricConvert::metrics(
-                    response: $response,
-                    channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
-                    level: $level,
-                    logger: $this->logger,
-                    account: $config['account'] ?? null,
-                    metricsToProcess: $metricsList
-                );
+                    $chunkCollection = GoogleAnalyticsMetricConvert::metrics(
+                        response: $chunkResponse,
+                        channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
+                        level: $level,
+                        logger: $this->logger,
+                        account: $config['account'] ?? null,
+                        metricsToProcess: $metricsList
+                    );
 
-                $metricsCount = $metricsCollection->count() ?? 0;
+                    $chunkCount = $chunkCollection->count() ?? 0;
+                    $totalMetricsCount += $chunkCount;
 
-                if ($metricsCount === 0) {
+                    if ($chunkCount > 0 && isset($this->dataProcessor) && is_callable($this->dataProcessor)) {
+                        ($this->dataProcessor)($chunkCollection, $this->logger);
+                    }
+                });
+
+                if ($totalMetricsCount === 0) {
                     $this->logger?->info("--- INFO: No se encontraron datos GA4 para Property: $propertyId (Level: $level)");
                 } else {
-                    $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $metricsCount");
-                    
-                    if (isset($this->dataProcessor) && is_callable($this->dataProcessor)) {
-                        ($this->dataProcessor)($metricsCollection, $this->logger);
-                    }
+                    $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $totalMetricsCount");
                 }
+
+                $this->logger?->info("========================================================================");
+                $this->logger?->info("========== END MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
+                $this->logger?->info("========================================================================");
+                $this->logger?->info("");
 
                 return new Response(json_encode([
                     'status'  => 'success',
