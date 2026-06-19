@@ -2,6 +2,7 @@
 
     namespace Anibalealvarezs\GoogleHubDriver\Drivers;
 
+    use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
@@ -17,6 +18,7 @@
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
     use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
+    use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
 
     class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface
     {
