@@ -560,94 +560,106 @@
                 return new Response(json_encode(['error' => 'Property ID is required']));
             }
             
-            $level = $config['level'] ?? 'account';
-            $defaultMetrics = match ($level) {
-                'event_matrix' => ['eventCount', 'conversions'],
-                'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue', 'conversions'],
-                'acquisition_matrix' => ['newUsers', 'activeUsers'],
-                'touchpoint_matrix', 'ad_touchpoint_matrix' => ['activeUsers'],
-                default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
-            };
+            $requestedLevel = $config['level'] ?? 'all';
+            $levelsToProcess = $requestedLevel === 'all' 
+                ? ['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix']
+                : [$requestedLevel];
 
-            $metricsList = $config['metrics'] ?? $defaultMetrics;
+            $totalMetricsSyncedAllLevels = 0;
+            $allMetricsCollection = new \Doctrine\Common\Collections\ArrayCollection();
 
-            $dimensions = match ($level) {
-                'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
-                'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId'],
-                'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserManualAdGroupName', 'firstUserManualAdContent'],
-                'touchpoint_matrix' => ['date', 'sessionCampaignName'],
-                'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent'],
-                default => ['date']
-            };
+            foreach ($levelsToProcess as $level) {
+                $defaultMetrics = match ($level) {
+                    'event_matrix' => ['eventCount', 'conversions'],
+                    'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue', 'conversions'],
+                    'acquisition_matrix' => ['newUsers', 'activeUsers'],
+                    'touchpoint_matrix', 'ad_touchpoint_matrix' => ['activeUsers'],
+                    default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
+                };
 
-            $startDateStr = $startDate->format('Y-m-d');
-            $endDateStr = $endDate->format('Y-m-d');
+                $metricsList = $config['metrics'] ?? $defaultMetrics;
 
-            $this->logger?->info("");
-            $this->logger?->info("========================================================================");
-            $this->logger?->info("========== START MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
-            $this->logger?->info("========================================================================");
+                $dimensions = match ($level) {
+                    'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
+                    'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId'],
+                    'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserManualAdGroupName', 'firstUserManualAdContent'],
+                    'touchpoint_matrix' => ['date', 'sessionCampaignName'],
+                    'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent'],
+                    default => ['date']
+                };
 
-            if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix'])) {
-                $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
-                $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
-            }
+                $startDateStr = $startDate->format('Y-m-d');
+                $endDateStr = $endDate->format('Y-m-d');
 
-            try {
-                $this->logger?->info(">>> INICIO: Sincronizando GA4 para Property: $propertyId (Level: $level | Timeframe: $startDateStr a $endDateStr)");
+                $this->logger?->info("");
+                $this->logger?->info("========================================================================");
+                $this->logger?->info("========== START MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
+                $this->logger?->info("========================================================================");
 
-                $payload = [
-                    'dateRanges' => [['startDate' => $startDateStr, 'endDate' => $endDateStr]],
-                    'dimensions' => array_map(fn($d) => ['name' => $d], $dimensions),
-                    'metrics'    => array_map(fn($m) => ['name' => $m], $metricsList),
-                ];
-
-                $totalMetricsCount = 0;
-                $metricsCollection = new \Doctrine\Common\Collections\ArrayCollection(); // Dummy empty collection for response, real processing happens in chunks
-                
-                $api->runAllReportsAndProcess($propertyId, $payload, function ($rows) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
-                    $chunkResponse = [
-                        'property_id' => $propertyId,
-                        'rows' => $rows
-                    ];
-
-                    $chunkCollection = GoogleAnalyticsMetricConvert::metrics(
-                        response: $chunkResponse,
-                        channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
-                        level: $level,
-                        logger: $this->logger,
-                        account: $config['account'] ?? null,
-                        metricsToProcess: $metricsList
-                    );
-
-                    $chunkCount = $chunkCollection->count() ?? 0;
-                    $totalMetricsCount += $chunkCount;
-
-                    if ($chunkCount > 0 && isset($this->dataProcessor) && is_callable($this->dataProcessor)) {
-                        ($this->dataProcessor)($chunkCollection, $this->logger);
-                    }
-                });
-
-                if ($totalMetricsCount === 0) {
-                    $this->logger?->info("--- INFO: No se encontraron datos GA4 para Property: $propertyId (Level: $level)");
-                } else {
-                    $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $totalMetricsCount");
+                if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix'])) {
+                    $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
+                    $configForEntities = $config;
+                    $configForEntities['level'] = $level; // Pass current level to syncEntities
+                    $this->syncEntities($startDate, $endDate, $configForEntities, $shouldContinue, $identityMapper);
                 }
 
-                $this->logger?->info("========================================================================");
-                $this->logger?->info("========== END MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
-                $this->logger?->info("========================================================================");
-                $this->logger?->info("");
+                try {
+                    $this->logger?->info(">>> INICIO: Sincronizando GA4 para Property: $propertyId (Level: $level | Timeframe: $startDateStr a $endDateStr)");
 
-                return new Response(json_encode([
-                    'status'  => 'success',
-                    'metrics' => $metricsCollection->toArray()
-                ]));
-            } catch (\Exception $e) {
-                $this->logger?->error("GA4 Metrics Sync Error: ".$e->getMessage());
+                    $payload = [
+                        'dateRanges' => [['startDate' => $startDateStr, 'endDate' => $endDateStr]],
+                        'dimensions' => array_map(fn($d) => ['name' => $d], $dimensions),
+                        'metrics'    => array_map(fn($m) => ['name' => $m], $metricsList),
+                    ];
 
-                return new Response(json_encode(['error' => $e->getMessage()]), 500);
+                    $totalMetricsCount = 0;
+                    
+                    $api->runAllReportsAndProcess($propertyId, $payload, function ($rows) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                        $chunkResponse = [
+                            'property_id' => $propertyId,
+                            'rows' => $rows
+                        ];
+
+                        $chunkCollection = GoogleAnalyticsMetricConvert::metrics(
+                            response: $chunkResponse,
+                            channeledAccount: $channeledAccount ?? $config['account_id'] ?? '',
+                            level: $level,
+                            logger: $this->logger,
+                            account: $config['account'] ?? null,
+                            metricsToProcess: $metricsList
+                        );
+
+                        $chunkCount = $chunkCollection->count() ?? 0;
+                        $totalMetricsCount += $chunkCount;
+
+                        if ($chunkCount > 0 && isset($this->dataProcessor) && is_callable($this->dataProcessor)) {
+                            ($this->dataProcessor)($chunkCollection, $this->logger);
+                        }
+                    });
+
+                    $totalMetricsSyncedAllLevels += $totalMetricsCount;
+
+                    if ($totalMetricsCount === 0) {
+                        $this->logger?->info("--- INFO: No se encontraron datos GA4 para Property: $propertyId (Level: $level)");
+                    } else {
+                        $this->logger?->info("<<< EXITO: Sincronización completada para Property: $propertyId (Level: $level). Métricas: $totalMetricsCount");
+                    }
+
+                    $this->logger?->info("========================================================================");
+                    $this->logger?->info("========== END MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
+                    $this->logger?->info("========================================================================");
+                    $this->logger?->info("");
+
+                } catch (\Exception $e) {
+                    $this->logger?->error("GA4 Metrics Sync Error at level $level: ".$e->getMessage());
+                    // Don't break entirely, try the next matrix
+                }
             }
+
+            return new Response(json_encode([
+                'status'  => 'success',
+                'metrics_synced' => $totalMetricsSyncedAllLevels
+            ]));
         }
 
         public function getConfigSchema(): array
