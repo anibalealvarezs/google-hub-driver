@@ -166,19 +166,7 @@
             ?callable $identityMapper = null
         ): Response
         {
-            $creds = $this->resolveGoogleCredentials();
-            $api = new AnalyticsDataApi(
-                redirectUrl: $creds['redirectUrl'],
-                clientId: $creds['clientId'],
-                clientSecret: $creds['clientSecret'],
-                refreshToken: $creds['refreshToken'],
-                userId: $creds['userId'],
-                scopes: $creds['scopes'],
-                token: $creds['token'],
-                tokenPath: $creds['tokenPath'],
-                logger: $this->logger,
-                tokenRefresherCallback: $creds['tokenRefresherCallback']
-            );
+            $api = $this->initializeApi($config);
 
             $channeledAccountId = $config['account_id'] ?? null;
             $propertiesToProcess = $config['properties'] ?? $config[GoogleChannel::ANALYTICS->value]['properties'] ?? [];
@@ -261,18 +249,7 @@
 
                 // --- PAGES (BaseURL) ---
                 if ($syncPages) {
-                    $adminApi = new AnalyticsAdminApi(
-                        redirectUrl: $creds['redirectUrl'],
-                        clientId: $creds['clientId'],
-                        clientSecret: $creds['clientSecret'],
-                        refreshToken: $creds['refreshToken'],
-                        userId: $creds['userId'],
-                        scopes: $creds['scopes'],
-                        token: $creds['token'],
-                        tokenPath: $creds['tokenPath'],
-                        logger: $this->logger,
-                        tokenRefresherCallback: $creds['tokenRefresherCallback']
-                    );
+                    $adminApi = $this->initializeAdminApi($config);
                     
                     $dataStreams = $adminApi->getDataStreams($propertyId);
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
@@ -362,19 +339,7 @@
                 return $this->syncEntities($startDate, $endDate, $config, $shouldContinue, $identityMapper);
             }
 
-            $creds = $this->resolveGoogleCredentials();
-            $api = new AnalyticsDataApi(
-                redirectUrl: $creds['redirectUrl'],
-                clientId: $creds['clientId'],
-                clientSecret: $creds['clientSecret'],
-                refreshToken: $creds['refreshToken'],
-                userId: $creds['userId'],
-                scopes: $creds['scopes'],
-                token: $creds['token'],
-                tokenPath: $creds['tokenPath'],
-                logger: $this->logger,
-                tokenRefresherCallback: $creds['tokenRefresherCallback']
-            );
+            $api = $this->initializeApi($config);
 
             $channeledAccount = $config['channeledAccount'] ?? null;
             $propertiesToProcess = $config['properties'] ?? $config[GoogleChannel::ANALYTICS->value]['properties'] ?? [];
@@ -740,5 +705,41 @@
             }
 
             return "";
+        }
+
+        protected function initializeApi(array $config): AnalyticsDataApi
+        {
+            $creds = $this->resolveGoogleCredentials($config);
+
+            return new AnalyticsDataApi(
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
+            );
+        }
+
+        protected function initializeAdminApi(array $config): AnalyticsAdminApi
+        {
+            $creds = $this->resolveGoogleCredentials($config);
+
+            return new AnalyticsAdminApi(
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
+            );
         }
     }
