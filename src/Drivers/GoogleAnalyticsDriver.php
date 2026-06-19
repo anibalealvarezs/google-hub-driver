@@ -18,9 +18,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
-    use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
-    use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
-    use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
+
     use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
 
