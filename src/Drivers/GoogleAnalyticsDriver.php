@@ -238,8 +238,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($row['sessionCampaignName'])
                                  ->setTitle($row['sessionCampaignName']);
-                                   $item->name = $row['sessionCampaignName']
-                                 ->setContext([
+                              $item->name = $row['sessionCampaignName'];
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -277,8 +277,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($row['country'])
                                  ->setTitle($row['country']);
-                                   $item->name = $row['country']
-                                 ->setContext([
+                              $item->name = $row['country'];
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -316,8 +316,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($row['device'])
                                  ->setTitle($row['device']);
-                                   $item->name = $row['device']
-                                 ->setContext([
+                              $item->name = $row['device'];
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -371,8 +371,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($adGroupName)
                                  ->setTitle($adGroupName);
-                                   $item->name = $adGroupName
-                                 ->setContext([
+                              $item->name = $adGroupName;
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -410,8 +410,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($row['sessionManualAdContent'])
                                  ->setTitle($row['sessionManualAdContent']);
-                                   $item->name = $row['sessionManualAdContent']
-                                 ->setContext([
+                              $item->name = $row['sessionManualAdContent'];
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -444,9 +444,9 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($baseUrl)
                                  ->setTitle($baseUrl);
-                                 $item->setUrl($baseUrl);
-                                   $item->name = $baseUrl
-                                 ->setContext([
+                              $item->setUrl($baseUrl);
+                              $item->name = $baseUrl;
+                              $item->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
@@ -484,9 +484,9 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                         $item->setPlatformId($path)
                              ->setTitle($path);
-                                 $item->setUrl($path);
-                                   $item->name = $path
-                             ->setContext([
+                              $item->setUrl($path);
+                              $item->name = $path;
+                              $item->setContext([
                                  'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                              ]);
                         $buffer->add($item);
@@ -526,8 +526,8 @@
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
                             $item->setPlatformId($sourceKey)
                                  ->setTitle($unifiedKey);
-                                   $item->name = $unifiedKey
-                                 ->setData(['source_key' => $sourceKey])
+                              $item->name = $unifiedKey;
+                              $item->setData(['source_key' => $sourceKey])
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
