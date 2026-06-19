@@ -414,12 +414,37 @@
         public static function getAssetPatterns(): array
         {
             return [
-                'google_analytics' => [
-                    'key'          => 'properties',
-                    'prefix'       => 'ga:property',
-                    'hostnames'    => [],
-                    'url_id_regex' => null,
-                    'type'         => 'property'
+                GoogleEntityType::LOCATION->value => [
+                    'category'          => [AssetCategory::IDENTITY, AssetCategory::PAGEABLE],
+                    'key'               => 'properties',
+                    'channeled_account' => [
+                        'platform_id'             => [
+                            'type' => 'raw',
+                            'key'  => 'platformId'
+                        ],
+                        'platform_created_at_key' => 'createTime',
+                        'name_key'                => 'name',
+                        'type'                    => 'google_analytics_property',
+                        'data_key'                => 'data'
+                    ],
+                    'page'              => [
+                        'canonical_id' => [
+                            'prefix' => 'ga:property',
+                            'field'  => 'platformId'
+                        ],
+                        'platform_id'  => [
+                            'type' => 'raw',
+                            'key'  => 'platformId'
+                        ],
+                        'title_key'    => 'name',
+                        'url'          => [
+                            'type'   => 'custom',
+                            'prefix' => 'https://analytics.google.com/analytics/web/',
+                            'key'    => 'platformId'
+                        ],
+                        'hostname_key' => 'hostname',
+                        'data_key'     => 'data'
+                    ]
                 ]
             ];
         }

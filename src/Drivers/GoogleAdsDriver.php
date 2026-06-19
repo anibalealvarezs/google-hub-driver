@@ -484,7 +484,10 @@
                     'category'          => AssetCategory::IDENTITY,
                     'key'               => 'ad_accounts',
                     'channeled_account' => [
-                        'platform_id'             => ['type' => 'raw', 'key'  => 'id'],
+                        'platform_id'             => [
+                            'type' => 'raw',
+                            'key'  => 'id'
+                        ],
                         'platform_created_at_key' => 'created_at',
                         'name_key'                => 'name',
                         'type'                    => 'google_ads_account',

@@ -994,14 +994,38 @@
         public static function getAssetPatterns(): array
         {
             return [
-                'google_business_profile' => [
-                    'category'     => [AssetCategory::IDENTITY],
-                    'key'          => 'locations',
-                    'prefix'       => 'gbp:location',
-                    'hostnames'    => [],
-                    'url_id_regex' => null,
-                    'type'         => 'location',
-                ],
+                GoogleEntityType::LOCATION->value => [
+                    'category'          => [AssetCategory::IDENTITY, AssetCategory::PAGEABLE],
+                    'key'               => 'locations',
+                    'channeled_account' => [
+                        'platform_id'             => [
+                            'type' => 'raw',
+                            'key'  => 'platformId'
+                        ],
+                        'platform_created_at_key' => 'createTime',
+                        'name_key'                => 'name',
+                        'type'                    => GoogleEntityType::LOCATION->value,
+                        'data_key'                => 'data'
+                    ],
+                    'page'              => [
+                        'canonical_id' => [
+                            'prefix' => 'gbp:location',
+                            'field'  => 'platformId'
+                        ],
+                        'platform_id'  => [
+                            'type' => 'raw',
+                            'key'  => 'platformId'
+                        ],
+                        'title_key'    => 'name',
+                        'url'          => [
+                            'type'   => 'custom',
+                            'prefix' => 'https://business.google.com/',
+                            'key'    => 'platformId'
+                        ],
+                        'hostname_key' => 'hostname',
+                        'data_key'     => 'data'
+                    ]
+                ]
             ];
         }
 
