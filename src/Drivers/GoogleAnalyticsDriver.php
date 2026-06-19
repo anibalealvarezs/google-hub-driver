@@ -238,7 +238,7 @@
                             $item->setPlatformId($row['sessionCampaignName'])
                                  ->setTitle($row['sessionCampaignName'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -275,7 +275,7 @@
                             $item->setPlatformId($row['country'])
                                  ->setTitle($row['country'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -312,7 +312,7 @@
                             $item->setPlatformId($row['device'])
                                  ->setTitle($row['device'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -326,30 +326,46 @@
 
                 // --- AD GROUPS ---
                 if ($syncAdGroups) {
-                    $adGroupResponse = $api->runSimpleReport(
+                    $googleAdsAdGroupResponse = $api->runSimpleReport(
                         propertyId: $propertyId,
                         metrics: ['activeUsers'],
-                        dimensions: ['sessionManualAdGroupName'],
+                        dimensions: ['sessionGoogleAdsAdGroupName'],
                         startDate: $startDateStr,
                         endDate: $endDateStr
                     );
 
-                    $processedAdGroups = GoogleAnalyticsMetricConvert::preprocessRows($adGroupResponse);
+                    $manualAdGroupResponse = $api->runSimpleReport(
+                        propertyId: $propertyId,
+                        metrics: ['activeUsers'],
+                        dimensions: ['sessionManualTerm'],
+                        startDate: $startDateStr,
+                        endDate: $endDateStr
+                    );
+
+                    $processedAdGroups = array_merge(
+                        GoogleAnalyticsMetricConvert::preprocessRows($googleAdsAdGroupResponse),
+                        GoogleAnalyticsMetricConvert::preprocessRows($manualAdGroupResponse)
+                    );
+
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+                    $seenAdGroups = [];
 
                     foreach ($processedAdGroups as $row) {
-                        if (!empty($row['sessionManualAdGroupName']) && !in_array($row['sessionManualAdGroupName'], ['(not set)', '(direct)', '(organic)'])) {
+                        $adGroupName = $row['sessionGoogleAdsAdGroupName'] ?? $row['sessionManualTerm'] ?? null;
+                        
+                        if (!empty($adGroupName) && !in_array($adGroupName, ['(not set)', '(direct)', '(organic)']) && !isset($seenAdGroups[$adGroupName])) {
+                            $seenAdGroups[$adGroupName] = true;
                             $entities[] = [
-                                'platformId' => $row['sessionManualAdGroupName'],
-                                'name'       => $row['sessionManualAdGroupName'],
+                                'platformId' => $adGroupName,
+                                'name'       => $adGroupName,
                                 'type'       => 'ad_group'
                             ];
 
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
-                            $item->setPlatformId($row['sessionManualAdGroupName'])
-                                 ->setTitle($row['sessionManualAdGroupName'])
+                            $item->setPlatformId($adGroupName)
+                                 ->setTitle($adGroupName)
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -386,7 +402,7 @@
                             $item->setPlatformId($row['sessionManualAdContent'])
                                  ->setTitle($row['sessionManualAdContent'])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -418,7 +434,7 @@
                             $item->setPlatformId($baseUrl)
                                  ->setTitle($baseUrl)
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -455,7 +471,7 @@
                         $item->setPlatformId($path)
                              ->setTitle($path)
                              ->setContext([
-                                 'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                 'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                              ]);
                         $buffer->add($item);
                     }
@@ -495,7 +511,7 @@
                                  ->setTitle($unifiedKey)
                                  ->setData(['source_key' => $sourceKey])
                                  ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? clone $item->setPlatformId($propertyId)
+                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId)
                                  ]);
                             $buffer->add($item);
                         }
@@ -580,11 +596,11 @@
                 $metricsList = $config['metrics'] ?? $defaultMetrics;
 
                 $dimensions = match ($level) {
-                    'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
-                    'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent', 'deviceCategory', 'countryId'],
-                    'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserManualAdGroupName', 'firstUserManualAdContent'],
+                    'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
+                    'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent', 'deviceCategory', 'countryId'],
+                    'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'firstUserManualAdContent'],
                     'touchpoint_matrix' => ['date', 'sessionCampaignName'],
-                    'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionManualAdGroupName', 'sessionManualAdContent'],
+                    'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'],
                     default => ['date']
                 };
 

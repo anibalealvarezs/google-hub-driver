@@ -134,7 +134,8 @@
                 'row_key_fields'       => [
                     'property_id'                => ['channeledAccount'],
                     'sessionCampaignName'        => ['channeledCampaign'],
-                    'sessionManualAdGroupName'   => ['channeledAdGroup'],
+                    'sessionGoogleAdsAdGroupName'   => ['channeledAdGroup'],
+                    'sessionManualTerm'          => ['channeledAdGroup'],
                     'sessionManualAdContent'     => ['channeledAd'],
                     'landingPagePlusQueryString' => ['page'],
                     'deviceCategory'             => ['device'],
@@ -142,7 +143,8 @@
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'        => 'channeledCampaign',
-                    'sessionManualAdGroupName'   => 'channeledAdGroup',
+                    'sessionGoogleAdsAdGroupName'   => 'channeledAdGroup',
+                    'sessionManualTerm'          => 'channeledAdGroup',
                     'sessionManualAdContent'     => 'channeledAd',
                     'landingPagePlusQueryString' => 'page',
                     'deviceCategory'             => 'device',
@@ -190,7 +192,8 @@
                 'row_key_fields'       => [
                     'property_id'              => ['channeledAccount'],
                     'sessionCampaignName'      => ['channeledCampaign'],
-                    'sessionManualAdGroupName' => ['channeledAdGroup'],
+                    'sessionGoogleAdsAdGroupName' => ['channeledAdGroup'],
+                    'sessionManualTerm'        => ['channeledAdGroup'],
                     'sessionManualAdContent'   => ['channeledAd'],
                     'pagePath'                 => ['page'],
                     'eventName'                => ['event'],
@@ -199,7 +202,8 @@
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
-                    'sessionManualAdGroupName' => 'channeledAdGroup',
+                    'sessionGoogleAdsAdGroupName' => 'channeledAdGroup',
+                    'sessionManualTerm'        => 'channeledAdGroup',
                     'sessionManualAdContent'   => 'channeledAd',
                     'pagePath'                 => 'page',
                     'eventName'                => 'event',
@@ -248,12 +252,14 @@
                 'row_key_fields'       => [
                     'property_id'                => ['channeledAccount'],
                     'firstUserCampaignName'      => ['channeledCampaign'],
-                    'firstUserManualAdGroupName' => ['channeledAdGroup'],
+                    'firstUserGoogleAdsAdGroupName' => ['channeledAdGroup'],
+                    'firstUserManualTerm'        => ['channeledAdGroup'],
                     'firstUserManualAdContent'   => ['channeledAd'],
                 ],
                 'row_entity_fields'    => [
                     'firstUserCampaignName'      => 'channeledCampaign',
-                    'firstUserManualAdGroupName' => 'channeledAdGroup',
+                    'firstUserGoogleAdsAdGroupName' => 'channeledAdGroup',
+                    'firstUserManualTerm'        => 'channeledAdGroup',
                     'firstUserManualAdContent'   => 'channeledAd',
                 ],
                 'fallback_platform_id' => $channeledPlatformId
@@ -347,12 +353,14 @@
                 'row_key_fields'       => [
                     'property_id'              => ['channeledAccount'],
                     'sessionCampaignName'      => ['channeledCampaign'],
-                    'sessionManualAdGroupName' => ['channeledAdGroup'],
+                    'sessionGoogleAdsAdGroupName' => ['channeledAdGroup'],
+                    'sessionManualTerm'        => ['channeledAdGroup'],
                     'sessionManualAdContent'   => ['channeledAd'],
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
-                    'sessionManualAdGroupName' => 'channeledAdGroup',
+                    'sessionGoogleAdsAdGroupName' => 'channeledAdGroup',
+                    'sessionManualTerm'        => 'channeledAdGroup',
                     'sessionManualAdContent'   => 'channeledAd',
                 ],
                 'fallback_platform_id' => $channeledPlatformId
@@ -412,12 +420,18 @@
                     } elseif ($dimName === 'pagePath') {
                         $processed['page'] = $val;
                         $processed[$dimName] = $val;
-                    } elseif ($dimName === 'sessionCampaignName') {
+                    } elseif ($dimName === 'sessionCampaignName' || $dimName === 'firstUserCampaignName') {
                         // GA4 default is "(not set)" or "(direct)"
                         if (in_array($val, ['(not set)', '(direct)', '(organic)'])) {
-                            $processed['sessionCampaignName'] = null; // Do not map to a campaign entity
+                            $processed[$dimName] = null; // Do not map to a campaign entity
                         } else {
-                            $processed['sessionCampaignName'] = $val;
+                            $processed[$dimName] = $val;
+                        }
+                    } elseif (in_array($dimName, ['sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'sessionManualAdContent', 'firstUserManualAdContent'])) {
+                        if (in_array($val, ['(not set)', '(direct)', '(organic)'])) {
+                            $processed[$dimName] = null;
+                        } else {
+                            $processed[$dimName] = $val;
                         }
                     } elseif ($dimName === 'deviceCategory') {
                         $processed['device'] = strtolower($val);
