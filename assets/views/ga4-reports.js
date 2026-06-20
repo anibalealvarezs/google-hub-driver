@@ -233,7 +233,7 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
 async function loadTrafficSection(tab, options) {
     const tabConfigs = {
         channels: {groupBy: ["dimensions.sessionDefaultChannelGroup"], label: "Channel"},
-        campaigns: {groupBy: ["channeledCampaign.title"], label: "Campaign"},
+        campaigns: {groupBy: ["channeledCampaign"], label: "Campaign"},
         pages: {groupBy: ["dimensions.landing_page"], label: "Landing Page"},
     };
     
@@ -270,7 +270,7 @@ async function loadEventSection(options) {
     activeControllers.event = new AbortController();
 
     const label = "Event Name";
-    const groupBy = ["event.title"];
+    const groupBy = ["event"];
     renderTableHeaders("event", label, ["conversions"]);
     showTableLoader("event", label);
     setSectionState("event", {loading: true, message: `Loading Events...`});
@@ -295,8 +295,8 @@ async function loadEventSection(options) {
 
 async function loadAudienceSection(tab, options) {
     const tabConfigs = {
-        countries: {groupBy: ["country.name"], label: "Country"},
-        devices: {groupBy: ["device.name"], label: "Device"},
+        countries: {groupBy: ["country"], label: "Country"},
+        devices: {groupBy: ["device"], label: "Device"},
     };
     
     const config = tabConfigs[tab] || tabConfigs.countries;
