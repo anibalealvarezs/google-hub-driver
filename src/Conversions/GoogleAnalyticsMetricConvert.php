@@ -35,6 +35,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
 
             return UniversalMetricConverter::convert($rows, [
@@ -49,6 +55,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id' => ['channeledAccount'],
@@ -74,6 +81,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
 
             return UniversalMetricConverter::convert($rows, [
@@ -88,6 +101,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id' => ['channeledAccount'],
@@ -113,6 +127,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
                 $row['scope'] = 'traffic_matrix';
@@ -130,6 +150,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id'                => ['channeledAccount'],
@@ -145,8 +166,8 @@
                     'sessionGoogleAdsAdGroupName'   => 'channeledAdGroup',
                     'sessionManualTerm'          => 'channeledAdGroup',
                     'sessionManualAdContent'     => 'channeledAd',
-                    'deviceCategory'             => 'device',
-                    'countryId'                  => 'country',
+                    'deviceCategory'             => 'deviceType',
+                    'countryId'                  => 'countryCode',
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
@@ -169,6 +190,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
                 $row['scope'] = 'event_matrix';
@@ -186,6 +213,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id'              => ['channeledAccount'],
@@ -223,6 +251,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
                 $row['scope'] = 'acquisition_matrix';
@@ -240,6 +274,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id'                => ['channeledAccount'],
@@ -275,6 +310,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
                 $row['scope'] = 'touchpoint_matrix';
@@ -292,6 +333,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id'         => ['channeledAccount'],
@@ -324,6 +366,12 @@
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
+            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
+            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
+            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
+            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
+            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
                 $row['scope'] = 'ad_touchpoint_matrix';
@@ -341,6 +389,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'page'               => $pageContext,
                 ]),
                 'row_key_fields'       => [
                     'property_id'              => ['channeledAccount'],

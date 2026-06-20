@@ -8,3 +8,5 @@ vendor
 scratch/verify_config.php
 
 .copilot/composer-path-repositories.backup.json
+
+src/Conversions/fix2.php
