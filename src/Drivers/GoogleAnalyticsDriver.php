@@ -623,6 +623,8 @@
                 try {
                     $this->logger?->info(">>> INICIO: Sincronizando GA4 para Property: $propertyId (Level: $level | Timeframe: $startDateStr a $endDateStr)");
 
+                    $this->logger?->info(">>> Solicitando métricas: " . implode(', ', $metricsList) . " | Dimensiones: " . implode(', ', $dimensions));
+
                     $payload = [
                         'dateRanges' => [['startDate' => $startDateStr, 'endDate' => $endDateStr]],
                         'dimensions' => array_map(fn($d) => ['name' => $d], $dimensions),
@@ -632,6 +634,10 @@
                     $totalMetricsCount = 0;
                     
                     $api->runAllReportsAndProcess($propertyId, $payload, function ($rows) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                        if ($totalMetricsCount === 0 && count($rows) > 0) {
+                            $this->logger?->info(">>> Primera fila cruda devuelta por GA4 ($level): " . json_encode($rows[0]));
+                        }
+
                         $chunkResponse = [
                             'property_id' => $propertyId,
                             'rows' => $rows
