@@ -643,15 +643,14 @@
 
                     $totalMetricsCount = 0;
                     
-                    $api->runAllReportsAndProcess($propertyId, $payload, function ($rows) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                    $api->runAllReportsAndProcess($propertyId, $payload, function ($response) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                        $rows = $response['rows'] ?? [];
                         if ($totalMetricsCount === 0 && count($rows) > 0) {
                             $this->logger?->info(">>> Primera fila cruda devuelta por GA4 ($level): " . json_encode($rows[0]));
                         }
 
-                        $chunkResponse = [
-                            'property_id' => $propertyId,
-                            'rows' => $rows
-                        ];
+                        $chunkResponse = $response;
+                        $chunkResponse['property_id'] = $propertyId;
 
                         $chunkCollection = GoogleAnalyticsMetricConvert::metrics(
                             response: $chunkResponse,
