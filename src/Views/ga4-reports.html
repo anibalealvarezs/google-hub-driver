@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIs Hub | Google Analytics 4 Insights</title>
+    <link rel="icon" type="image/png" href="/driver-assets/core/images/apishub-favicon.png">
+    
+    <!-- Design System & Dependencies -->
+    <link rel="stylesheet" href="/driver-assets/core/css/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/driver-assets/core/navbar.js"></script>
+    <script src="/driver-assets/core/footer.js"></script>
+
+    <link rel="stylesheet" href="/driver-assets/google_analytics/css/ga4-reports.css">
+</head>
+<body class="full-screen">
+
+    <div id="loader" class="loader-overlay-ga4">
+        <div class="spinner"></div>
+        <p class="loader-text">SYNCING ANALYTICS DATA...</p>
+    </div>
+
+    <main>
+        <div class="ga4-header-row">
+            <div class="ga4-header-info">
+                <h1 class="ga4-header-title">
+                    <i data-lucide="bar-chart-2" style="color: #fbbc04;"></i> Google Analytics 4
+                </h1>
+                <p class="ga4-header-subtitle">Traffic, Engagement, and Conversions</p>
+            </div>
+            <div class="controls-card ga4-header-controls">
+                <div class="control-group">
+                    <label for="propertySelector" class="visually-hidden">Property</label>
+                    <i data-lucide="globe" class="control-icon"></i>
+                    <select id="propertySelector" class="date-input property-selector" onchange="loadReport()"></select>
+                </div>
+                <div class="date-container">
+                    <label for="reportRange" class="visually-hidden">Date range</label>
+                    <i data-lucide="calendar"></i>
+                    <input type="text" id="reportRange" placeholder="Select Range" class="date-input">
+                </div>
+                <button class="btn btn-primary" onclick="loadReport()">
+                    <i data-lucide="refresh-cw"></i> Update
+                </button>
+                <button class="btn btn-outline btn-flush-cache" onclick="flushCache()" title="Clear Dashboard Cache">
+                    <i data-lucide="zap" style="width: 16px; height: 16px;"></i> FLUSH CACHE
+                </button>
+            </div>
+        </div>
+
+        <div class="report-section-ga4" id="summarySection">
+            <div class="section-status-ga4" id="summaryStatus" aria-live="polite"></div>
+            <div class="metrics-grid-ga4" id="summaryGrid">
+                <div class="card-stat-ga4 active" data-metric="sessions" onclick="toggleMetric('sessions')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
+                    <div class="ga4-label">Total Sessions</div>
+                    <div class="card-metric-value" id="val-sessions">0</div>
+                    <div class="card-metric-trend" id="trend-sessions">--</div>
+                </div>
+                <div class="card-stat-ga4 active" data-metric="activeUsers" onclick="toggleMetric('activeUsers')" style="--color: #0f9d58; border-bottom-color: #0f9d58; opacity: 1;">
+                    <div class="ga4-label">Active Users</div>
+                    <div class="card-metric-value" id="val-activeUsers">0</div>
+                    <div class="card-metric-trend" id="trend-activeUsers">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="newUsers" onclick="toggleMetric('newUsers')" style="--color: #fbbc04; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">New Users</div>
+                    <div class="card-metric-value" id="val-newUsers">0</div>
+                    <div class="card-metric-trend" id="trend-newUsers">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="conversions" onclick="toggleMetric('conversions')" style="--color: #ea4335; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Conversions</div>
+                    <div class="card-metric-value" id="val-conversions">0</div>
+                    <div class="card-metric-trend" id="trend-conversions">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-container-ga4 report-section-ga4" id="chartSection">
+            <div class="section-status-ga4 section-status-inline-ga4" id="chartStatus" aria-live="polite"></div>
+            <canvas id="mainChart"></canvas>
+        </div>
+
+        <!-- Traffic Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Traffic & Acquisition</h3>
+            <div class="ga4-table-container report-section-ga4" id="trafficSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="trafficStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 traffic-tab active" data-tab="channels" onclick="switchTrafficTab(this, 'channels')">CHANNELS</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="campaigns" onclick="switchTrafficTab(this, 'campaigns')">CAMPAIGNS</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="pages" onclick="switchTrafficTab(this, 'pages')">LANDING PAGES</div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="ga4-traffic-table">
+                        <thead><tr id="traffic-table-headers"></tr></thead>
+                        <tbody id="traffic-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Event Tracking</h3>
+            <div class="ga4-table-container report-section-ga4" id="eventSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="eventStatus" aria-live="polite"></div>
+                <div class="table-scroll-area">
+                    <table id="ga4-event-table">
+                        <thead>
+                            <tr id="event-table-headers">
+                                <th>Event Name</th>
+                                <th onclick="sortEventTable('conversions')" style="cursor:pointer;"><div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">CONVERSIONS <span class="sort-icon-wrapper"></span></div></th>
+                            </tr>
+                        </thead>
+                        <tbody id="event-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audience Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Audience</h3>
+            <div class="ga4-table-container report-section-ga4" id="audienceSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="audienceStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 audience-tab active" data-tab="countries" onclick="switchAudienceTab(this, 'countries')">COUNTRIES</div>
+                    <div class="tab-ga4 audience-tab" data-tab="devices" onclick="switchAudienceTab(this, 'devices')">DEVICES</div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="ga4-audience-table">
+                        <thead><tr id="audience-table-headers"></tr></thead>
+                        <tbody id="audience-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- GA4_CONFIG_PLACEHOLDER -->
+    <script src="/driver-assets/google_analytics/views/ga4-reports.js"></script>
+</body>
+</html>
