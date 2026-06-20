@@ -193,18 +193,14 @@
                     'sessionGoogleAdsAdGroupName' => ['channeledAdGroup'],
                     'sessionManualTerm'        => ['channeledAdGroup'],
                     'sessionManualAdContent'   => ['channeledAd'],
-                    'pagePath'                 => ['page'],
                     'eventName'                => ['event'],
-                    
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
                     'sessionGoogleAdsAdGroupName' => 'channeledAdGroup',
                     'sessionManualTerm'        => 'channeledAdGroup',
                     'sessionManualAdContent'   => 'channeledAd',
-                    'pagePath'                 => 'page',
                     'eventName'                => 'event',
-                    
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
@@ -414,17 +410,16 @@
                         $processed['medium'] = trim($parts[1] ?? '');
                         $processed[$dimName] = $val;
                     } elseif ($dimName === 'pagePath') {
-                        $processed['page'] = $val;
                         $processed[$dimName] = $val;
                     } elseif ($dimName === 'sessionCampaignName' || $dimName === 'firstUserCampaignName') {
-                        // GA4 default is "(not set)" or "(direct)"
-                        if (in_array($val, ['(not set)', '(direct)', '(organic)'])) {
+                        // Exclude GA4 system buckets (e.g. (referral), (direct), (cross-network)) and placeholder domains
+                        if (empty($val) || preg_match('/^\([a-z\- ]+\)$/', $val) || preg_match('/^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/.*)?$/', $val) || $val === '(not provided)') {
                             $processed[$dimName] = null; // Do not map to a campaign entity
                         } else {
                             $processed[$dimName] = $val;
                         }
                     } elseif (in_array($dimName, ['sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'sessionManualAdContent', 'firstUserManualAdContent'])) {
-                        if (in_array($val, ['(not set)', '(direct)', '(organic)'])) {
+                        if (empty($val) || preg_match('/^\([a-z\- ]+\)$/', $val) || preg_match('/^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/.*)?$/', $val) || $val === '(not provided)') {
                             $processed[$dimName] = null;
                         } else {
                             $processed[$dimName] = $val;

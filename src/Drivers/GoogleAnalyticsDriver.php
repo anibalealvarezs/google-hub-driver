@@ -229,7 +229,7 @@
                     $buffer = new \Doctrine\Common\Collections\ArrayCollection();
 
                     foreach ($processedCampaigns as $row) {
-                        if (!empty($row['sessionCampaignName']) && !in_array($row['sessionCampaignName'], ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                        if (!self::isJunkGoogleDimension($row['sessionCampaignName'] ?? null)) {
                             $entities[] = [
                                 'platformId' => $row['sessionCampaignName'],
                                 'name'       => $row['sessionCampaignName'],
@@ -363,13 +363,13 @@
 
                     foreach ($processedAdGroups as $row) {
                         $campaignName = $row['sessionCampaignName'] ?? null;
-                        if (empty($campaignName) || in_array($campaignName, ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                        if (self::isJunkGoogleDimension($campaignName)) {
                             continue; // Hierarchical enforcement: require valid campaign
                         }
 
                         $adGroupName = $row['sessionGoogleAdsAdGroupName'] ?? $row['sessionManualTerm'] ?? null;
                         
-                        if (!empty($adGroupName) && !in_array($adGroupName, ['(not set)', '(direct)', '(organic)', '(not provided)']) && !isset($seenAdGroups[$adGroupName])) {
+                        if (!self::isJunkGoogleDimension($adGroupName) && !isset($seenAdGroups[$adGroupName])) {
                             $seenAdGroups[$adGroupName] = true;
                             $entities[] = [
                                 'platformId' => $adGroupName,
@@ -412,11 +412,11 @@
 
                     foreach ($processedAds as $row) {
                         $campaignName = $row['sessionCampaignName'] ?? null;
-                        if (empty($campaignName) || in_array($campaignName, ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                        if (self::isJunkGoogleDimension($campaignName)) {
                             continue; // Hierarchical enforcement: require valid campaign
                         }
 
-                        if (!empty($row['sessionManualAdContent']) && !in_array($row['sessionManualAdContent'], ['(not set)', '(direct)', '(organic)', '(not provided)'])) {
+                        if (!self::isJunkGoogleDimension($row['sessionManualAdContent'] ?? null)) {
                             $entities[] = [
                                 'platformId' => $row['sessionManualAdContent'],
                                 'name'       => $row['sessionManualAdContent'],
@@ -889,6 +889,26 @@
                     label: 'Google Analytics Campaign Flow'
                 ),
             ];
+        }
+
+        private static function isJunkGoogleDimension(?string $name): bool
+        {
+            if (empty($name)) return true;
+            
+            // Exclude exact matches for old hardcoded garbage
+            if (in_array($name, ['(not set)', '(direct)', '(organic)', '(not provided)'])) return true;
+            
+            // Exclude GA4 system buckets: (referral), (cross-network), (ai-assistant), etc.
+            if (preg_match('/^\([a-z\- ]+\)$/', $name)) return true;
+            
+            // Exclude bare domains acting as placeholders (e.g., leadsgo.io, facebook.com)
+            // Regex matches domains with optional trailing path. Ex: example.com, test.co.uk/path
+            if (preg_match('/^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/.*)?$/', $name)) return true;
+
+            // Exclude known internal or auto-generated system prefixes
+            if (str_starts_with($name, 'as-npc')) return true;
+
+            return false;
         }
 
         // PAGE FIELDS
