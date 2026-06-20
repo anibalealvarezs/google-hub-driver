@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a52b65806d91f193dfaee1f2f7601fd2",
+    "content-hash": "9fa2ac4c2508a456c09b2dd7a68be13b",
     "packages": [
         {
             "name": "anibalealvarezs/api-client-skeleton",
@@ -75,13 +75,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-driver-core.git",
-                "reference": "2fdea19604e81d24a4b1944cdec9d1cc16d2c0e8"
+                "reference": "0abe394f87ddf2a03dfc2024e80069990e5896a0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-2fdea19604e81d24a4b1944cdec9d1cc16d2c0e8-zip-9d635d.zip",
-                "reference": "2fdea19604e81d24a4b1944cdec9d1cc16d2c0e8",
-                "shasum": "440a234515a5a8bd456ee165b0fe6f5a171579a1"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-0abe394f87ddf2a03dfc2024e80069990e5896a0-zip-a19d7e.zip",
+                "reference": "0abe394f87ddf2a03dfc2024e80069990e5896a0",
+                "shasum": "733653ef1e7b7526c57b3851d26e718dde9135e2"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -115,7 +115,7 @@
                 }
             ],
             "description": "Core interfaces and orchestration logic for APIs Hub drivers.",
-            "time": "2026-06-19T14:49:28+00:00"
+            "time": "2026-06-20T13:35:41+00:00"
         },
         {
             "name": "anibalealvarezs/google-api",
