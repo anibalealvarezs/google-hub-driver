@@ -39,7 +39,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
 
@@ -85,7 +85,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
 
@@ -131,7 +131,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
@@ -194,7 +194,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
@@ -255,7 +255,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
@@ -314,7 +314,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
@@ -370,7 +370,7 @@
             $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
             $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
             $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? clone (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
+            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
 
             $rows = self::preprocessRows($response);
             foreach ($rows as &$row) {
