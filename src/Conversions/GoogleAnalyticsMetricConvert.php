@@ -180,7 +180,7 @@
                 'platform_id_field'    => 'property_id',
                 'date_field'           => 'date',
                 'metrics'              => array_combine($metricsList, $metricsList),
-                'dimensions'           => ['scope', 'sessionDefaultChannelGroup', 'source', 'medium'],
+                'dimensions'           => ['scope', 'sessionDefaultChannelGroup', 'source', 'medium', 'pagePath'],
                 'metadata_fields'      => self::METADATA_FIELDS,
                 'context'              => UniversalMetricConverter::getUniversalContext([
                     'account'            => $account,
