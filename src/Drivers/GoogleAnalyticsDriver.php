@@ -16,6 +16,8 @@
     use Symfony\Component\HttpFoundation\Response;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
@@ -25,7 +27,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 
-    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface, PageableInterface
+    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface, PageableInterface, AggregationProfileProviderInterface, MetricProfileProviderInterface
     {
         public const DEFAULT_MAX_WORKERS = 3;
 
