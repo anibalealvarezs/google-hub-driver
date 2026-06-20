@@ -18,6 +18,12 @@ class ReportController
         return $this->renderFacebookReport($html, 'google_business_profile', '<!-- GBP_CONFIG_PLACEHOLDER -->', $args);
     }
 
+    public function ga4(array $args = []): Response
+    {
+        $html = file_get_contents(__DIR__ . '/../Views/ga4-reports.html');
+        return $this->renderFacebookReport($html, 'google_analytics', '<!-- GA4_CONFIG_PLACEHOLDER -->', $args);
+    }
+
     private function renderFacebookReport(string $html, string $channel, string $placeholder, array $args): Response
     {
         $channelsConfig = $args['channelsConfig'] ?? [];

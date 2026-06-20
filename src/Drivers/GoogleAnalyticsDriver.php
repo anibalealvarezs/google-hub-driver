@@ -9,6 +9,7 @@
     use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
     use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
     use Anibalealvarezs\GoogleHubDriver\Controllers\GoogleAuthController;
+    use Anibalealvarezs\GoogleHubDriver\Controllers\ReportController;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use DateTime;
     use Symfony\Component\HttpFoundation\Request;
@@ -78,6 +79,13 @@
                     'public'     => true,
                     'admin'      => false,
                     'html'       => true
+                ],
+                '/ga4-reports'       => [
+                    'httpMethod' => 'GET',
+                    'callable'   => fn(...$args) => (new ReportController())->ga4($args),
+                    'public'     => true,
+                    'admin'      => false,
+                    'html'       => true
                 ]
             ]);
         }
@@ -85,7 +93,7 @@
         public static function getRateLimitWhitelist(): array
         {
             return [
-                '/ga-reports',
+                '/ga4-reports',
             ];
         }
 
