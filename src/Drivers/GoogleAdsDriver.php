@@ -92,12 +92,12 @@
         public static function getCanonicalMetricDictionary(): array
         {
             return [
-                'spend'               => ['spend'],
-                'clicks'              => ['clicks'],
-                'impressions'         => ['impressions'],
-                'conversions'         => ['conversions'],
-                'roas_purchase'       => ['conversions_value'],
-                'cost_per_conversion' => ['cost_per_conversion'],
+                'spend'               => ['metrics.cost_micros', 'spend'],
+                'clicks'              => ['metrics.clicks', 'clicks'],
+                'impressions'         => ['metrics.impressions', 'impressions'],
+                'conversions'         => ['metrics.conversions', 'conversions'],
+                'roas_purchase'       => ['metrics.conversions_value', 'conversions_value'],
+                'cost_per_conversion' => ['metrics.cost_per_conversion', 'cost_per_conversion'],
             ];
         }
 

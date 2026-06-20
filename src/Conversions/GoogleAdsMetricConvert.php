@@ -30,7 +30,7 @@
             ?string            $customFields = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['spend', 'impressions', 'clicks', 'conversions']);
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -70,7 +70,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['spend', 'impressions', 'clicks', 'conversions']);
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledCampaignId = is_object($channeledCampaign) ? (method_exists($channeledCampaign, 'getPlatformId') ? $channeledCampaign->getPlatformId() : (string)$channeledCampaign) : (string)$channeledCampaign;
@@ -119,7 +119,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['spend', 'impressions', 'clicks', 'conversions']);
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledAdGroupId = is_object($channeledAdGroup) ? (method_exists($channeledAdGroup, 'getPlatformId') ? $channeledAdGroup->getPlatformId() : (string)$channeledAdGroup) : (string)$channeledAdGroup;
@@ -172,7 +172,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['spend', 'impressions', 'clicks', 'conversions']);
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledAdId = is_object($channeledAd) ? (method_exists($channeledAd, 'getPlatformId') ? $channeledAd->getPlatformId() : (string)$channeledAd) : (string)$channeledAd;
@@ -259,24 +259,12 @@
 
                 $flatten($row);
 
-                // Derived metrics mappings
+                // Derived metrics mappings - keep raw GAQL metric names but fix micros scaling
                 if (isset($processed['metrics.cost_micros'])) {
-                    $processed['spend'] = (float)$processed['metrics.cost_micros'] / 1000000;
-                }
-                if (isset($processed['metrics.impressions'])) {
-                    $processed['impressions'] = (int)$processed['metrics.impressions'];
-                }
-                if (isset($processed['metrics.clicks'])) {
-                    $processed['clicks'] = (int)$processed['metrics.clicks'];
-                }
-                if (isset($processed['metrics.conversions'])) {
-                    $processed['conversions'] = (float)$processed['metrics.conversions'];
-                }
-                if (isset($processed['metrics.conversions_value'])) {
-                    $processed['conversions_value'] = (float)$processed['metrics.conversions_value'];
+                    $processed['metrics.cost_micros'] = (float)$processed['metrics.cost_micros'] / 1000000;
                 }
                 if (isset($processed['metrics.cost_per_conversion'])) {
-                    $processed['cost_per_conversion'] = (float)$processed['metrics.cost_per_conversion'] / 1000000;
+                    $processed['metrics.cost_per_conversion'] = (float)$processed['metrics.cost_per_conversion'] / 1000000;
                 }
                 
                 // Keep the original nested objects for backwards compatibility or fallback

@@ -30,7 +30,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['reach', 'impressions', 'sessions', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers', 'screenPageViews', 'sessions', 'conversions'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -76,7 +76,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['reach', 'impressions', 'sessions', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers', 'screenPageViews', 'sessions', 'conversions'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -242,7 +242,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['newUsers', 'reach']; // reach maps to activeUsers
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['newUsers', 'activeUsers'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -301,7 +301,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['reach']; // reach maps to activeUsers
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -488,20 +488,9 @@
                 foreach ($metricHeaders as $idx => $metName) {
                     $val = $metValues[$idx]['value'] ?? 0;
                     
-                    // Specific mapping for GA4 metrics to Universal Metrics
-                    if ($metName === 'activeUsers') {
-                        $processed['reach'] = (int)$val;
-                    } elseif ($metName === 'screenPageViews') {
-                        $processed['impressions'] = (int)$val;
-                    } elseif ($metName === 'sessions') {
-                        $processed['sessions'] = (int)$val;
-                    } elseif ($metName === 'conversions') {
-                        $processed['conversions'] = (float)$val;
-                    } elseif ($metName === 'bounceRate') {
+                    // Specific mapping for GA4 metadata fields
+                    if ($metName === 'bounceRate') {
                         $processed['bounce_rate'] = (float)$val;
-                    } elseif ($metName === 'totalRevenue') {
-                        $processed['spend'] = (float)$val;
-                        $processed['revenue'] = (float)$val;
                     }
                     
                     $processed[$metName] = (float)$val;

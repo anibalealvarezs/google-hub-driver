@@ -837,12 +837,12 @@
         {
             return [
                 'conversions' => ['conversions'],
-                'reach'       => ['activeUsers'],
-                'impressions' => ['screenPageViews'],
+                'reach'       => ['activeUsers', 'reach'],
+                'impressions' => ['screenPageViews', 'impressions'],
                 'sessions'    => ['sessions'],
                 'new_users'   => ['newUsers'],
-                'spend'       => ['totalRevenue'],
-                'revenue'     => ['totalRevenue'],
+                'spend'       => ['totalRevenue', 'spend'],
+                'revenue'     => ['totalRevenue', 'revenue'],
             ];
         }
 
