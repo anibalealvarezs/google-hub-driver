@@ -838,6 +838,7 @@
                 'reach'       => ['activeUsers'],
                 'impressions' => ['screenPageViews'],
                 'sessions'    => ['sessions'],
+                'new_users'   => ['newUsers'],
                 'spend'       => ['totalRevenue'],
                 'revenue'     => ['totalRevenue'],
             ];
@@ -889,6 +890,38 @@
         public static function getAggregationProfiles(): array
         {
             return [
+                [
+                    'key' => 'ga4_universal_matrix',
+                    'channel' => 'google_analytics',
+                    'label' => 'GA4 Universal Matrix',
+                    'asset_type' => 'account',
+                    'metric_nature' => 'flow',
+                    'period_modes' => ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
+                    'group_patterns' => [
+                        ['channeledAccount'],
+                        ['channeledAccount', 'metricDate'],
+                        ['dimensions.sessionDefaultChannelGroup'],
+                        ['channeledCampaign.title'],
+                        ['dimensions.landing_page'],
+                        ['event.title'],
+                        ['country.name'],
+                        ['device.name'],
+                        ['dimensions.sessionDefaultChannelGroup', 'metricDate'],
+                        ['channeledCampaign.title', 'metricDate'],
+                        ['dimensions.landing_page', 'metricDate'],
+                        ['event.title', 'metricDate'],
+                        ['country.name', 'metricDate'],
+                        ['device.name', 'metricDate']
+                    ],
+                    'filter_contract' => [
+                        'channeledAccount' => ['=', 'in'],
+                        'dimensions.scope' => ['='],
+                        'metricDate' => ['between', '>=', '<='],
+                    ],
+                    'reducer_strategies' => [
+                        '*' => 'sum'
+                    ]
+                ],
                 AggregationProfileTemplates::organicPageFlowProfile(
                     channel: 'google_analytics',
                     key: 'google_analytics_property_flow',
