@@ -213,6 +213,7 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
     const headers = getAuthHeaders(true);
     const cleanFilters = {...filters};
     if (!cleanFilters.channeledAccount) delete cleanFilters.channeledAccount;
+    cleanFilters.channel = "google_analytics";
 
     const body = { aggregations: {}, groupBy, filters: cleanFilters, startDate: start, endDate: end };
     metrics.forEach(m => body.aggregations[m] = m);
