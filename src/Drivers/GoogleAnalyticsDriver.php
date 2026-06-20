@@ -383,7 +383,8 @@
                                  ->setTitle($adGroupName)
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
-                                     'channeledAccountId' => $propertyId
+                                     'channeledAccountId' => $propertyId,
+                                     'channeledCampaignId' => $campaignName
                                  ]);
                             $item->name = $adGroupName;
                             $buffer->add($item);
@@ -428,7 +429,8 @@
                                  ->setTitle($row['sessionManualAdContent'])
                                  ->setContext([
                                      'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
-                                     'channeledAccountId' => $propertyId
+                                     'channeledAccountId' => $propertyId,
+                                     'channeledCampaignId' => $campaignName
                                  ]);
                             $item->name = $row['sessionManualAdContent'];
                             $buffer->add($item);
