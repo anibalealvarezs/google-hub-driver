@@ -17,27 +17,39 @@ const GA4_COLORS = {
 let currentData = {
     campaign: [],
     channel: [],
+    acquisition: [],
+    traffic: [],
     event: [],
+    adtouchpoints: [],
 };
 
 let currentSort = {
     campaign: {key: "sessions", direction: "desc"},
     channel: {key: "sessions", direction: "desc"},
+    acquisition: {key: "activeUsers", direction: "desc"},
+    traffic: {key: "sessions", direction: "desc"},
     event: {key: "eventCount", direction: "desc"},
+    adtouchpoints: {key: "sessions", direction: "desc"},
 };
 
 let reportRequestSeq = 0;
 let tableRequestSeq = {
     campaign: 0,
     channel: 0,
+    acquisition: 0,
+    traffic: 0,
     event: 0,
+    adtouchpoints: 0,
 };
 
 let activeReportController = null;
 let activeControllers = {
     campaign: null,
     channel: null,
+    acquisition: null,
+    traffic: null,
     event: null,
+    adtouchpoints: null,
 };
 
 const CHART_CONFIG = {
@@ -148,7 +160,10 @@ function setSectionState(section, {loading = false, message = "", error = ""} = 
         chart: {containerId: "chartSection", statusId: "chartStatus"},
         campaign: {containerId: "campaignSection", statusId: "campaignStatus"},
         channel: {containerId: "channelSection", statusId: "channelStatus"},
+        acquisition: {containerId: "acquisitionSection", statusId: "acquisitionStatus"},
+        traffic: {containerId: "trafficSection", statusId: "trafficStatus"},
         event: {containerId: "eventSection", statusId: "eventStatus"},
+        adtouchpoints: {containerId: "adtouchpointsSection", statusId: "adtouchpointsStatus"},
     };
 
     const config = sectionMap[section];
@@ -195,13 +210,21 @@ async function loadReport() {
     setSectionState("summary", {loading: true, message: "Updating summary cards..."});
     setSectionState("chart", {loading: true, message: "Updating chart..."});
 
-    // Load cross-matrix sections + Event isolated section
+    // Load cross-matrix sections
     const activeCampaignTab = document.querySelector(".campaign-tab.active")?.getAttribute("data-tab") || "campaigns";
     const activeChannelTab = document.querySelector(".channel-tab.active")?.getAttribute("data-tab") || "channels";
-    
     loadCampaignSection(activeCampaignTab, {propertyId, start, end});
     loadChannelSection(activeChannelTab, {propertyId, start, end});
+
+    // Load strict isolated sections
+    const activeAcquisitionTab = document.querySelector(".acquisition-tab.active")?.getAttribute("data-tab") || "channels";
+    const activeTrafficTab = document.querySelector(".traffic-tab.active")?.getAttribute("data-tab") || "channels";
+    const activeAdTouchpointsTab = document.querySelector(".adtouchpoints-tab.active")?.getAttribute("data-tab") || "adgroups";
+    
+    loadAcquisitionSection(activeAcquisitionTab, {propertyId, start, end});
+    loadTrafficSection(activeTrafficTab, {propertyId, start, end});
     loadEventSection('events', {propertyId, start, end});
+    loadAdTouchpointsSection(activeAdTouchpointsTab, {propertyId, start, end});
 
     // Main Summary and Chart: We merge traffic_matrix and acquisition_matrix
     const trafficMetrics = ["sessions", "screenPageViews", "conversions"];
@@ -457,6 +480,39 @@ async function loadChannelSection(tab, options) {
 
 function switchCampaignTab(el, tab) { switchTabUI(el, ".campaign-tab"); const r = getFilterOptions(); loadCampaignSection(tab, r); }
 function switchChannelTab(el, tab) { switchTabUI(el, ".channel-tab"); const r = getFilterOptions(); loadChannelSection(tab, r); }
+
+async function loadAcquisitionSection(tab, options) {
+    const tabConfigs = {
+        channels: { label: "Channel", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserDefaultChannelGroup"] },
+        campaigns: { label: "Campaign", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserCampaignName"] },
+        sources: { label: "Source/Medium", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserSourceMedium"] }
+    };
+    await fetchAndRenderIsolatedSection("acquisition", tab, tabConfigs[tab] || tabConfigs.channels, options);
+}
+
+async function loadTrafficSection(tab, options) {
+    const tabConfigs = {
+        channels: { label: "Channel", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.sessionDefaultChannelGroup"] },
+        campaigns: { label: "Campaign", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.sessionCampaignName"] },
+        pages: { label: "Landing Page", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.landingPagePlusQueryString"] },
+        countries: { label: "Country", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.countryId"] },
+        devices: { label: "Device", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.deviceCategory"] }
+    };
+    await fetchAndRenderIsolatedSection("traffic", tab, tabConfigs[tab] || tabConfigs.channels, options);
+}
+
+async function loadAdTouchpointsSection(tab, options) {
+    const tabConfigs = {
+        adgroups: { label: "Ad Group", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionGoogleAdsAdGroupName"] },
+        terms: { label: "Manual Term", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionManualTerm"] },
+        content: { label: "Ad Content", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionManualAdContent"] }
+    };
+    await fetchAndRenderIsolatedSection("adtouchpoints", tab, tabConfigs[tab] || tabConfigs.adgroups, options);
+}
+
+function switchAcquisitionTab(el, tab) { switchTabUI(el, ".acquisition-tab"); const r = getFilterOptions(); loadAcquisitionSection(tab, r); }
+function switchTrafficTab(el, tab) { switchTabUI(el, ".traffic-tab"); const r = getFilterOptions(); loadTrafficSection(tab, r); }
+function switchAdTouchpointsTab(el, tab) { switchTabUI(el, ".adtouchpoints-tab"); const r = getFilterOptions(); loadAdTouchpointsSection(tab, r); }
 
 function switchTabUI(el, selector) {
     document.querySelectorAll(selector).forEach(t => t.classList.remove("active"));

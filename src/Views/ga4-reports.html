@@ -124,6 +124,81 @@
         </div>
 
         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+
+        <!-- Acquisition Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Acquisition (User-Scoped Matrix)</h3>
+            <div class="ga4-table-container report-section-ga4" id="acquisitionSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="acquisitionStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 acquisition-tab active" data-tab="channels" onclick="switchAcquisitionTab(this, 'channels')">CHANNELS</div>
+                    <div class="tab-ga4 acquisition-tab" data-tab="campaigns" onclick="switchAcquisitionTab(this, 'campaigns')">CAMPAIGNS</div>
+                    <div class="tab-ga4 acquisition-tab" data-tab="sources" onclick="switchAcquisitionTab(this, 'sources')">SOURCES/MEDIUMS</div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="ga4-acquisition-table">
+                        <thead><tr id="acquisition-table-headers"></tr></thead>
+                        <tbody id="acquisition-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traffic Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Traffic (Session-Scoped Matrix)</h3>
+            <div class="ga4-table-container report-section-ga4" id="trafficSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="trafficStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 traffic-tab active" data-tab="channels" onclick="switchTrafficTab(this, 'channels')">CHANNELS</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="campaigns" onclick="switchTrafficTab(this, 'campaigns')">CAMPAIGNS</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="pages" onclick="switchTrafficTab(this, 'pages')">LANDING PAGES</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="countries" onclick="switchTrafficTab(this, 'countries')">COUNTRIES</div>
+                    <div class="tab-ga4 traffic-tab" data-tab="devices" onclick="switchTrafficTab(this, 'devices')">DEVICES</div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="ga4-traffic-table">
+                        <thead><tr id="traffic-table-headers"></tr></thead>
+                        <tbody id="traffic-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Event Tracking Matrix</h3>
+            <div class="ga4-table-container report-section-ga4" id="eventSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="eventStatus" aria-live="polite"></div>
+                <div class="table-scroll-area">
+                    <table id="ga4-event-table">
+                        <thead>
+                            <tr id="event-table-headers"></tr>
+                        </thead>
+                        <tbody id="event-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ad Touchpoints Breakdown Section -->
+        <div class="tab-section">
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Ad Touchpoints Matrix</h3>
+            <div class="ga4-table-container report-section-ga4" id="adtouchpointsSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="adtouchpointsStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 adtouchpoints-tab active" data-tab="adgroups" onclick="switchAdTouchpointsTab(this, 'adgroups')">AD GROUPS</div>
+                    <div class="tab-ga4 adtouchpoints-tab" data-tab="terms" onclick="switchAdTouchpointsTab(this, 'terms')">MANUAL TERMS</div>
+                    <div class="tab-ga4 adtouchpoints-tab" data-tab="content" onclick="switchAdTouchpointsTab(this, 'content')">AD CONTENT</div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="ga4-adtouchpoints-table">
+                        <thead><tr id="adtouchpoints-table-headers"></tr></thead>
+                        <tbody id="adtouchpoints-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- GA4_CONFIG_PLACEHOLDER -->
