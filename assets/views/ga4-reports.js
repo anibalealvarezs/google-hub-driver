@@ -17,23 +17,27 @@ const GA4_COLORS = {
 let currentData = {
     campaign: [],
     channel: [],
+    event: [],
 };
 
 let currentSort = {
     campaign: {key: "sessions", direction: "desc"},
     channel: {key: "sessions", direction: "desc"},
+    event: {key: "eventCount", direction: "desc"},
 };
 
 let reportRequestSeq = 0;
 let tableRequestSeq = {
     campaign: 0,
     channel: 0,
+    event: 0,
 };
 
 let activeReportController = null;
 let activeControllers = {
     campaign: null,
     channel: null,
+    event: null,
 };
 
 const CHART_CONFIG = {
@@ -144,6 +148,7 @@ function setSectionState(section, {loading = false, message = "", error = ""} = 
         chart: {containerId: "chartSection", statusId: "chartStatus"},
         campaign: {containerId: "campaignSection", statusId: "campaignStatus"},
         channel: {containerId: "channelSection", statusId: "channelStatus"},
+        event: {containerId: "eventSection", statusId: "eventStatus"},
     };
 
     const config = sectionMap[section];
@@ -190,12 +195,13 @@ async function loadReport() {
     setSectionState("summary", {loading: true, message: "Updating summary cards..."});
     setSectionState("chart", {loading: true, message: "Updating chart..."});
 
-    // Load cross-matrix sections
+    // Load cross-matrix sections + Event isolated section
     const activeCampaignTab = document.querySelector(".campaign-tab.active")?.getAttribute("data-tab") || "campaigns";
     const activeChannelTab = document.querySelector(".channel-tab.active")?.getAttribute("data-tab") || "channels";
     
     loadCampaignSection(activeCampaignTab, {propertyId, start, end});
     loadChannelSection(activeChannelTab, {propertyId, start, end});
+    loadEventSection('events', {propertyId, start, end});
 
     // Main Summary and Chart: We merge traffic_matrix and acquisition_matrix
     const trafficMetrics = ["sessions", "screenPageViews", "conversions"];
@@ -309,6 +315,40 @@ function mergeMatrixResults(results, primaryGroupByKeys) {
 /*                                SECTIONS                                    */
 /* -------------------------------------------------------------------------- */
 
+async function fetchAndRenderIsolatedSection(sectionId, tab, config, options) {
+    const reqId = ++tableRequestSeq[sectionId];
+    abortControllerSafely(activeControllers[sectionId]);
+    activeControllers[sectionId] = new AbortController();
+
+    renderTableHeaders(sectionId, config.label, config.metrics);
+    showTableLoader(sectionId, config.label);
+    setSectionState(sectionId, {loading: true, message: `Loading ${config.label}...`});
+
+    try {
+        const results = await fetchCrossMatrixAggregation([{
+            scope: config.scope, metrics: config.metrics, groupBy: config.groupBy
+        }], {
+            propertyId: options.propertyId, 
+            start: options.start, 
+            end: options.end, 
+            signal: activeControllers[sectionId].signal
+        });
+
+        if (tableRequestSeq[sectionId] !== reqId) return;
+        
+        currentData[sectionId] = mergeMatrixResults(results, [config.groupBy[0]]);
+        currentSort[sectionId] = {key: config.metrics[0], direction: "desc"};
+        
+        applySortAndRender(sectionId, config.groupBy[0], config.metrics);
+        setSectionState(sectionId, {});
+    } catch (e) {
+        if (!isAbortError(e) && tableRequestSeq[sectionId] === reqId) {
+            setSectionState(sectionId, {error: "Failed to load."});
+            document.getElementById(`${sectionId}-body`).innerHTML = `<tr><td colspan="${config.metrics.length + 1}">Error</td></tr>`;
+        }
+    }
+}
+
 async function loadCampaignSection(tab, options) {
     const tabConfigs = {
         campaigns: {
@@ -323,7 +363,7 @@ async function loadCampaignSection(tab, options) {
             label: "Ad Group",
             queries: [
                 { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] },
-                { scope: 'ad_touchpoint_matrix', metrics: ['activeUsers'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] }
+                { scope: 'ad_touchpoint_matrix', metrics: ['sessions', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] }
             ],
             groupByKeys: ['dimensions.sessionGoogleAdsAdGroupName', 'dimensions.sessionGoogleAdsAdGroupName']
         }
@@ -415,20 +455,17 @@ async function loadChannelSection(tab, options) {
     }
 }
 
-function switchCampaignTab(el, tab) {
-    document.querySelectorAll(".campaign-tab").forEach(t => t.classList.remove("active"));
+function switchCampaignTab(el, tab) { switchTabUI(el, ".campaign-tab"); const r = getFilterOptions(); loadCampaignSection(tab, r); }
+function switchChannelTab(el, tab) { switchTabUI(el, ".channel-tab"); const r = getFilterOptions(); loadChannelSection(tab, r); }
+
+function switchTabUI(el, selector) {
+    document.querySelectorAll(selector).forEach(t => t.classList.remove("active"));
     el.classList.add("active");
-    const p = document.getElementById("propertySelector").value;
-    const r = document.getElementById("reportRange").value.split(" to ");
-    loadCampaignSection(tab, {propertyId: p, start: r[0], end: r[1]});
 }
 
-function switchChannelTab(el, tab) {
-    document.querySelectorAll(".channel-tab").forEach(t => t.classList.remove("active"));
-    el.classList.add("active");
-    const p = document.getElementById("propertySelector").value;
+function getFilterOptions() {
     const r = document.getElementById("reportRange").value.split(" to ");
-    loadChannelSection(tab, {propertyId: p, start: r[0], end: r[1]});
+    return { propertyId: document.getElementById("propertySelector").value, start: r[0], end: r[1] };
 }
 
 /* -------------------------------------------------------------------------- */

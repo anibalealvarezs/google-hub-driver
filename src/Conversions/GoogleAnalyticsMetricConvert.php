@@ -30,7 +30,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers', 'screenPageViews', 'sessions', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['screenPageViews', 'sessions', 'conversions'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -76,7 +76,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers', 'screenPageViews', 'sessions', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['screenPageViews', 'sessions', 'conversions'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -289,58 +289,7 @@
             ], $logger);
         }
 
-        /**
-         * Converts GA4 Property API rows into a touchpoint matrix.
-         */
-        public static function touchpointMatrixMetrics(
-            array              $response,
-            ?LoggerInterface   $logger = null,
-            object|string|null $account = null,
-            object|string|null $channeledAccount = null,
-            object|string|null $period = 'daily',
-            array              $metricsToProcess = [],
-        ): ArrayCollection
-        {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers'];
-            $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
-            $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
-            $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
 
-            $cAcc = is_object($channeledAccount) ? $channeledAccount : null;
-            $baseUrl = $cAcc && property_exists($cAcc, 'data') ? ($cAcc->data['webStreamData']['defaultUri'] ?? $cAcc->title ?? '') : '';
-            $hostname = parse_url($baseUrl, PHP_URL_HOST) ?: $baseUrl;
-            $pageCanonicalId = $hostname ? 'ga4:domain:' . str_replace('www.', '', $hostname) : null;
-            $pageContext = $pageCanonicalId ? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setCanonicalId($pageCanonicalId)->setPlatformId($baseUrl) : null;
-
-            $rows = self::preprocessRows($response);
-            foreach ($rows as &$row) {
-                $row['scope'] = 'touchpoint_matrix';
-            }
-
-            return UniversalMetricConverter::convert($rows, [
-                'channel'              => 'google_analytics',
-                'period'               => $periodValue,
-                'platform_id_field'    => 'property_id',
-                'date_field'           => 'date',
-                'metrics'              => array_combine($metricsList, $metricsList),
-                'dimensions'           => ['scope'],
-                'metadata_fields'      => self::METADATA_FIELDS,
-                'context'              => UniversalMetricConverter::getUniversalContext([
-                    'account'            => $account,
-                    'channeledAccount'   => $channeledAccount,
-                    'channeledAccountId' => $channeledAccountId,
-                    'page'               => $pageContext,
-                ]),
-                'row_key_fields'       => [
-                    'property_id'         => ['channeledAccount'],
-                    'sessionCampaignName' => ['channeledCampaign'],
-                ],
-                'row_entity_fields'    => [
-                    'sessionCampaignName' => 'channeledCampaign',
-                ],
-                'fallback_platform_id' => $channeledPlatformId
-            ], $logger);
-        }
 
         /**
          * Metrics proxy for dynamic levels.
@@ -357,7 +306,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['activeUsers'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['sessions', 'conversions'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -417,7 +366,6 @@
                 'traffic_matrix' => self::trafficMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 'event_matrix' => self::eventMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 'acquisition_matrix' => self::acquisitionMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
-                'touchpoint_matrix' => self::touchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 'ad_touchpoint_matrix' => self::adTouchpointMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 default => self::propertyMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
             };

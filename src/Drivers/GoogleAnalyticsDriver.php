@@ -213,7 +213,7 @@
             $targetEntity = $config['entity'] ?? null;
             $level = $config['level'] ?? null;
             
-            $syncCampaigns = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'touchpoint_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'touchpoint_matrix', 'acquisition_matrix']));
+            $syncCampaigns = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix']));
             $syncPages = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
             $syncEvents = ($targetEntity === 'entities' || in_array($targetEntity, ['event_matrix']) || in_array($level, ['event_matrix']));
             $syncCountries = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
@@ -589,7 +589,7 @@
             
             $requestedLevel = $config['level'] ?? 'all';
             $levelsToProcess = $requestedLevel === 'all' 
-                ? ['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix']
+                ? ['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'ad_touchpoint_matrix']
                 : [$requestedLevel];
 
             $totalMetricsSyncedAllLevels = 0;
@@ -600,8 +600,8 @@
                     'event_matrix' => ['eventCount', 'conversions'],
                     'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue', 'conversions'],
                     'acquisition_matrix' => ['newUsers', 'activeUsers'],
-                    'touchpoint_matrix', 'ad_touchpoint_matrix' => ['activeUsers'],
-                    default => ['activeUsers', 'screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
+                    'ad_touchpoint_matrix' => ['sessions', 'conversions'],
+                    default => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
                 };
 
                 $metricsList = $config['metrics'] ?? $defaultMetrics;
@@ -610,7 +610,6 @@
                     'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
                     'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'],
                     'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'firstUserManualAdContent'],
-                    'touchpoint_matrix' => ['date', 'sessionCampaignName'],
                     'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'],
                     default => ['date']
                 };
@@ -623,7 +622,7 @@
                 $this->logger?->info("========== START MATRIX SYNC PROCESS: " . strtoupper($level) . " ==========");
                 $this->logger?->info("========================================================================");
 
-                if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'touchpoint_matrix', 'ad_touchpoint_matrix'])) {
+                if (in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix', 'ad_touchpoint_matrix'])) {
                     $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
                     $configForEntities = $config;
                     $configForEntities['level'] = $level; // Pass current level to syncEntities
