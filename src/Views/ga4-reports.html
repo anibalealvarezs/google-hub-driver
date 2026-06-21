@@ -85,57 +85,37 @@
             <canvas id="mainChart"></canvas>
         </div>
 
-        <!-- Traffic Breakdown Section -->
+        <!-- Campaign & AdGroup Section (Cross-Matrix) -->
         <div class="tab-section">
-            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Traffic & Acquisition</h3>
-            <div class="ga4-table-container report-section-ga4" id="trafficSection">
-                <div class="section-status-ga4 section-status-inline-ga4" id="trafficStatus" aria-live="polite"></div>
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Campaign Performance</h3>
+            <div class="ga4-table-container report-section-ga4" id="campaignSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="campaignStatus" aria-live="polite"></div>
                 <div class="tab-nav-ga4">
-                    <div class="tab-ga4 traffic-tab active" data-tab="channels" onclick="switchTrafficTab(this, 'channels')">CHANNELS</div>
-                    <div class="tab-ga4 traffic-tab" data-tab="campaigns" onclick="switchTrafficTab(this, 'campaigns')">CAMPAIGNS</div>
-                    <div class="tab-ga4 traffic-tab" data-tab="pages" onclick="switchTrafficTab(this, 'pages')">LANDING PAGES</div>
+                    <div class="tab-ga4 campaign-tab active" data-tab="campaigns" onclick="switchCampaignTab(this, 'campaigns')">CAMPAIGNS</div>
+                    <div class="tab-ga4 campaign-tab" data-tab="adgroups" onclick="switchCampaignTab(this, 'adgroups')">AD GROUPS</div>
                 </div>
                 <div class="table-scroll-area">
-                    <table id="ga4-traffic-table">
-                        <thead><tr id="traffic-table-headers"></tr></thead>
-                        <tbody id="traffic-body"></tbody>
+                    <table id="ga4-campaign-table">
+                        <thead><tr id="campaign-table-headers"></tr></thead>
+                        <tbody id="campaign-body"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Event Breakdown Section -->
+        <!-- Channel & Source Section (Cross-Matrix) -->
         <div class="tab-section">
-            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Event Tracking</h3>
-            <div class="ga4-table-container report-section-ga4" id="eventSection">
-                <div class="section-status-ga4 section-status-inline-ga4" id="eventStatus" aria-live="polite"></div>
-                <div class="table-scroll-area">
-                    <table id="ga4-event-table">
-                        <thead>
-                            <tr id="event-table-headers">
-                                <th>Event Name</th>
-                                <th onclick="sortEventTable('conversions')" style="cursor:pointer;"><div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">CONVERSIONS <span class="sort-icon-wrapper"></span></div></th>
-                            </tr>
-                        </thead>
-                        <tbody id="event-body"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Audience Breakdown Section -->
-        <div class="tab-section">
-            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Audience</h3>
-            <div class="ga4-table-container report-section-ga4" id="audienceSection">
-                <div class="section-status-ga4 section-status-inline-ga4" id="audienceStatus" aria-live="polite"></div>
+            <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Channel Acquisition & Traffic</h3>
+            <div class="ga4-table-container report-section-ga4" id="channelSection">
+                <div class="section-status-ga4 section-status-inline-ga4" id="channelStatus" aria-live="polite"></div>
                 <div class="tab-nav-ga4">
-                    <div class="tab-ga4 audience-tab active" data-tab="countries" onclick="switchAudienceTab(this, 'countries')">COUNTRIES</div>
-                    <div class="tab-ga4 audience-tab" data-tab="devices" onclick="switchAudienceTab(this, 'devices')">DEVICES</div>
+                    <div class="tab-ga4 channel-tab active" data-tab="channels" onclick="switchChannelTab(this, 'channels')">CHANNELS</div>
+                    <div class="tab-ga4 channel-tab" data-tab="sources" onclick="switchChannelTab(this, 'sources')">SOURCES / MEDIUMS</div>
                 </div>
                 <div class="table-scroll-area">
-                    <table id="ga4-audience-table">
-                        <thead><tr id="audience-table-headers"></tr></thead>
-                        <tbody id="audience-body"></tbody>
+                    <table id="ga4-channel-table">
+                        <thead><tr id="channel-table-headers"></tr></thead>
+                        <tbody id="channel-body"></tbody>
                     </table>
                 </div>
             </div>

@@ -11,23 +11,30 @@ const GA4_COLORS = {
     activeUsers: "#0F9D58",
     newUsers: "#FBBC04",
     conversions: "#EA4335",
+    screenPageViews: "#9C27B0",
 };
 
-let currentTrafficData = [];
-let currentEventData = [];
-let currentAudienceData = [];
+let currentData = {
+    campaign: [],
+    channel: [],
+};
 
 let currentSort = {
-    traffic: {key: "sessions", direction: "desc"},
-    event: {key: "conversions", direction: "desc"},
-    audience: {key: "sessions", direction: "desc"}
+    campaign: {key: "sessions", direction: "desc"},
+    channel: {key: "sessions", direction: "desc"},
 };
 
 let reportRequestSeq = 0;
-let tableRequestSeq = {traffic: 0, event: 0, audience: 0};
+let tableRequestSeq = {
+    campaign: 0,
+    channel: 0,
+};
 
 let activeReportController = null;
-let activeControllers = {traffic: null, event: null, audience: null};
+let activeControllers = {
+    campaign: null,
+    channel: null,
+};
 
 const CHART_CONFIG = {
     responsive: true,
@@ -135,9 +142,8 @@ function setSectionState(section, {loading = false, message = "", error = ""} = 
     const sectionMap = {
         summary: {containerId: "summaryGrid", statusId: "summaryStatus"},
         chart: {containerId: "chartSection", statusId: "chartStatus"},
-        traffic: {containerId: "trafficSection", statusId: "trafficStatus"},
-        event: {containerId: "eventSection", statusId: "eventStatus"},
-        audience: {containerId: "audienceSection", statusId: "audienceStatus"},
+        campaign: {containerId: "campaignSection", statusId: "campaignStatus"},
+        channel: {containerId: "channelSection", statusId: "channelStatus"},
     };
 
     const config = sectionMap[section];
@@ -184,20 +190,44 @@ async function loadReport() {
     setSectionState("summary", {loading: true, message: "Updating summary cards..."});
     setSectionState("chart", {loading: true, message: "Updating chart..."});
 
-    // Load independent sections
-    const activeTrafficTab = document.querySelector(".traffic-tab.active")?.getAttribute("data-tab") || "channels";
-    const activeAudienceTab = document.querySelector(".audience-tab.active")?.getAttribute("data-tab") || "countries";
+    // Load cross-matrix sections
+    const activeCampaignTab = document.querySelector(".campaign-tab.active")?.getAttribute("data-tab") || "campaigns";
+    const activeChannelTab = document.querySelector(".channel-tab.active")?.getAttribute("data-tab") || "channels";
     
-    loadTrafficSection(activeTrafficTab, {propertyId, start, end});
-    loadEventSection({propertyId, start, end});
-    loadAudienceSection(activeAudienceTab, {propertyId, start, end});
+    loadCampaignSection(activeCampaignTab, {propertyId, start, end});
+    loadChannelSection(activeChannelTab, {propertyId, start, end});
 
-    const metricList = ["sessions", "activeUsers", "newUsers", "conversions"];
+    // Main Summary and Chart: We merge traffic_matrix and acquisition_matrix
+    const trafficMetrics = ["sessions", "screenPageViews", "conversions"];
+    const acqMetrics = ["newUsers", "activeUsers"];
+
+    const fetchMergeSummary = async (s, e) => {
+        const results = await fetchCrossMatrixAggregation([
+            {scope: 'traffic_matrix', metrics: trafficMetrics, groupBy: []},
+            {scope: 'acquisition_matrix', metrics: acqMetrics, groupBy: []}
+        ], {propertyId, start: s, end: e, signal});
+        
+        let merged = {};
+        results.forEach(rows => {
+            if (rows && rows[0]) {
+                Object.assign(merged, rows[0]);
+            }
+        });
+        return [merged];
+    };
+
+    const fetchMergeChart = async (s, e) => {
+        const results = await fetchCrossMatrixAggregation([
+            {scope: 'traffic_matrix', metrics: trafficMetrics, groupBy: ["daily"]},
+            {scope: 'acquisition_matrix', metrics: acqMetrics, groupBy: ["daily"]}
+        ], {propertyId, start: s, end: e, signal});
+        return mergeMatrixResults(results, ["daily", "daily"]);
+    };
 
     Promise.all([
-        fetchAggregation(metricList, [], {channeledAccount: propertyId}, start, end, {signal}).catch(() => []),
-        fetchAggregation(metricList, [], {channeledAccount: propertyId}, prevStart, prevEnd, {signal}).catch(() => []),
-        fetchAggregation(metricList, ["daily"], {channeledAccount: propertyId}, start, end, {signal}).catch(() => [])
+        fetchMergeSummary(start, end).catch(() => []),
+        fetchMergeSummary(prevStart, prevEnd).catch(() => []),
+        fetchMergeChart(start, end).catch(() => [])
     ]).then(([summary, prevSummary, dailyData]) => {
         if (requestId !== reportRequestSeq) return;
         
@@ -226,120 +256,179 @@ async function fetchAggregation(metrics, groupBy, filters, start, end, options =
     return data.data || [];
 }
 
+async function fetchCrossMatrixAggregation(queries, options) {
+    const promises = queries.map(q => 
+        fetchAggregation(q.metrics, q.groupBy, 
+            {channeledAccount: options.propertyId, 'dimensions.scope': q.scope}, 
+            options.start, options.end, {signal: options.signal})
+            .catch(() => []) // Catch errors per query to allow partial success
+    );
+    
+    return await Promise.all(promises);
+}
+
+function mergeMatrixResults(results, primaryGroupByKeys) {
+    const map = new Map();
+    
+    results.forEach((rows, queryIndex) => {
+        const dimKey = primaryGroupByKeys[queryIndex];
+        
+        rows.forEach(row => {
+            const dimValue = getRowValueByKey(row, dimKey);
+            if (!dimValue || dimValue === 'unknown' || dimValue === 'null') return;
+            
+            const key = String(dimValue).toLowerCase();
+            
+            if (!map.has(key)) {
+                map.set(key, { _dimKey: dimKey, _dimValue: dimValue });
+            }
+            
+            const existing = map.get(key);
+            Object.keys(row).forEach(k => {
+                // skip dimension keys
+                if (k.toLowerCase() === dimKey.toLowerCase()) return;
+                
+                // if it's a number, assign it
+                const val = parseFloat(row[k]);
+                if (!isNaN(val)) {
+                    existing[k] = (existing[k] || 0) + val;
+                } else {
+                    existing[k] = row[k];
+                }
+            });
+        });
+    });
+    
+    return Array.from(map.values()).map(r => {
+        r[primaryGroupByKeys[0]] = r._dimValue;
+        return r;
+    });
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                SECTIONS                                    */
 /* -------------------------------------------------------------------------- */
 
-async function loadTrafficSection(tab, options) {
+async function loadCampaignSection(tab, options) {
     const tabConfigs = {
-        channels: {groupBy: ["dimensions.sessionDefaultChannelGroup"], label: "Channel"},
-        campaigns: {groupBy: ["channeledCampaign"], label: "Campaign"},
-        pages: {groupBy: ["dimensions.landing_page"], label: "Landing Page"},
+        campaigns: {
+            label: "Campaign",
+            queries: [
+                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['channeledCampaign'] },
+                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['channeledCampaign'] }
+            ],
+            groupByKeys: ['channeledCampaign', 'channeledCampaign']
+        },
+        adgroups: {
+            label: "Ad Group",
+            queries: [
+                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] },
+                { scope: 'ad_touchpoint_matrix', metrics: ['activeUsers'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] }
+            ],
+            groupByKeys: ['dimensions.sessionGoogleAdsAdGroupName', 'dimensions.sessionGoogleAdsAdGroupName']
+        }
+    };
+    
+    const config = tabConfigs[tab] || tabConfigs.campaigns;
+    const reqId = ++tableRequestSeq.campaign;
+    abortControllerSafely(activeControllers.campaign);
+    activeControllers.campaign = new AbortController();
+
+    const cols = ["sessions", "screenPageViews", "newUsers", "activeUsers", "conversions"];
+    renderTableHeaders("campaign", config.label, cols);
+    showTableLoader("campaign", config.label);
+    setSectionState("campaign", {loading: true, message: `Loading ${config.label}...`});
+
+    try {
+        const results = await fetchCrossMatrixAggregation(config.queries, {
+            propertyId: options.propertyId, 
+            start: options.start, 
+            end: options.end, 
+            signal: activeControllers.campaign.signal
+        });
+
+        if (tableRequestSeq.campaign !== reqId) return;
+        
+        currentData.campaign = mergeMatrixResults(results, config.groupByKeys);
+        currentSort.campaign = {key: "sessions", direction: "desc"};
+        
+        applySortAndRender("campaign", config.groupByKeys[0], cols);
+        setSectionState("campaign", {});
+    } catch (e) {
+        if (!isAbortError(e) && tableRequestSeq.campaign === reqId) {
+            setSectionState("campaign", {error: "Failed to load."});
+            document.getElementById("campaign-body").innerHTML = `<tr><td colspan="6">Error</td></tr>`;
+        }
+    }
+}
+
+async function loadChannelSection(tab, options) {
+    const tabConfigs = {
+        channels: {
+            label: "Channel",
+            queries: [
+                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionDefaultChannelGroup'] },
+                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['dimensions.firstUserDefaultChannelGroup'] }
+            ],
+            groupByKeys: ['dimensions.sessionDefaultChannelGroup', 'dimensions.firstUserDefaultChannelGroup']
+        },
+        sources: {
+            label: "Source / Medium",
+            queries: [
+                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionSourceMedium'] },
+                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['dimensions.firstUserSourceMedium'] }
+            ],
+            groupByKeys: ['dimensions.sessionSourceMedium', 'dimensions.firstUserSourceMedium']
+        }
     };
     
     const config = tabConfigs[tab] || tabConfigs.channels;
-    const reqId = ++tableRequestSeq.traffic;
-    abortControllerSafely(activeControllers.traffic);
-    activeControllers.traffic = new AbortController();
+    const reqId = ++tableRequestSeq.channel;
+    abortControllerSafely(activeControllers.channel);
+    activeControllers.channel = new AbortController();
 
-    renderTableHeaders("traffic", config.label, ["sessions", "newUsers", "conversions"]);
-    showTableLoader("traffic", config.label);
-    setSectionState("traffic", {loading: true, message: `Loading ${config.label}...`});
+    const cols = ["sessions", "screenPageViews", "newUsers", "activeUsers", "conversions"];
+    renderTableHeaders("channel", config.label, cols);
+    showTableLoader("channel", config.label);
+    setSectionState("channel", {loading: true, message: `Loading ${config.label}...`});
 
     try {
-        const rows = await fetchAggregation(["sessions", "newUsers", "conversions"], config.groupBy, 
-            {channeledAccount: options.propertyId, 'dimensions.scope': 'traffic_matrix'}, 
-            options.start, options.end, {signal: activeControllers.traffic.signal});
+        const results = await fetchCrossMatrixAggregation(config.queries, {
+            propertyId: options.propertyId, 
+            start: options.start, 
+            end: options.end, 
+            signal: activeControllers.channel.signal
+        });
 
-        if (tableRequestSeq.traffic !== reqId) return;
-        currentTrafficData = rows;
-        currentSort.traffic = {key: "sessions", direction: "desc"};
-        applySortAndRender("traffic", config.groupBy[0], ["sessions", "newUsers", "conversions"]);
-        setSectionState("traffic", {});
+        if (tableRequestSeq.channel !== reqId) return;
+        
+        currentData.channel = mergeMatrixResults(results, config.groupByKeys);
+        currentSort.channel = {key: "sessions", direction: "desc"};
+        
+        applySortAndRender("channel", config.groupByKeys[0], cols);
+        setSectionState("channel", {});
     } catch (e) {
-        if (!isAbortError(e) && tableRequestSeq.traffic === reqId) {
-            setSectionState("traffic", {error: "Failed to load."});
-            document.getElementById("traffic-body").innerHTML = `<tr><td colspan="4">Error</td></tr>`;
+        if (!isAbortError(e) && tableRequestSeq.channel === reqId) {
+            setSectionState("channel", {error: "Failed to load."});
+            document.getElementById("channel-body").innerHTML = `<tr><td colspan="6">Error</td></tr>`;
         }
     }
 }
 
-async function loadEventSection(options) {
-    const reqId = ++tableRequestSeq.event;
-    abortControllerSafely(activeControllers.event);
-    activeControllers.event = new AbortController();
-
-    const label = "Event Name";
-    const groupBy = ["event"];
-    renderTableHeaders("event", label, ["conversions"]);
-    showTableLoader("event", label);
-    setSectionState("event", {loading: true, message: `Loading Events...`});
-
-    try {
-        const rows = await fetchAggregation(["conversions"], groupBy, 
-            {channeledAccount: options.propertyId, 'dimensions.scope': 'event_matrix'}, 
-            options.start, options.end, {signal: activeControllers.event.signal});
-
-        if (tableRequestSeq.event !== reqId) return;
-        currentEventData = rows;
-        currentSort.event = {key: "conversions", direction: "desc"};
-        applySortAndRender("event", groupBy[0], ["conversions"]);
-        setSectionState("event", {});
-    } catch (e) {
-        if (!isAbortError(e) && tableRequestSeq.event === reqId) {
-            setSectionState("event", {error: "Failed to load."});
-            document.getElementById("event-body").innerHTML = `<tr><td colspan="2">Error</td></tr>`;
-        }
-    }
-}
-
-async function loadAudienceSection(tab, options) {
-    const tabConfigs = {
-        countries: {groupBy: ["country"], label: "Country"},
-        devices: {groupBy: ["device"], label: "Device"},
-    };
-    
-    const config = tabConfigs[tab] || tabConfigs.countries;
-    const reqId = ++tableRequestSeq.audience;
-    abortControllerSafely(activeControllers.audience);
-    activeControllers.audience = new AbortController();
-
-    renderTableHeaders("audience", config.label, ["sessions", "conversions"]);
-    showTableLoader("audience", config.label);
-    setSectionState("audience", {loading: true, message: `Loading ${config.label}...`});
-
-    try {
-        const rows = await fetchAggregation(["sessions", "conversions"], config.groupBy, 
-            {channeledAccount: options.propertyId, 'dimensions.scope': 'traffic_matrix'}, 
-            options.start, options.end, {signal: activeControllers.audience.signal});
-
-        if (tableRequestSeq.audience !== reqId) return;
-        currentAudienceData = rows;
-        currentSort.audience = {key: "sessions", direction: "desc"};
-        applySortAndRender("audience", config.groupBy[0], ["sessions", "conversions"]);
-        setSectionState("audience", {});
-    } catch (e) {
-        if (!isAbortError(e) && tableRequestSeq.audience === reqId) {
-            setSectionState("audience", {error: "Failed to load."});
-            document.getElementById("audience-body").innerHTML = `<tr><td colspan="3">Error</td></tr>`;
-        }
-    }
-}
-
-function switchTrafficTab(el, tab) {
-    document.querySelectorAll(".traffic-tab").forEach(t => t.classList.remove("active"));
+function switchCampaignTab(el, tab) {
+    document.querySelectorAll(".campaign-tab").forEach(t => t.classList.remove("active"));
     el.classList.add("active");
     const p = document.getElementById("propertySelector").value;
     const r = document.getElementById("reportRange").value.split(" to ");
-    loadTrafficSection(tab, {propertyId: p, start: r[0], end: r[1]});
+    loadCampaignSection(tab, {propertyId: p, start: r[0], end: r[1]});
 }
 
-function switchAudienceTab(el, tab) {
-    document.querySelectorAll(".audience-tab").forEach(t => t.classList.remove("active"));
+function switchChannelTab(el, tab) {
+    document.querySelectorAll(".channel-tab").forEach(t => t.classList.remove("active"));
     el.classList.add("active");
     const p = document.getElementById("propertySelector").value;
     const r = document.getElementById("reportRange").value.split(" to ");
-    loadAudienceSection(tab, {propertyId: p, start: r[0], end: r[1]});
+    loadChannelSection(tab, {propertyId: p, start: r[0], end: r[1]});
 }
 
 /* -------------------------------------------------------------------------- */
@@ -357,8 +446,7 @@ function sortSectionTable(section, key, dimKey, cols) {
 }
 
 function applySortAndRender(section, dimKey, cols) {
-    let dataMap = {traffic: currentTrafficData, event: currentEventData, audience: currentAudienceData};
-    let data = dataMap[section] || [];
+    let data = currentData[section] || [];
     const sortConf = currentSort[section];
 
     const sorted = [...data].sort((a, b) => {
@@ -404,7 +492,7 @@ function renderTableHeaders(section, label, cols, dimKey = null) {
 function showTableLoader(section, label) {
     const tbody = document.getElementById(`${section}-body`);
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 4rem;"><i data-lucide="loader-2" class="animate-spin" style="width: 32px; height: 32px; margin-bottom: 1rem; color: var(--text-dim);"></i><br><span style="color: var(--text-dim);">Loading ${label}...</span></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 4rem;"><i data-lucide="loader-2" class="animate-spin" style="width: 32px; height: 32px; margin-bottom: 1rem; color: var(--text-dim);"></i><br><span style="color: var(--text-dim);">Loading ${label}...</span></td></tr>`;
         if (window.lucide) lucide.createIcons();
     }
 }
@@ -415,7 +503,7 @@ function renderTableBody(section, data, dimKey, cols) {
     tbody.innerHTML = "";
 
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-dim);">No data available.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-dim);">No data available.</td></tr>`;
         return;
     }
 
