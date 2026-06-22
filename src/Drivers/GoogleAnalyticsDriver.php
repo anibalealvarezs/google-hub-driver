@@ -841,6 +841,8 @@
                 'new_users'   => ['newUsers'],
                 'spend'       => ['totalRevenue', 'spend'],
                 'revenue'     => ['totalRevenue', 'revenue'],
+                'bounce_rate' => ['bounceRate', 'bounce_rate'],
+                'event_count' => ['eventCount', 'event_count'],
             ];
         }
 
@@ -898,6 +900,7 @@
                     'metric_nature' => 'flow',
                     'period_modes' => ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
                     'group_patterns' => [
+                        [],
                         ['channeledAccount'],
                         ['channeledAccount', 'metricDate'],
                         ['channeledCampaign'],
