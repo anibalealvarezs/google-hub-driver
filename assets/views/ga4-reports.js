@@ -303,8 +303,9 @@ function mergeMatrixResults(results, primaryGroupByKeys) {
         const dimKey = primaryGroupByKeys[queryIndex];
         
         rows.forEach(row => {
-            const dimValue = getRowValueByKey(row, dimKey);
-            if (!dimValue || dimValue === 'unknown' || dimValue === 'null') return;
+            let dimValue = getRowValueByKey(row, dimKey);
+            if (!dimValue || dimValue === 'null') dimValue = 'Unknown';
+            if (dimValue === 'unknown') dimValue = 'Unknown';
             
             const key = String(dimValue).toLowerCase();
             
@@ -609,8 +610,9 @@ function renderTableBody(section, data, dimKey, cols) {
     cols.forEach(c => maxVals[c] = Math.max(...data.map(d => parseFloat(d[c] || 0)), 1));
 
     data.forEach(row => {
-        const dimValue = getRowValueByKey(row, dimKey);
-        if (!dimValue || dimValue === 'unknown' || dimValue === 'null') return;
+        let dimValue = getRowValueByKey(row, dimKey);
+        if (!dimValue || dimValue === 'null') dimValue = 'Unknown';
+        if (dimValue === 'unknown') dimValue = 'Unknown';
 
         const tr = document.createElement("tr");
         let dimContent = `<div class="ga4-url-text" title="${dimValue}">${dimValue.length > 80 ? dimValue.slice(0, 79)+'…' : dimValue}</div>`;
