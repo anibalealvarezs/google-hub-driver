@@ -485,7 +485,7 @@ function switchChannelTab(el, tab) { switchTabUI(el, ".channel-tab"); const r = 
 async function loadAcquisitionSection(tab, options) {
     const tabConfigs = {
         channels: { label: "Channel", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserDefaultChannelGroup"] },
-        campaigns: { label: "Campaign", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserCampaignName"] },
+        campaigns: { label: "Campaign", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["channeledCampaign"] },
         sources: { label: "Source/Medium", scope: "acquisition_matrix", metrics: ["newUsers", "activeUsers"], groupBy: ["dimensions.firstUserSourceMedium"] }
     };
     await fetchAndRenderIsolatedSection("acquisition", tab, tabConfigs[tab] || tabConfigs.channels, options);
@@ -494,24 +494,24 @@ async function loadAcquisitionSection(tab, options) {
 async function loadTrafficSection(tab, options) {
     const tabConfigs = {
         channels: { label: "Channel", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.sessionDefaultChannelGroup"] },
-        campaigns: { label: "Campaign", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.sessionCampaignName"] },
-        pages: { label: "Landing Page", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.landingPagePlusQueryString"] },
-        countries: { label: "Country", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.countryId"] },
-        devices: { label: "Device", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.deviceCategory"] }
+        campaigns: { label: "Campaign", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["channeledCampaign"] },
+        pages: { label: "Landing Page", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["dimensions.landing_page"] },
+        countries: { label: "Country", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["country"] },
+        devices: { label: "Device", scope: "traffic_matrix", metrics: ["sessions", "screenPageViews", "bounceRate", "conversions"], groupBy: ["device"] }
     };
     await fetchAndRenderIsolatedSection("traffic", tab, tabConfigs[tab] || tabConfigs.channels, options);
 }
 
 async function loadEventSection(tab, options) {
-    const config = { label: "Event Name", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.eventName"] };
+    const config = { label: "Event Name", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["event"] };
     await fetchAndRenderIsolatedSection("event", tab, config, options);
 }
 
 async function loadAdTouchpointsSection(tab, options) {
     const tabConfigs = {
-        adgroups: { label: "Ad Group", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionGoogleAdsAdGroupName"] },
-        terms: { label: "Manual Term", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionManualTerm"] },
-        content: { label: "Ad Content", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionManualAdContent"] }
+        adgroups: { label: "Ad Group", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["channeledAdGroup"] },
+        terms: { label: "Manual Term", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["channeledAdGroup"] },
+        content: { label: "Ad Content", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["channeledAd"] }
     };
     await fetchAndRenderIsolatedSection("adtouchpoints", tab, tabConfigs[tab] || tabConfigs.adgroups, options);
 }
