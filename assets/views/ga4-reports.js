@@ -387,9 +387,9 @@ async function loadCampaignSection(tab, options) {
             label: "Ad Group",
             queries: [
                 { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] },
-                { scope: 'ad_touchpoint_matrix', metrics: ['sessions', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] }
+                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['dimensions.firstUserGoogleAdsAdGroupName'] }
             ],
-            groupByKeys: ['dimensions.sessionGoogleAdsAdGroupName', 'dimensions.sessionGoogleAdsAdGroupName']
+            groupByKeys: ['dimensions.sessionGoogleAdsAdGroupName', 'dimensions.firstUserGoogleAdsAdGroupName']
         }
     };
     
