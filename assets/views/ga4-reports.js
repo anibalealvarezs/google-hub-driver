@@ -501,6 +501,11 @@ async function loadTrafficSection(tab, options) {
     await fetchAndRenderIsolatedSection("traffic", tab, tabConfigs[tab] || tabConfigs.channels, options);
 }
 
+async function loadEventSection(tab, options) {
+    const config = { label: "Event Name", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.eventName"] };
+    await fetchAndRenderIsolatedSection("event", tab, config, options);
+}
+
 async function loadAdTouchpointsSection(tab, options) {
     const tabConfigs = {
         adgroups: { label: "Ad Group", scope: "ad_touchpoint_matrix", metrics: ["sessions", "conversions"], groupBy: ["dimensions.sessionGoogleAdsAdGroupName"] },
