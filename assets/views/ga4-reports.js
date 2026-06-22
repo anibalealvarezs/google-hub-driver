@@ -386,10 +386,10 @@ async function loadCampaignSection(tab, options) {
         adgroups: {
             label: "Ad Group",
             queries: [
-                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['dimensions.sessionGoogleAdsAdGroupName'] },
-                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['dimensions.firstUserGoogleAdsAdGroupName'] }
+                { scope: 'traffic_matrix', metrics: ['sessions', 'screenPageViews', 'conversions'], groupBy: ['channeledAdGroup'] },
+                { scope: 'acquisition_matrix', metrics: ['newUsers', 'activeUsers'], groupBy: ['channeledAdGroup'] }
             ],
-            groupByKeys: ['dimensions.sessionGoogleAdsAdGroupName', 'dimensions.firstUserGoogleAdsAdGroupName']
+            groupByKeys: ['channeledAdGroup', 'channeledAdGroup']
         }
     };
     
