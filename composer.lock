@@ -75,13 +75,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-driver-core.git",
-                "reference": "96734ffa60279ca87e90d69077f0f75764166fdd"
+                "reference": "20bb37ec95fb5b1c566fafed4652e28f45dc679e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-96734ffa60279ca87e90d69077f0f75764166fdd-zip-aec2e3.zip",
-                "reference": "96734ffa60279ca87e90d69077f0f75764166fdd",
-                "shasum": "2d23b09b9af5d2f0d3de003518019d3498df8df3"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-20bb37ec95fb5b1c566fafed4652e28f45dc679e-zip-3349af.zip",
+                "reference": "20bb37ec95fb5b1c566fafed4652e28f45dc679e",
+                "shasum": "6ac7f8f8e17de6d2f7306a796330956994fab61e"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -115,7 +115,7 @@
                 }
             ],
             "description": "Core interfaces and orchestration logic for APIs Hub drivers.",
-            "time": "2026-06-21T11:48:27+00:00"
+            "time": "2026-06-23T02:34:50+00:00"
         },
         {
             "name": "anibalealvarezs/google-api",
