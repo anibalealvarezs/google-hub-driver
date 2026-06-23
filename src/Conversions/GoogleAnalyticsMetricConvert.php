@@ -217,14 +217,14 @@
                     'sessionGoogleAdsAdGroupName' => ['channeledAdGroup'],
                     'sessionManualTerm'        => ['channeledAdGroup'],
                     'sessionManualAdContent'   => ['channeledAd'],
-                    'eventName'                => ['event'],
+                    'eventName'                => ['channeledEvent', 'event'],
                 ],
                 'row_entity_fields'    => [
                     'sessionCampaignName'      => 'channeledCampaign',
-                    'sessionGoogleAdsAdGroupName' => 'channeledAdGroup',
-                    'sessionManualTerm'        => 'channeledAdGroup',
-                    'sessionManualAdContent'   => 'channeledAd',
-                    'eventName'                => 'event',
+                    'sessionGoogleAdsAdGroupName' => ['channeledAdGroup'],
+                    'sessionManualTerm'        => ['channeledAdGroup'],
+                    'sessionManualAdContent'   => ['channeledAd'],
+                    'eventName'                => ['channeledEvent', 'event'],
                 ],
                 'fallback_platform_id' => $channeledPlatformId
             ], $logger);
