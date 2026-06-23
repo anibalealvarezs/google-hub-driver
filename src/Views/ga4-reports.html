@@ -170,6 +170,13 @@
             <h3 class="section-title" style="color: #fff; margin-bottom: 15px; font-size: 1.2rem;">Event Tracking Matrix</h3>
             <div class="ga4-table-container report-section-ga4" id="eventSection">
                 <div class="section-status-ga4 section-status-inline-ga4" id="eventStatus" aria-live="polite"></div>
+                <div class="tab-nav-ga4">
+                    <div class="tab-ga4 event-tab active" data-tab="events" onclick="switchEventTab(this, 'events')">EVENT NAME</div>
+                    <div class="tab-ga4 event-tab" data-tab="pages" onclick="switchEventTab(this, 'pages')">PAGE PATH</div>
+                    <div class="tab-ga4 event-tab" data-tab="channels" onclick="switchEventTab(this, 'channels')">CHANNELS</div>
+                    <div class="tab-ga4 event-tab" data-tab="sources" onclick="switchEventTab(this, 'sources')">SOURCES / MEDIUMS</div>
+                    <div class="tab-ga4 event-tab" data-tab="campaigns" onclick="switchEventTab(this, 'campaigns')">CAMPAIGNS</div>
+                </div>
                 <div class="table-scroll-area">
                     <table id="ga4-event-table">
                         <thead>

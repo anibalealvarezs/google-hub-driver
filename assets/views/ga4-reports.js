@@ -219,11 +219,12 @@ async function loadReport() {
     // Load strict isolated sections
     const activeAcquisitionTab = document.querySelector(".acquisition-tab.active")?.getAttribute("data-tab") || "channels";
     const activeTrafficTab = document.querySelector(".traffic-tab.active")?.getAttribute("data-tab") || "channels";
+    const activeEventTab = document.querySelector(".event-tab.active")?.getAttribute("data-tab") || "events";
     const activeAdTouchpointsTab = document.querySelector(".adtouchpoints-tab.active")?.getAttribute("data-tab") || "adgroups";
     
     loadAcquisitionSection(activeAcquisitionTab, {propertyId, start, end});
     loadTrafficSection(activeTrafficTab, {propertyId, start, end});
-    loadEventSection('events', {propertyId, start, end});
+    loadEventSection(activeEventTab, {propertyId, start, end});
     loadAdTouchpointsSection(activeAdTouchpointsTab, {propertyId, start, end});
 
     // Main Summary and Chart: We merge traffic_matrix and acquisition_matrix
@@ -503,8 +504,14 @@ async function loadTrafficSection(tab, options) {
 }
 
 async function loadEventSection(tab, options) {
-    const config = { label: "Event Name", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["event"] };
-    await fetchAndRenderIsolatedSection("event", tab, config, options);
+    const tabConfigs = {
+        events: { label: "Event Name", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["event"] },
+        pages: { label: "Page Path", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.pagePath"] },
+        channels: { label: "Channel", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.sessionDefaultChannelGroup"] },
+        sources: { label: "Source/Medium", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.sessionSourceMedium"] },
+        campaigns: { label: "Campaign", scope: "event_matrix", metrics: ["eventCount", "conversions"], groupBy: ["dimensions.sessionCampaignName"] }
+    };
+    await fetchAndRenderIsolatedSection("event", tab, tabConfigs[tab] || tabConfigs.events, options);
 }
 
 async function loadAdTouchpointsSection(tab, options) {
@@ -518,6 +525,7 @@ async function loadAdTouchpointsSection(tab, options) {
 
 function switchAcquisitionTab(el, tab) { switchTabUI(el, ".acquisition-tab"); const r = getFilterOptions(); loadAcquisitionSection(tab, r); }
 function switchTrafficTab(el, tab) { switchTabUI(el, ".traffic-tab"); const r = getFilterOptions(); loadTrafficSection(tab, r); }
+function switchEventTab(el, tab) { switchTabUI(el, ".event-tab"); const r = getFilterOptions(); loadEventSection(tab, r); }
 function switchAdTouchpointsTab(el, tab) { switchTabUI(el, ".adtouchpoints-tab"); const r = getFilterOptions(); loadAdTouchpointsSection(tab, r); }
 
 function switchTabUI(el, selector) {
