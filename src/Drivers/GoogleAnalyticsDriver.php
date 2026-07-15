@@ -598,8 +598,8 @@
             foreach ($levelsToProcess as $level) {
                 $defaultMetrics = match ($level) {
                     'event_matrix' => ['eventCount', 'conversions'],
-                    'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue', 'conversions'],
-                    'acquisition_matrix' => ['newUsers', 'activeUsers'],
+                    'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions'],
+                    'acquisition_matrix' => ['newUsers', 'activeUsers', 'totalUsers'],
                     'ad_touchpoint_matrix' => ['sessions', 'conversions'],
                     default => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
                 };
@@ -842,6 +842,7 @@
                 'spend'       => ['totalRevenue', 'spend'],
                 'revenue'     => ['totalRevenue', 'revenue'],
                 'bounce_rate' => ['bounceRate', 'bounce_rate'],
+                'average_session_duration' => ['averageSessionDuration', 'average_session_duration'],
                 'event_count' => ['eventCount', 'event_count'],
             ];
         }
