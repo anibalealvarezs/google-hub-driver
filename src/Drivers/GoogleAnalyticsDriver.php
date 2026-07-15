@@ -843,6 +843,7 @@
                 'revenue'     => ['totalRevenue', 'revenue'],
                 'bounce_rate' => ['bounceRate', 'bounce_rate'],
                 'average_session_duration' => ['averageSessionDuration', 'average_session_duration'],
+                'total_users' => ['totalUsers', 'total_users'],
                 'event_count' => ['eventCount', 'event_count'],
             ];
         }
