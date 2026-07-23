@@ -600,7 +600,7 @@
                     'event_matrix' => ['eventCount', 'conversions'],
                     'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions'],
                     'acquisition_matrix' => ['newUsers', 'activeUsers', 'totalUsers'],
-                    'ad_touchpoint_matrix' => ['sessions', 'conversions'],
+                    'ad_touchpoint_matrix' => ['sessions', 'conversions', 'totalRevenue'],
                     default => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
                 };
 

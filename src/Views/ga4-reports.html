@@ -57,7 +57,7 @@
             <div class="section-status-ga4" id="summaryStatus" aria-live="polite"></div>
             <div class="metrics-grid-ga4" id="summaryGrid">
                 <div class="card-stat-ga4 active" data-metric="sessions" onclick="toggleMetric('sessions')" style="--color: #4285f4; border-bottom-color: #4285f4; opacity: 1;">
-                    <div class="ga4-label">Total Sessions</div>
+                    <div class="ga4-label">Sessions</div>
                     <div class="card-metric-value" id="val-sessions">0</div>
                     <div class="card-metric-trend" id="trend-sessions">--</div>
                 </div>
@@ -71,10 +71,35 @@
                     <div class="card-metric-value" id="val-newUsers">0</div>
                     <div class="card-metric-trend" id="trend-newUsers">--</div>
                 </div>
+                <div class="card-stat-ga4" data-metric="screenPageViews" onclick="toggleMetric('screenPageViews')" style="--color: #a855f7; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Pageviews</div>
+                    <div class="card-metric-value" id="val-screenPageViews">0</div>
+                    <div class="card-metric-trend" id="trend-screenPageViews">--</div>
+                </div>
                 <div class="card-stat-ga4" data-metric="conversions" onclick="toggleMetric('conversions')" style="--color: #ea4335; border-bottom-color: transparent; opacity: 0.5;">
                     <div class="ga4-label">Conversions</div>
                     <div class="card-metric-value" id="val-conversions">0</div>
                     <div class="card-metric-trend" id="trend-conversions">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="averageSessionDuration" onclick="toggleMetric('averageSessionDuration')" style="--color: #06b6d4; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Avg Duration</div>
+                    <div class="card-metric-value" id="val-averageSessionDuration">00:00</div>
+                    <div class="card-metric-trend" id="trend-averageSessionDuration">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="bounceRate" onclick="toggleMetric('bounceRate')" style="--color: #ec4899; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Bounce Rate</div>
+                    <div class="card-metric-value" id="val-bounceRate">0%</div>
+                    <div class="card-metric-trend" id="trend-bounceRate">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="totalUsers" onclick="toggleMetric('totalUsers')" style="--color: #6366f1; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Total Users</div>
+                    <div class="card-metric-value" id="val-totalUsers">0</div>
+                    <div class="card-metric-trend" id="trend-totalUsers">--</div>
+                </div>
+                <div class="card-stat-ga4" data-metric="totalRevenue" onclick="toggleMetric('totalRevenue')" style="--color: #10b981; border-bottom-color: transparent; opacity: 0.5;">
+                    <div class="ga4-label">Revenue</div>
+                    <div class="card-metric-value" id="val-totalRevenue">$0.00</div>
+                    <div class="card-metric-trend" id="trend-totalRevenue">--</div>
                 </div>
             </div>
         </div>

@@ -306,7 +306,7 @@
             array              $metricsToProcess = [],
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['sessions', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ['sessions', 'conversions', 'totalRevenue'];
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;

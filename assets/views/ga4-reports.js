@@ -3,15 +3,24 @@ let activeMetrics = {
     sessions: true,
     activeUsers: true,
     newUsers: false,
+    screenPageViews: false,
     conversions: false,
+    averageSessionDuration: false,
+    bounceRate: false,
+    totalUsers: false,
+    totalRevenue: false,
 };
 
 const GA4_COLORS = {
     sessions: "#4285F4",
     activeUsers: "#0F9D58",
     newUsers: "#FBBC04",
+    screenPageViews: "#a855f7",
     conversions: "#EA4335",
-    screenPageViews: "#9C27B0",
+    averageSessionDuration: "#06b6d4",
+    bounceRate: "#ec4899",
+    totalUsers: "#6366f1",
+    totalRevenue: "#10b981",
 };
 
 let currentData = {
@@ -60,7 +69,12 @@ const CHART_CONFIG = {
         ySessions: { type: "linear", display: true, position: "left", grid: {color: "rgba(255,255,255,0.05)"}, ticks: {color: GA4_COLORS.sessions} },
         yActiveUsers: { type: "linear", display: false, position: "left", grid: {display: false}, ticks: {color: GA4_COLORS.activeUsers} },
         yNewUsers: { type: "linear", display: false, position: "right", grid: {display: false}, ticks: {color: GA4_COLORS.newUsers} },
+        yScreenPageViews: { type: "linear", display: false, position: "left", grid: {display: false}, ticks: {color: GA4_COLORS.screenPageViews} },
         yConversions: { type: "linear", display: false, position: "right", grid: {display: false}, ticks: {color: GA4_COLORS.conversions} },
+        yAverageSessionDuration: { type: "linear", display: false, position: "left", grid: {display: false}, ticks: {color: GA4_COLORS.averageSessionDuration} },
+        yBounceRate: { type: "linear", display: false, position: "right", grid: {display: false}, ticks: {color: GA4_COLORS.bounceRate} },
+        yTotalUsers: { type: "linear", display: false, position: "left", grid: {display: false}, ticks: {color: GA4_COLORS.totalUsers} },
+        yTotalRevenue: { type: "linear", display: false, position: "right", grid: {display: false}, ticks: {color: GA4_COLORS.totalRevenue} },
         x: {grid: {display: false}, ticks: {color: "#8B949E"}},
     },
     plugins: { legend: {display: false} },
