@@ -124,6 +124,10 @@
                             ['query'],
                             ['page'],
                             ['daily'],
+                            ['daily', 'query'],
+                            ['daily', 'page'],
+                            ['daily', 'country'],
+                            ['daily', 'device'],
                             [],
                         ],
                         'filter_contract'    => [
