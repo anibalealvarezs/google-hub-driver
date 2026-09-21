@@ -13,6 +13,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\QueryClassifiableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Routes\AssetRoutes;
     use Anibalealvarezs\ApiDriverCore\Services\CacheStrategyService;
@@ -38,7 +39,7 @@
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleFeature;
 
-    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
+    class SearchConsoleDriver implements SyncDriverInterface, PageableInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface, QueryClassifiableInterface
     {
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait, GoogleSyncDriverTrait {
@@ -57,6 +58,16 @@
         // Dimensions from legacy GoogleSearchConsoleHelpers
         private static array $allDimensions = ['date', 'query', 'country', 'page', 'device', 'searchAppearance'];
         private static array $optionalDimensions = ['query', 'country', 'device', 'searchAppearance'];
+
+        /**
+         * Determine if this driver produces search query/keyword data eligible for classification.
+         *
+         * @return bool
+         */
+        public static function supportsQueryClassification(): bool
+        {
+            return true;
+        }
 
         /**
          * Get the public resources exposed by this driver.
