@@ -123,13 +123,13 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/google-api.git",
-                "reference": "d90301ac42357b4020de6c5e5b04598381dba4c1"
+                "reference": "2d8c713e4a6ba87dd97a632dbbab0a1fe22be8a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-d90301ac42357b4020de6c5e5b04598381dba4c1-zip-0991ae.zip",
-                "reference": "d90301ac42357b4020de6c5e5b04598381dba4c1",
-                "shasum": "c8a71bc521840a3e6a6fb8339b07774d97392b92"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-2d8c713e4a6ba87dd97a632dbbab0a1fe22be8a2-zip-719550.zip",
+                "reference": "2d8c713e4a6ba87dd97a632dbbab0a1fe22be8a2",
+                "shasum": "500080d7a8dfdc84e5334b0d26dbcadddeb83583"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -186,7 +186,7 @@
             "support": {
                 "issues": "https://github.com/anibalealvarezs/google-api/issues"
             },
-            "time": "2026-10-15T20:24:48+00:00"
+            "time": "2026-10-15T23:04:59+00:00"
         },
         {
             "name": "anibalealvarezs/oauth-v1",
