@@ -12,7 +12,6 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
     use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
-    use Anibalealvarezs\GoogleHubDriver\Traits\GoogleAdsSyncDriverTrait;
     use Anibalealvarezs\GoogleHubDriver\Traits\GoogleSyncDriverTrait;
     use Anibalealvarezs\ApiDriverCore\Enums\AssetCategory;
     use Anibalealvarezs\GoogleApi\Services\GoogleAds\GoogleAdsApi;
@@ -28,19 +27,99 @@
     class GoogleAdsDriver implements SyncDriverInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
     {
         use HasHierarchicalValidationTrait;
-        use SyncDriverTrait, GoogleSyncDriverTrait, GoogleAdsSyncDriverTrait {
-            GoogleAdsSyncDriverTrait::getApi insteadof GoogleSyncDriverTrait;
-            GoogleAdsSyncDriverTrait::initializeApi insteadof GoogleSyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getProviderLabel insteadof GoogleSyncDriverTrait, SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getProviderName insteadof GoogleSyncDriverTrait, SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getCommonConfigKey insteadof GoogleSyncDriverTrait, SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::getEnvMapping insteadof GoogleSyncDriverTrait, SyncDriverTrait;
-            GoogleAdsSyncDriverTrait::isAuthenticationError insteadof GoogleSyncDriverTrait;
+        use SyncDriverTrait, GoogleSyncDriverTrait {
             GoogleSyncDriverTrait::storeCredentials insteadof SyncDriverTrait;
+            GoogleSyncDriverTrait::getApi insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::boot insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
+        }
+
+        protected ?GoogleAdsApi $api = null;
+
+        public function setApi(GoogleAdsApi $api): self
+        {
+            $this->api = $api;
+            return $this;
+        }
+
+        /**
+         * @throws Exception
+         */
+        public function getApi(array $config = []): GoogleAdsApi
+        {
+            if ($this->api !== null) {
+                return $this->api;
+            }
+
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                throw new Exception("Credentials not configured.");
+            }
+
+            if (empty($config) && $this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider) {
+                $config = $this->authProvider->getConfig();
+            }
+
+            return $this->initializeApi($config);
+        }
+
+        public static function getProviderLabel(): string
+        {
+            return 'Google Ads';
+        }
+
+        public static function getProviderName(): string
+        {
+            return 'google_ads';
+        }
+
+        public static function getCommonConfigKey(): ?string
+        {
+            return self::getProviderName();
+        }
+
+        public static function getEnvMapping(): array
+        {
+            return [
+                self::getProviderName() => [
+                    'GOOGLE_CLIENT_ID'             => 'client_id',
+                    'GOOGLE_CLIENT_SECRET'         => 'client_secret',
+                    'GOOGLE_REFRESH_TOKEN'         => 'refresh_token',
+                    'GOOGLE_USER_ID'               => 'user_id',
+                    'GOOGLE_REDIRECT_URI'          => 'redirect_uri',
+                    'GOOGLE_TOKEN_PATH'            => 'token_path',
+                    'GOOGLE_ADS_DEVELOPER_TOKEN'   => 'developer_token',
+                    'GOOGLE_ADS_LOGIN_CUSTOMER_ID' => 'login_customer_id',
+                ]
+            ];
+        }
+
+        protected function initializeApi(array $config): GoogleAdsApi
+        {
+            if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
+                throw new Exception("Credentials not configured.");
+            }
+
+            $className = (new \ReflectionClass($this))->getShortName();
+            $this->logger?->info("DEBUG: $className::initializeApi - START");
+
+            $creds = $this->resolveGoogleCredentials($config);
+
+            return new GoogleAdsApi(
+                redirectUrl: $creds['redirectUrl'],
+                clientId: $creds['clientId'],
+                clientSecret: $creds['clientSecret'],
+                refreshToken: $creds['refreshToken'],
+                userId: $creds['userId'],
+                developerToken: $config['developer_token'] ?? $config['google_ads']['developer_token'] ?? $_ENV['GOOGLE_ADS_DEVELOPER_TOKEN'] ?? getenv('GOOGLE_ADS_DEVELOPER_TOKEN') ?: '',
+                loginCustomerId: $config['login_customer_id'] ?? $config['google_ads']['login_customer_id'] ?? $_ENV['GOOGLE_ADS_LOGIN_CUSTOMER_ID'] ?? getenv('GOOGLE_ADS_LOGIN_CUSTOMER_ID') ?: null,
+                scopes: $creds['scopes'],
+                token: $creds['token'],
+                tokenPath: $creds['tokenPath'],
+                logger: $this->logger,
+                tokenRefresherCallback: $creds['tokenRefresherCallback']
+            );
         }
 
         public function getUpdatableCredentials(): array
@@ -98,6 +177,9 @@
                 'conversions'         => ['metrics.conversions', 'conversions'],
                 'roas_purchase'       => ['metrics.conversions_value', 'conversions_value'],
                 'cost_per_conversion' => ['metrics.cost_per_conversion', 'cost_per_conversion'],
+                'cpc'                 => ['metrics.average_cpc', 'cpc'],
+                'ctr'                 => ['metrics.ctr', 'ctr'],
+                'conversion_rate'     => ['metrics.conversions_from_interactions_rate', 'conversion_rate'],
             ];
         }
 
@@ -282,19 +364,30 @@
 
                     switch ($entity) {
                         case 'campaign':
-                            $campaignsData = $api->getCampaigns($customerId);
+                            $campaignsData = $api->getCampaigns(
+                                $customerId,
+                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date, campaign.end_date"
+                            );
                             if (!empty($campaignsData['results'])) {
                                 $results[$customerId]['campaigns'] = $campaignsData['results'];
                             }
                             break;
                         case 'ad_group':
-                            $adGroupsData = $api->getAdGroups($customerId);
+                        case 'adset':
+                            $adGroupsData = $api->getAdGroups(
+                                $customerId,
+                                "ad_group.id, ad_group.name, ad_group.status, campaign.id, ad_group.type"
+                            );
                             if (!empty($adGroupsData['results'])) {
                                 $results[$customerId]['ad_groups'] = $adGroupsData['results'];
                             }
                             break;
                         case 'ad':
-                            $adsData = $api->getAds($customerId);
+                        case 'creative':
+                            $adsData = $api->getAds(
+                                $customerId,
+                                "ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.status, ad_group.id, campaign.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls"
+                            );
                             if (!empty($adsData['results'])) {
                                 $results[$customerId]['ads'] = $adsData['results'];
                             }
@@ -316,55 +409,150 @@
          */
         public function sync(\DateTime $startDate, \DateTime $endDate, array $config = [], ?callable $shouldContinue = null, ?callable $identityMapper = null): Response
         {
-            try {
-                /** @var GoogleAdsApi $api */
-                $api = $this->getApi();
-                $metrics = [];
+            $api = $this->getApi();
+            $accountsToProcess = $config['ad_accounts'] ?? [];
+            $chunkSize = $config['cache_chunk_size'] ?? '1 week';
+            $targetAccountId = $config['account_id'] ?? null;
+            $cleanTargetId = $targetAccountId ? ltrim((string)$targetAccountId, '#') : null;
 
-                $customerIds = [];
-                if (!empty($config['ad_accounts'])) {
-                    foreach ($config['ad_accounts'] as $acc) {
-                        if (!empty($acc['enabled']) && !empty($acc['id'])) {
-                            $customerIds[] = (string)$acc['id'];
+            // 1. Batch Resolve Customer / Ad Accounts via Oracle Identity Mapper
+            $caMap = [];
+            if ($identityMapper && !empty($accountsToProcess)) {
+                $aIds = [];
+                foreach ($accountsToProcess as $account) {
+                    $id = (string)($account['id'] ?? $account);
+                    if ($id) {
+                        $cleanId = self::getPlatformId(['id' => $id], AssetCategory::IDENTITY, 'google_ads_account');
+                        if ($cleanTargetId && $cleanTargetId !== $cleanId) {
+                            continue;
+                        }
+                        $aIds[] = $cleanId;
+                    }
+                }
+                $caMap = $identityMapper('channeled_accounts', ['platform_ids' => $aIds]) ?? [];
+            }
+
+            $totalStats = ['metrics' => 0, 'rows' => 0, 'duplicates' => 0];
+            $consecutiveFailures = 0;
+            $maxConsecutiveFailures = 5;
+
+            $metricsList = $config['metrics_list'] ?? 'metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, metrics.cost_per_conversion, metrics.average_cpc';
+            $requestedMetrics = array_map('trim', explode(',', $metricsList));
+
+            foreach ($accountsToProcess as $account) {
+                $accountPlatformIdRaw = (string)($account['id'] ?? $account);
+                if (!$accountPlatformIdRaw) {
+                    continue;
+                }
+
+                $accountPlatformId = self::getPlatformId(['id' => $accountPlatformIdRaw], AssetCategory::IDENTITY, 'google_ads_account');
+                if ($cleanTargetId && $cleanTargetId !== $accountPlatformId) {
+                    continue;
+                }
+
+                try {
+                    $accCfg = $account['account_data'] ?? $account;
+                    if (isset($accCfg['enabled']) && !$accCfg['enabled']) {
+                        $this->logger?->info("Skipping Google Ads sync for account $accountPlatformId (disabled in config)");
+                        continue;
+                    }
+
+                    if (!empty($accCfg['lost_access'])) {
+                        $this->logger?->info("Skipping Google Ads sync for account $accountPlatformId (lost access)");
+                        continue;
+                    }
+
+                    $caObject = $caMap[$accountPlatformId] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($accountPlatformId);
+                    $levelsToFetch = $this->resolveLevelsToFetch($accCfg, $config);
+                    $chunks = DateHelper::getDateChunks($startDate->format('Y-m-d'), $endDate->format('Y-m-d'), $chunkSize);
+
+                    foreach ($chunks as $chunk) {
+                        foreach ($levelsToFetch as $level) {
+                            if ($shouldContinue && !$shouldContinue()) {
+                                throw new Exception("Sync aborted by the orchestrator.");
+                            }
+
+                            $this->logger?->info(">>> INICIO: Sincronizando métricas de Google Ads para Customer: $accountPlatformId (Level: $level | Timeframe: {$chunk['start']} a {$chunk['end']})");
+
+                            $data = $api->getMetricsForLevel(
+                                customerId: $accountPlatformId,
+                                level: $level,
+                                startDate: $chunk['start'],
+                                endDate: $chunk['end'],
+                                metrics: $requestedMetrics,
+                                segments: ['segments.date', 'segments.device']
+                            );
+
+                            $rows = $data['results'] ?? [];
+
+                            if (!empty($rows)) {
+                                $collection = GoogleAdsMetricConvert::metrics(
+                                    rows: $rows,
+                                    channeledAccount: $caObject ?? $accountPlatformId,
+                                    level: $level,
+                                    logger: $this->logger,
+                                    account: (method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($config['accounts_group_name'] ?? 'Default')
+                                );
+
+                                if ($this->dataProcessor && $collection->count() > 0) {
+                                    $this->validateHierarchicalIntegrity(collection: $collection, type: \Anibalealvarezs\ApiDriverCore\Enums\HierarchyType::MARKETING);
+
+                                    $result = ($this->dataProcessor)($collection, $this->logger);
+
+                                    $metricsCount = $result['metrics'] ?? $collection->count();
+                                    $processedRows = $result['rows'] ?? count($rows);
+                                    $duplicates = $result['duplicates'] ?? 0;
+
+                                    $totalStats['metrics'] += $metricsCount;
+                                    $totalStats['rows'] += $processedRows;
+                                    $totalStats['duplicates'] += $duplicates;
+
+                                    $this->logger?->info("<<< EXITO: Sincronización completada para Customer: $accountPlatformId (Level: $level). Métricas: $metricsCount | Filas: $processedRows | Duplicados: $duplicates");
+                                }
+                            } else {
+                                $this->logger?->info("--- INFO: No se encontraron datos de Google Ads para Customer: $accountPlatformId (Level: $level)");
+                            }
                         }
                     }
-                }
 
-                $metricsList = $config['metrics_list'] ?? 'metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, metrics.cost_per_conversion';
-                $startDateStr = $startDate->format('Y-m-d');
-                $endDateStr = $endDate->format('Y-m-d');
-
-                foreach ($customerIds as $customerId) {
-                    if ($shouldContinue && !$shouldContinue()) {
-                        throw new Exception("Sync aborted by the orchestrator.");
+                    $consecutiveFailures = 0;
+                } catch (Exception $e) {
+                    if (str_contains($e->getMessage(), 'Sync aborted')) {
+                        throw $e;
                     }
-
-                    $level = $config['level'] ?? 'account';
-                    
-                    if ($level === 'campaign') {
-                        $fields = "campaign.id, segments.date, segments.device, " . $metricsList;
-                        $data = $api->getMetrics($customerId, 'campaign', $startDateStr, $endDateStr, $fields);
-                        $metrics = array_merge($metrics, $data['results'] ?? []);
-                    } elseif ($level === 'ad_group' || $level === 'adset') {
-                        $fields = "campaign.id, ad_group.id, segments.date, segments.device, " . $metricsList;
-                        $data = $api->getMetrics($customerId, 'ad_group', $startDateStr, $endDateStr, $fields);
-                        $metrics = array_merge($metrics, $data['results'] ?? []);
-                    } elseif ($level === 'ad') {
-                        $fields = "campaign.id, ad_group.id, ad_group_ad.ad.id, segments.date, segments.device, " . $metricsList;
-                        $data = $api->getMetrics($customerId, 'ad_group_ad', $startDateStr, $endDateStr, $fields);
-                        $metrics = array_merge($metrics, $data['results'] ?? []);
-                    } else {
-                        $fields = "customer.id, segments.date, segments.device, " . $metricsList;
-                        $data = $api->getMetrics($customerId, 'customer', $startDateStr, $endDateStr, $fields);
-                        $metrics = array_merge($metrics, $data['results'] ?? []);
+                    if ($e instanceof \Anibalealvarezs\ApiSkeleton\Classes\Exceptions\PermanentAuthenticationException) {
+                        throw $e;
+                    }
+                    $this->logger?->error("Unhandled error syncing Google Ads Account $accountPlatformId: " . $e->getMessage());
+                    $consecutiveFailures++;
+                    if ($consecutiveFailures >= $maxConsecutiveFailures) {
+                        throw new Exception("Terminating Google Ads sync due to $consecutiveFailures consecutive unhandled failures.");
                     }
                 }
-
-                return new Response(json_encode(['status' => 'success', 'metrics' => $metrics]), 200, ['Content-Type' => 'application/json']);
-            } catch (Exception $e) {
-                $this->logger?->error("Error syncing Google Ads metrics: " . $e->getMessage());
-                return new Response(json_encode(['status' => 'error', 'message' => $e->getMessage()]), 500, ['Content-Type' => 'application/json']);
             }
+
+            return new Response(json_encode(['status' => 'success', 'data' => $totalStats]), 200, ['Content-Type' => 'application/json']);
+        }
+
+        private function resolveLevelsToFetch(array $accCfg, array $config): array
+        {
+            $toggleConfig = is_array($config['AD_ACCOUNT'] ?? null) ? $config['AD_ACCOUNT'] : [];
+
+            $levels = [];
+            if (!empty($toggleConfig['campaign_metrics']) || !empty($config['sync_campaign_metrics'])) {
+                $levels[] = 'campaign';
+            }
+            if (!empty($toggleConfig['adgroup_metrics']) || !empty($config['sync_adgroup_metrics'])) {
+                $levels[] = 'ad_group';
+            }
+            if (!empty($toggleConfig['ad_metrics']) || !empty($config['sync_ad_metrics'])) {
+                $levels[] = 'ad';
+            }
+            if (!empty($toggleConfig['ad_account_metrics']) || !empty($config['sync_ad_account_metrics']) || empty($levels)) {
+                $levels[] = 'account';
+            }
+
+            return array_unique($levels);
         }
 
         public function syncMetrics(\DateTime $startDate, \DateTime $endDate, array $config = [], ?callable $shouldContinue = null, ?callable $identityMapper = null): Response

@@ -26,7 +26,13 @@ class GoogleAdsMetricConvertTest extends TestCase
             ]
         ];
 
-        $collection = GoogleAdsMetricConvert::customerMetrics($rows, null, 'acc1', 'acc1', 'daily');
+        $collection = GoogleAdsMetricConvert::customerMetrics(
+            rows: $rows,
+            logger: null,
+            channeledAccount: 'acc1',
+            period: 'daily',
+            account: 'acc1'
+        );
         
         $this->assertCount(4, $collection);
 

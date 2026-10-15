@@ -120,15 +120,17 @@ class GoogleAdsDriverTest extends TestCase
     {
         $apiMock = $this->createMock(GoogleAdsApi::class);
         $apiMock->expects($this->once())
-            ->method('getMetrics')
-            ->with('123456', 'campaign', '2025-01-01', '2025-01-31')
-            ->willReturn(['results' => [['campaign' => ['id' => '111'], 'metrics' => ['impressions' => '100']]]]);
+            ->method('getMetricsForLevel')
+            ->willReturn(['results' => [['campaign' => ['id' => '111'], 'metrics' => ['cost_micros' => '1000000', 'impressions' => '100', 'clicks' => '10', 'conversions' => '1'], 'segments' => ['date' => '2025-01-01', 'device' => 'DESKTOP']]]]);
 
         $config = [
             'ad_accounts' => [
                 ['enabled' => true, 'id' => '123456']
             ],
-            'level' => 'campaign'
+            'AD_ACCOUNT' => [
+                'campaign_metrics' => true,
+            ],
+            'cache_chunk_size' => '1 month',
         ];
 
         $authMock = $this->createMock(AuthProviderInterface::class);
@@ -142,17 +144,23 @@ class GoogleAdsDriverTest extends TestCase
         $driverMock->method('getApi')->willReturn($apiMock);
         $driverMock->setAuthProvider($authMock);
 
+        $processedMetrics = 0;
+        $driverMock->setDataProcessor(function ($collection) use (&$processedMetrics) {
+            $processedMetrics = $collection->count();
+            return ['metrics' => $processedMetrics, 'rows' => 1, 'duplicates' => 0];
+        });
+
         $response = $driverMock->sync(new \DateTime('2025-01-01'), new \DateTime('2025-01-31'), $config);
         
         $this->assertEquals(200, $response->getStatusCode());
         $body = json_decode($response->getContent(), true);
         
         $this->assertEquals('success', $body['status']);
-        $this->assertCount(1, $body['metrics']);
-        $this->assertEquals('100', $body['metrics'][0]['metrics']['impressions']);
+        $this->assertEquals(4, $body['data']['metrics']);
+        $this->assertEquals(4, $processedMetrics);
     }
 
-    public function testGoogleAdsSyncDriverTraitMethods()
+    public function testGoogleAdsDriverMethods()
     {
         $this->assertEquals('Google Ads', GoogleAdsDriver::getProviderLabel());
         $this->assertEquals('google_ads', GoogleAdsDriver::getProviderName());

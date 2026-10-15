@@ -5,7 +5,6 @@
     use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
     use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService;
-    use Anibalealvarezs\GoogleApi\Services\SearchConsole\SearchConsoleApi;
     use Closure;
     use Exception;
     use Psr\Log\LoggerInterface;
@@ -14,10 +13,10 @@
     trait GoogleSyncDriverTrait
     {
 
-        private ?AuthProviderInterface $authProvider;
-        private ?LoggerInterface $logger;
+        protected ?AuthProviderInterface $authProvider = null;
+        protected ?LoggerInterface $logger = null;
         /** @var callable|null */
-        private $dataProcessor = null;
+        protected $dataProcessor = null;
         public array $updatableCredentials = [
             'GOOGLE_REFRESH_TOKEN',
             'GOOGLE_USER_ID',
@@ -66,7 +65,7 @@
         /**
          * @throws Exception
          */
-        public function getApi(array $config = []): SearchConsoleApi
+        public function getApi(array $config = []): mixed
         {
             if (!$this->authProvider || !$this->authProvider->hasCredentials()) {
                 throw new Exception("Credentials not configured.");

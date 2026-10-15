@@ -23,14 +23,15 @@
         public static function customerMetrics(
             array              $rows,
             ?LoggerInterface   $logger = null,
-            object|string|null $account = null,
             object|string|null $channeledAccount = null,
             object|string|null $period = 'daily',
             array              $metricsToProcess = [],
             ?string            $customFields = null,
+            object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledPlatformId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getPlatformId') ? $channeledAccount->getPlatformId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -49,6 +50,7 @@
                     'account'            => $account,
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
+                    'level'              => 'account',
                 ]),
                 'row_key_fields'       => [],
                 'fallback_platform_id' => $channeledPlatformId
@@ -70,7 +72,8 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledCampaignId = is_object($channeledCampaign) ? (method_exists($channeledCampaign, 'getPlatformId') ? $channeledCampaign->getPlatformId() : (string)$channeledCampaign) : (string)$channeledCampaign;
@@ -92,6 +95,7 @@
                     'channeledAccountId' => $channeledAccountId,
                     'campaign'           => $campaign,
                     'channeledCampaign'  => $channeledCampaign,
+                    'level'              => 'campaign',
                 ]),
                 'row_key_fields'       => [
                     'campaign.id' => ['campaign', 'channeledCampaign'],
@@ -119,7 +123,8 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledAdGroupId = is_object($channeledAdGroup) ? (method_exists($channeledAdGroup, 'getPlatformId') ? $channeledAdGroup->getPlatformId() : (string)$channeledAdGroup) : (string)$channeledAdGroup;
@@ -142,6 +147,7 @@
                     'campaign'           => $campaign,
                     'channeledCampaign'  => $channeledCampaign,
                     'channeledAdGroup'   => $channeledAdGroup,
+                    'level'              => 'ad_group',
                 ]),
                 'row_key_fields'       => [
                     'campaign.id' => ['campaign', 'channeledCampaign'],
@@ -172,7 +178,8 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : ['metrics.cost_micros', 'metrics.impressions', 'metrics.clicks', 'metrics.conversions']);
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
             $channeledAdId = is_object($channeledAd) ? (method_exists($channeledAd, 'getPlatformId') ? $channeledAd->getPlatformId() : (string)$channeledAd) : (string)$channeledAd;
@@ -196,6 +203,7 @@
                     'channeledCampaign'  => $channeledCampaign,
                     'channeledAdGroup'   => $channeledAdGroup,
                     'channeledAd'        => $channeledAd,
+                    'level'              => 'ad',
                 ]),
                 'row_key_fields'       => [
                     'campaign.id'       => ['campaign', 'channeledCampaign'],
@@ -240,7 +248,6 @@
                 $processed = [];
 
                 // Flatten GAQL results. Google Ads returns nested arrays e.g. ['metrics' => ['cost_micros' => '1000000'], 'segments' => ['date' => '2025-01-01']]
-                // We will flatten it using dot notation so UniversalMetricConverter can access it, or map directly.
                 $flatten = function ($array, $prefix = '') use (&$flatten, &$processed) {
                     foreach ($array as $key => $value) {
                         $newKey = $prefix ? $prefix . '.' . $key : $key;
@@ -259,14 +266,48 @@
 
                 $flatten($row);
 
-                // Derived metrics mappings - keep raw GAQL metric names but fix micros scaling
+                // Derived metrics mappings - convert micros to currency units and provide canonical aliases
                 if (isset($processed['metrics.cost_micros'])) {
-                    $processed['metrics.cost_micros'] = (float)$processed['metrics.cost_micros'] / 1000000;
+                    $spendVal = (float)$processed['metrics.cost_micros'] / 1000000;
+                    $processed['metrics.cost_micros'] = $spendVal;
+                    $processed['spend'] = $spendVal;
                 }
                 if (isset($processed['metrics.cost_per_conversion'])) {
-                    $processed['metrics.cost_per_conversion'] = (float)$processed['metrics.cost_per_conversion'] / 1000000;
+                    $cpcVal = (float)$processed['metrics.cost_per_conversion'] / 1000000;
+                    $processed['metrics.cost_per_conversion'] = $cpcVal;
+                    $processed['cost_per_conversion'] = $cpcVal;
                 }
-                
+                if (isset($processed['metrics.average_cpc'])) {
+                    $avgCpcVal = (float)$processed['metrics.average_cpc'] / 1000000;
+                    $processed['metrics.average_cpc'] = $avgCpcVal;
+                    $processed['cpc'] = $avgCpcVal;
+                }
+                if (isset($processed['metrics.conversions_value'])) {
+                    $convVal = (float)$processed['metrics.conversions_value'];
+                    $processed['conversions_value'] = $convVal;
+                    $processed['roas_purchase'] = $convVal;
+                }
+                if (isset($processed['metrics.conversions'])) {
+                    $processed['conversions'] = (float)$processed['metrics.conversions'];
+                }
+                if (isset($processed['metrics.clicks'])) {
+                    $processed['clicks'] = (int)$processed['metrics.clicks'];
+                }
+                if (isset($processed['metrics.impressions'])) {
+                    $processed['impressions'] = (int)$processed['metrics.impressions'];
+                }
+
+                // Normalize segments.device to canonical lowercase format
+                if (isset($processed['segments.device'])) {
+                    $processed['segments.device'] = match (strtoupper((string)$processed['segments.device'])) {
+                        'DESKTOP' => 'desktop',
+                        'HIGH_END_MOBILE', 'MOBILE' => 'mobile',
+                        'TABLET' => 'tablet',
+                        'CONNECTED_TV' => 'connected_tv',
+                        default => strtolower((string)$processed['segments.device']),
+                    };
+                }
+
                 // Keep the original nested objects for backwards compatibility or fallback
                 $processed = array_merge($row, $processed);
 
