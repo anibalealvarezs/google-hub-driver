@@ -234,6 +234,41 @@ class GoogleAdsDriverTest extends TestCase
         $this->assertEquals([], $body['results']);
     }
 
+    public function testUpdateConfiguration()
+    {
+        $newData = [
+            'enabled' => true,
+            'cache_history_range' => '2 years',
+            'granular_sync' => true,
+            'max_workers' => 2,
+            'assets' => [
+                'ad_accounts' => [
+                    [
+                        'id' => '123-456-7890',
+                        'name' => 'My Ad Account',
+                        'enabled' => true,
+                        'lost_access' => false,
+                        'data' => [],
+                    ],
+                ],
+            ],
+        ];
+
+        $currentConfig = [];
+        $result = $this->driver->updateConfiguration($newData, $currentConfig);
+
+        $this->assertArrayHasKey('channels', $result);
+        $this->assertArrayHasKey('google_ads', $result['channels']);
+        $gads = $result['channels']['google_ads'];
+        $this->assertTrue($gads['enabled']);
+        $this->assertTrue($gads['granular_sync']);
+        $this->assertEquals(2, $gads['max_workers']);
+        $this->assertEquals('2 years', $gads['cache_history_range']);
+        $this->assertCount(1, $gads['ad_accounts']);
+        $this->assertEquals('123-456-7890', $gads['ad_accounts'][0]['id']);
+        $this->assertTrue($gads['ad_accounts'][0]['enabled']);
+    }
+
     public function testGoogleAdsDriverMethods()
     {
         $this->assertEquals('Google Ads', GoogleAdsDriver::getProviderLabel());

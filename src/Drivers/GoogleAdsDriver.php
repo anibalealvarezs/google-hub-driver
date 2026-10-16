@@ -242,7 +242,7 @@
 
         public function updateConfiguration(array $newData, array $currentConfig): array
         {
-            $selectedAssets = $newData['assets']['google_ads'] ?? [];
+            $selectedAssets = $newData['assets']['ad_accounts'] ?? $newData['assets']['google_ads'] ?? [];
             $enabled = $newData['enabled'] ?? false;
             $historyRange = $newData['cache_history_range'] ?? null;
             $featureToggles = $newData['feature_toggles'] ?? [];
