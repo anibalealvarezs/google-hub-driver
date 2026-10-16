@@ -87,7 +87,7 @@
                 'platform_id_field'    => 'campaign.id',
                 'date_field'           => 'segments.date',
                 'metrics'              => array_combine($metricsList, $metricsList),
-                'dimensions'           => ['segments.device'],
+                'dimensions'           => ['segments.device', 'campaign.advertising_channel_type'],
                 'metadata_fields'      => self::METADATA_FIELDS,
                 'context'              => UniversalMetricConverter::getUniversalContext([
                     'account'            => $account,
@@ -193,7 +193,7 @@
                 'platform_id_field'    => 'ad_group_ad.ad.id',
                 'date_field'           => 'segments.date',
                 'metrics'              => array_combine($metricsList, $metricsList),
-                'dimensions'           => ['segments.device'],
+                'dimensions'           => ['segments.device', 'campaign.advertising_channel_type'],
                 'metadata_fields'      => self::METADATA_FIELDS,
                 'context'              => UniversalMetricConverter::getUniversalContext([
                     'account'            => $account,

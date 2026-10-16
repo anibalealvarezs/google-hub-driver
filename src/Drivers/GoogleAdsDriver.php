@@ -557,6 +557,49 @@
                             } else {
                                 $this->logger?->info("--- INFO: No se encontraron datos de Google Ads para Customer: $accountPlatformId (Level: $level)");
                             }
+
+                            // If fetching at 'ad' level, also fetch campaign-level metrics for PERFORMANCE_MAX and SHOPPING
+                            // which have no traditional ad_group_ad entities, preventing under-reporting or double-counting.
+                            if ($level === 'ad') {
+                                try {
+                                    $pmaxData = $api->getMetricsForLevel(
+                                        customerId: $accountPlatformId,
+                                        level: 'campaign',
+                                        startDate: $chunk['start'],
+                                        endDate: $chunk['end'],
+                                        metrics: $requestedMetrics,
+                                        segments: ['segments.date', 'segments.device'],
+                                        where: "campaign.advertising_channel_type IN ('PERFORMANCE_MAX', 'SHOPPING')"
+                                    );
+
+                                    $pmaxRows = $pmaxData['results'] ?? [];
+                                    if (!empty($pmaxRows)) {
+                                        $pmaxCollection = GoogleAdsMetricConvert::campaignMetrics(
+                                            rows: $pmaxRows,
+                                            logger: $this->logger,
+                                            channeledAccount: $caObject ?? $accountPlatformId,
+                                            account: (method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($config['accounts_group_name'] ?? 'Default')
+                                        );
+
+                                        if ($this->dataProcessor && $pmaxCollection->count() > 0) {
+                                            $this->validateHierarchicalIntegrity(collection: $pmaxCollection, type: \Anibalealvarezs\ApiDriverCore\Enums\HierarchyType::MARKETING);
+
+                                            $result = ($this->dataProcessor)($pmaxCollection, $this->logger);
+                                            $metricsCount = $result['metrics'] ?? $pmaxCollection->count();
+                                            $processedRows = $result['rows'] ?? count($pmaxRows);
+                                            $duplicates = $result['duplicates'] ?? 0;
+
+                                            $totalStats['metrics'] += $metricsCount;
+                                            $totalStats['rows'] += $processedRows;
+                                            $totalStats['duplicates'] += $duplicates;
+
+                                            $this->logger?->info("<<< EXITO: PMax/Shopping metrics sincronizadas para Customer: $accountPlatformId. Métricas: $metricsCount | Filas: $processedRows");
+                                        }
+                                    }
+                                } catch (Exception $pe) {
+                                    $this->logger?->warning("Could not sync PMax/Shopping metrics for Customer $accountPlatformId: " . $pe->getMessage());
+                                }
+                            }
                         }
                     }
 
