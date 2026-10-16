@@ -160,6 +160,80 @@ class GoogleAdsDriverTest extends TestCase
         $this->assertEquals(4, $processedMetrics);
     }
 
+    public function testSyncEntitiesWithEntitiesType()
+    {
+        $apiMock = $this->createMock(GoogleAdsApi::class);
+        $apiMock->expects($this->once())
+            ->method('getCampaigns')
+            ->with('123456')
+            ->willReturn(['results' => [['campaign' => ['id' => '111']]]]);
+        $apiMock->expects($this->once())
+            ->method('getAdGroups')
+            ->with('123456')
+            ->willReturn(['results' => [['ad_group' => ['id' => '222']]]]);
+        $apiMock->expects($this->once())
+            ->method('getAds')
+            ->with('123456')
+            ->willReturn(['results' => [['ad_group_ad' => ['ad' => ['id' => '333']]]]] );
+
+        $config = [
+            'entity' => 'entities',
+            'ad_accounts' => [
+                ['enabled' => true, 'id' => '123456']
+            ]
+        ];
+
+        $authMock = $this->createMock(AuthProviderInterface::class);
+        $authMock->method('hasCredentials')->willReturn(true);
+
+        $driverMock = $this->getMockBuilder(GoogleAdsDriver::class)
+            ->setConstructorArgs([null, $this->logger])
+            ->onlyMethods(['getApi'])
+            ->getMock();
+
+        $driverMock->method('getApi')->willReturn($apiMock);
+        $driverMock->setAuthProvider($authMock);
+
+        $response = $driverMock->sync(new \DateTime('2025-01-01'), new \DateTime('2025-01-31'), $config);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true);
+
+        $this->assertEquals('success', $body['status']);
+        $this->assertArrayHasKey('123456', $body['results']);
+        $this->assertCount(1, $body['results']['123456']['campaigns']);
+        $this->assertCount(1, $body['results']['123456']['ad_groups']);
+        $this->assertCount(1, $body['results']['123456']['ads']);
+    }
+
+    public function testSyncEntitiesWithEmptyAccountsReturnsCleanSuccess()
+    {
+        $apiMock = $this->createMock(GoogleAdsApi::class);
+        $apiMock->expects($this->never())->method('getCampaigns');
+
+        $config = [
+            'ad_accounts' => []
+        ];
+
+        $authMock = $this->createMock(AuthProviderInterface::class);
+        $authMock->method('hasCredentials')->willReturn(true);
+
+        $driverMock = $this->getMockBuilder(GoogleAdsDriver::class)
+            ->setConstructorArgs([null, $this->logger])
+            ->onlyMethods(['getApi'])
+            ->getMock();
+
+        $driverMock->method('getApi')->willReturn($apiMock);
+        $driverMock->setAuthProvider($authMock);
+
+        $response = $driverMock->syncEntities('entities', new \DateTime('2025-01-01'), new \DateTime('2025-01-31'), $config);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true);
+        $this->assertEquals('success', $body['status']);
+        $this->assertEquals([], $body['results']);
+    }
+
     public function testGoogleAdsDriverMethods()
     {
         $this->assertEquals('Google Ads', GoogleAdsDriver::getProviderLabel());

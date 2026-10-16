@@ -357,12 +357,44 @@
                     }
                 }
 
+                // If no enabled ad accounts are configured, return clean success rather than failing
+                if (empty($customerIds)) {
+                    $this->logger?->info("No enabled Google Ads accounts found for entity sync ($entity).");
+                    return new Response(json_encode(['status' => 'success', 'results' => []]), 200, ['Content-Type' => 'application/json']);
+                }
+
                 foreach ($customerIds as $customerId) {
                     if ($shouldContinue && !$shouldContinue()) {
                         throw new Exception("Sync aborted by the orchestrator.");
                     }
 
                     switch ($entity) {
+                        case 'entities':
+                            // Sync campaigns, ad groups, and ads together
+                            $campData = $api->getCampaigns(
+                                $customerId,
+                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date, campaign.end_date"
+                            );
+                            if (!empty($campData['results'])) {
+                                $results[$customerId]['campaigns'] = $campData['results'];
+                            }
+
+                            $adGroupsData = $api->getAdGroups(
+                                $customerId,
+                                "ad_group.id, ad_group.name, ad_group.status, campaign.id, ad_group.type"
+                            );
+                            if (!empty($adGroupsData['results'])) {
+                                $results[$customerId]['ad_groups'] = $adGroupsData['results'];
+                            }
+
+                            $adsData = $api->getAds(
+                                $customerId,
+                                "ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.status, ad_group.id, campaign.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls"
+                            );
+                            if (!empty($adsData['results'])) {
+                                $results[$customerId]['ads'] = $adsData['results'];
+                            }
+                            break;
                         case 'campaign':
                             $campaignsData = $api->getCampaigns(
                                 $customerId,
@@ -409,6 +441,11 @@
          */
         public function sync(\DateTime $startDate, \DateTime $endDate, array $config = [], ?callable $shouldContinue = null, ?callable $identityMapper = null): Response
         {
+            $entity = $config['entity'] ?? 'metrics';
+            if ($entity !== 'metrics' && $entity !== 'channeled_metrics') {
+                return $this->syncEntities($entity, $startDate, $endDate, $config, $shouldContinue, $identityMapper);
+            }
+
             $api = $this->getApi();
             $accountsToProcess = $config['ad_accounts'] ?? [];
             $chunkSize = $config['cache_chunk_size'] ?? '1 week';
@@ -607,8 +644,9 @@
             );
 
             $envOverrides = $this->getEnvMapping();
+            $mapping = $envOverrides[$this->getChannel()] ?? $envOverrides;
 
-            foreach ($envOverrides as $envKey => $configPath) {
+            foreach ($mapping as $envKey => $configPath) {
                 $val = getenv($envKey);
                 if ($val !== false && $val !== '') {
                     $config[$configPath] = $val;
@@ -641,7 +679,7 @@
         {
             return [
                 'history_months'     => 24,
-                'entities_sync'      => 'entities',
+                'entities_sync'      => false,
                 'recent_cron_hour'   => 5,
                 'recent_cron_minute' => 30,
             ];
