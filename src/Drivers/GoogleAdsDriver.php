@@ -134,7 +134,7 @@
             ];
         }
 
-        private const int DEFAULT_MAX_WORKERS = 2;
+        private const int DEFAULT_MAX_WORKERS = 3;
 
         public static function getMetricProfiles(): array
         {
@@ -269,6 +269,14 @@
             }
             if (isset($newData['max_workers'])) {
                 $chanCfg['max_workers'] = (int)$newData['max_workers'];
+            }
+
+            // Map level and metric feature toggles into AD_ACCOUNT config block
+            $gadsToggles = ['campaigns', 'adgroups', 'ads', 'ad_account_metrics', 'campaign_metrics', 'adgroup_metrics', 'ad_metrics'];
+            foreach ($gadsToggles as $toggleKey) {
+                if (isset($featureToggles[$toggleKey])) {
+                    $chanCfg['AD_ACCOUNT'][$toggleKey] = (bool)$featureToggles[$toggleKey];
+                }
             }
 
             $newAccountsList = [];
