@@ -319,22 +319,49 @@
                         $clientsResponse = $api->getCustomerClients($customerId);
                         $clients = $clientsResponse['results'] ?? [];
                         
+                        // First pass: find the manager account name if this customer is a manager
+                        $managerName = null;
+                        foreach ($clients as $clientWrapper) {
+                            $c = $clientWrapper['customerClient'] ?? null;
+                            if ($c && (string)($c['id'] ?? '') === (string)$customerId) {
+                                if (!empty($c['manager'])) {
+                                    $managerName = $c['descriptiveName'] ?? "Manager ($customerId)";
+                                }
+                                break;
+                            }
+                        }
+
                         foreach ($clients as $clientWrapper) {
                             $client = $clientWrapper['customerClient'] ?? null;
-                            if ($client && empty($client['hidden'])) {
-                                $adAccounts[] = [
-                                    'id'   => $client['id'],
-                                    'name' => $client['descriptiveName'] ?? 'Unknown Account ' . $client['id'],
-                                    'data' => $client
-                                ];
+                            if (!$client || !empty($client['hidden'])) {
+                                continue;
                             }
+
+                            // If this account is a manager account, ignore it (cannot hold campaigns or ad delivery data)
+                            if (!empty($client['manager'])) {
+                                continue;
+                            }
+
+                            $clientId = (string)$client['id'];
+
+                            // Attach parent manager information and routing header credentials
+                            if ($managerName) {
+                                $client['login_customer_id'] = $customerId;
+                                $client['manager_name'] = $managerName;
+                            }
+
+                            $adAccounts[$clientId] = [
+                                'id'   => $clientId,
+                                'name' => $client['descriptiveName'] ?? 'Unknown Account ' . $clientId,
+                                'data' => $client
+                            ];
                         }
                     } catch (Exception $e) {
                         $this->logger?->warning("Could not fetch customer clients for accessible customer {$customerId}: " . $e->getMessage());
                     }
                 }
 
-                return ['ad_accounts' => $adAccounts];
+                return ['ad_accounts' => array_values($adAccounts)];
 
             } catch (Exception $e) {
                 if ($throwOnError) {
@@ -356,24 +383,31 @@
                 $api = $this->getApi();
                 $results = [];
 
-                $customerIds = [];
+                $accounts = [];
                 if (!empty($config['ad_accounts'])) {
                     foreach ($config['ad_accounts'] as $acc) {
                         if (!empty($acc['enabled']) && !empty($acc['id'])) {
-                            $customerIds[] = (string)$acc['id'];
+                            $accounts[] = $acc;
                         }
                     }
                 }
 
                 // If no enabled ad accounts are configured, return clean success rather than failing
-                if (empty($customerIds)) {
+                if (empty($accounts)) {
                     $this->logger?->info("No enabled Google Ads accounts found for entity sync ($entity).");
                     return new Response(json_encode(['status' => 'success', 'results' => []]), 200, ['Content-Type' => 'application/json']);
                 }
 
-                foreach ($customerIds as $customerId) {
+                foreach ($accounts as $account) {
                     if ($shouldContinue && !$shouldContinue()) {
                         throw new Exception("Sync aborted by the orchestrator.");
+                    }
+
+                    $customerId = (string)$account['id'];
+                    $accData = $account['data'] ?? ($account['account_data'] ?? []);
+                    $loginCustomerId = $accData['login_customer_id'] ?? null;
+                    if ($loginCustomerId && method_exists($api, 'setLoginCustomerId')) {
+                        $api->setLoginCustomerId($loginCustomerId);
                     }
 
                     switch ($entity) {
@@ -509,6 +543,12 @@
 
                     $caObject = $caMap[$accountPlatformId] ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($accountPlatformId);
                     $levelsToFetch = $this->resolveLevelsToFetch($accCfg, $config);
+
+                    $accData = $accCfg['data'] ?? ($account['data'] ?? []);
+                    $loginCustomerId = $accData['login_customer_id'] ?? null;
+                    if ($loginCustomerId && method_exists($api, 'setLoginCustomerId')) {
+                        $api->setLoginCustomerId($loginCustomerId);
+                    }
                     $chunks = DateHelper::getDateChunks($startDate->format('Y-m-d'), $endDate->format('Y-m-d'), $chunkSize);
 
                     foreach ($chunks as $chunk) {
