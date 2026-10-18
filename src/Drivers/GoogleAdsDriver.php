@@ -418,7 +418,7 @@
                             // Sync campaigns, ad groups, and ads together
                             $campData = $api->getCampaigns(
                                 $customerId,
-                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date, campaign.end_date"
+                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date_time, campaign.end_date_time"
                             );
                             if (!empty($campData['results'])) {
                                 $results[$customerId]['campaigns'] = $campData['results'];
@@ -443,7 +443,7 @@
                         case 'campaign':
                             $campaignsData = $api->getCampaigns(
                                 $customerId,
-                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date, campaign.end_date"
+                                "campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.start_date_time, campaign.end_date_time"
                             );
                             if (!empty($campaignsData['results'])) {
                                 $results[$customerId]['campaigns'] = $campaignsData['results'];
