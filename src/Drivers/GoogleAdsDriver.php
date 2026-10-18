@@ -175,6 +175,7 @@
                 'clicks'              => ['metrics.clicks', 'clicks'],
                 'impressions'         => ['metrics.impressions', 'impressions'],
                 'conversions'         => ['metrics.conversions', 'conversions'],
+                'total_revenue'       => ['metrics.conversions_value', 'conversions_value', 'conversion_value'],
                 'conversion_value'    => ['metrics.conversions_value', 'conversion_value'],
                 'roas_purchase'       => ['metrics.roas_purchase', 'roas_purchase'],
                 'cost_per_conversion' => ['metrics.cost_per_conversion', 'cost_per_conversion'],
