@@ -422,6 +422,12 @@
                             );
                             if (!empty($campData['results'])) {
                                 $results[$customerId]['campaigns'] = $campData['results'];
+                                if ($this->dataProcessor) {
+                                    $campaignEntities = \Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAdsEntityConvert::campaigns($campData['results'], $customerId);
+                                    if ($campaignEntities->count() > 0) {
+                                        ($this->dataProcessor)($campaignEntities, 'campaign');
+                                    }
+                                }
                             }
 
                             $adGroupsData = $api->getAdGroups(
@@ -430,6 +436,12 @@
                             );
                             if (!empty($adGroupsData['results'])) {
                                 $results[$customerId]['ad_groups'] = $adGroupsData['results'];
+                                if ($this->dataProcessor) {
+                                    $adGroupEntities = \Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAdsEntityConvert::adGroups($adGroupsData['results'], $customerId);
+                                    if ($adGroupEntities->count() > 0) {
+                                        ($this->dataProcessor)($adGroupEntities, 'ad_group');
+                                    }
+                                }
                             }
 
                             $adsData = $api->getAds(
@@ -438,6 +450,12 @@
                             );
                             if (!empty($adsData['results'])) {
                                 $results[$customerId]['ads'] = $adsData['results'];
+                                if ($this->dataProcessor) {
+                                    $adEntities = \Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAdsEntityConvert::ads($adsData['results'], $customerId);
+                                    if ($adEntities->count() > 0) {
+                                        ($this->dataProcessor)($adEntities, 'ad');
+                                    }
+                                }
                             }
                             break;
                         case 'campaign':
