@@ -220,6 +220,61 @@
         }
 
         /**
+         * Converts Google Ads Search Term API rows into metrics.
+         */
+        public static function searchTermMetrics(
+            array              $rows,
+            ?LoggerInterface   $logger = null,
+            object|string|null $channeledAccount = null,
+            object|string|null $campaign = null,
+            object|string|null $channeledCampaign = null,
+            object|string|null $channeledAdGroup = null,
+            object|string|null $period = 'daily',
+            array              $metricsToProcess = [],
+            ?string            $customFields = null,
+            object|string|null $account = null,
+        ): ArrayCollection
+        {
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
+
+            $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
+            $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
+
+            $rows = self::preprocessRows($rows);
+
+            return UniversalMetricConverter::convert($rows, [
+                'channel'              => 'google_ads',
+                'period'               => $periodValue,
+                'platform_id_field'    => 'search_term_view.search_term',
+                'date_field'           => 'segments.date',
+                'metrics'              => array_combine($metricsList, $metricsList),
+                'dimensions'           => ['segments.device', 'search_term_view.status'],
+                'metadata_fields'      => self::METADATA_FIELDS,
+                'context'              => UniversalMetricConverter::getUniversalContext([
+                    'account'            => $account,
+                    'channeledAccount'   => $channeledAccount,
+                    'channeledAccountId' => $channeledAccountId,
+                    'campaign'           => $campaign,
+                    'channeledCampaign'  => $channeledCampaign,
+                    'channeledAdGroup'   => $channeledAdGroup,
+                    'level'              => 'query',
+                ]),
+                'row_key_fields'       => [
+                    'campaign.id'                 => ['campaign', 'channeledCampaign'],
+                    'ad_group.id'                 => ['channeledAdGroup'],
+                    'search_term_view.search_term' => ['query'],
+                ],
+                'row_entity_fields'    => [
+                    'campaign.id'                 => 'channeledCampaign',
+                    'ad_group.id'                 => 'channeledAdGroup',
+                    'search_term_view.search_term' => 'query',
+                ],
+                'fallback_platform_id' => 'search_term'
+            ], $logger);
+        }
+
+        /**
          * Metrics proxy for dynamic levels.
          */
         public static function metrics(
@@ -234,6 +289,7 @@
                 'campaign' => self::campaignMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 'ad_group', 'adset' => self::adGroupMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 'ad' => self::adMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
+                'search_term', 'query' => self::searchTermMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 default => self::customerMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
             };
         }

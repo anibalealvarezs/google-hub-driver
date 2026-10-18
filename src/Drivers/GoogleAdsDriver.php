@@ -154,6 +154,20 @@
                     key: 'google_ads_ad',
                     label: 'Google Ads Ad'
                 ),
+                [
+                    'key'           => 'google_ads_search_term',
+                    'channel'       => 'google_ads',
+                    'label'         => 'Google Ads Search Terms',
+                    'metric_config' => [
+                        'required_fields'  => ['account', 'channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'query', 'dimensionSet', 'channel', 'name', 'period'],
+                        'common_filters'   => ['account', 'channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'query', 'name', 'period'],
+                        'groupable_fields' => ['query', 'channeledCampaign', 'channeledAdGroup'],
+                        'index_hints'      => [
+                            ['channel', 'name', 'period', 'query'],
+                            ['channel', 'channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'query', 'dimensionSet', 'name'],
+                        ],
+                    ],
+                ],
             ];
         }
 
@@ -182,6 +196,8 @@
                 'cpc'                 => ['metrics.average_cpc', 'cpc'],
                 'ctr'                 => ['metrics.ctr', 'ctr'],
                 'conversion_rate'     => ['metrics.conversions_from_interactions_rate', 'conversion_rate'],
+                'video_views'         => ['metrics.video_views', 'video_views'],
+                'search_term'         => ['search_term_view.search_term', 'query'],
             ];
         }
 
@@ -699,6 +715,9 @@
             if (!empty($toggleConfig['ad_metrics']) || !empty($config['sync_ad_metrics'])) {
                 $levels[] = 'ad';
             }
+            if (!empty($toggleConfig['search_term_metrics']) || !empty($toggleConfig['search_terms']) || !empty($config['sync_search_term_metrics']) || !empty($config['sync_search_terms'])) {
+                $levels[] = 'search_term';
+            }
             if (!empty($toggleConfig['ad_account_metrics']) || !empty($config['sync_ad_account_metrics']) || empty($levels)) {
                 $levels[] = 'account';
             }
@@ -722,13 +741,14 @@
                     'metrics_strategy'    => 'default',
                 ],
                 'AD_ACCOUNT' => [
-                    'ad_account_metrics' => false,
-                    'campaigns'          => true,
-                    'campaign_metrics'   => false,
-                    'adgroups'           => true,
-                    'adgroup_metrics'    => false,
-                    'ads'                => true,
-                    'ad_metrics'         => true,
+                    'ad_account_metrics'  => false,
+                    'campaigns'           => true,
+                    'campaign_metrics'    => false,
+                    'adgroups'            => true,
+                    'adgroup_metrics'     => false,
+                    'ads'                 => true,
+                    'ad_metrics'          => true,
+                    'search_term_metrics' => false,
                 ],
                 'entity'     => [
                     'id'                   => '',
