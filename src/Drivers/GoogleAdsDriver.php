@@ -264,6 +264,9 @@
             }
 
             $chanCfg['enabled'] = $enabled;
+            if (!empty($newData['developer_token'])) {
+                $chanCfg['developer_token'] = $newData['developer_token'];
+            }
             if (isset($newData['granular_sync'])) {
                 $chanCfg['granular_sync'] = filter_var($newData['granular_sync'], FILTER_VALIDATE_BOOLEAN);
             }
