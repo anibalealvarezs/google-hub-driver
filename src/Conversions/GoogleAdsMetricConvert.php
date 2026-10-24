@@ -351,6 +351,7 @@
                     $convVal = (float)$conversionsValue;
                     $processed['conversions_value'] = $convVal;
                     $processed['roas_purchase'] = $convVal;
+                    $processed['revenue'] = $convVal;
                 }
 
                 if (isset($processed['metrics.conversions'])) {
