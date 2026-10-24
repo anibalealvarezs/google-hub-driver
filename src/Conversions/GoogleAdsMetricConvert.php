@@ -323,26 +323,36 @@
                 $flatten($row);
 
                 // Derived metrics mappings - convert micros to currency units and provide canonical aliases
-                if (isset($processed['metrics.cost_micros'])) {
-                    $spendVal = (float)$processed['metrics.cost_micros'] / 1000000;
+                // Note: Google Ads REST API returns camelCase properties (costMicros, costPerConversion, averageCpc, conversionsValue)
+                $costMicros = $processed['metrics.costMicros'] ?? $processed['metrics.cost_micros'] ?? null;
+                if ($costMicros !== null) {
+                    $spendVal = (float)$costMicros / 1000000;
                     $processed['metrics.cost_micros'] = $spendVal;
+                    $processed['metrics.costMicros'] = $spendVal;
                     $processed['spend'] = $spendVal;
                 }
-                if (isset($processed['metrics.cost_per_conversion'])) {
-                    $cpcVal = (float)$processed['metrics.cost_per_conversion'] / 1000000;
+
+                $costPerConversion = $processed['metrics.costPerConversion'] ?? $processed['metrics.cost_per_conversion'] ?? null;
+                if ($costPerConversion !== null) {
+                    $cpcVal = (float)$costPerConversion / 1000000;
                     $processed['metrics.cost_per_conversion'] = $cpcVal;
                     $processed['cost_per_conversion'] = $cpcVal;
                 }
-                if (isset($processed['metrics.average_cpc'])) {
-                    $avgCpcVal = (float)$processed['metrics.average_cpc'] / 1000000;
+
+                $averageCpc = $processed['metrics.averageCpc'] ?? $processed['metrics.average_cpc'] ?? null;
+                if ($averageCpc !== null) {
+                    $avgCpcVal = (float)$averageCpc / 1000000;
                     $processed['metrics.average_cpc'] = $avgCpcVal;
                     $processed['cpc'] = $avgCpcVal;
                 }
-                if (isset($processed['metrics.conversions_value'])) {
-                    $convVal = (float)$processed['metrics.conversions_value'];
+
+                $conversionsValue = $processed['metrics.conversionsValue'] ?? $processed['metrics.conversions_value'] ?? null;
+                if ($conversionsValue !== null) {
+                    $convVal = (float)$conversionsValue;
                     $processed['conversions_value'] = $convVal;
                     $processed['roas_purchase'] = $convVal;
                 }
+
                 if (isset($processed['metrics.conversions'])) {
                     $processed['conversions'] = (float)$processed['metrics.conversions'];
                 }
