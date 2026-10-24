@@ -538,7 +538,8 @@
         public function sync(\DateTime $startDate, \DateTime $endDate, array $config = [], ?callable $shouldContinue = null, ?callable $identityMapper = null): Response
         {
             $entity = $config['entity'] ?? 'metrics';
-            if ($entity !== 'metrics' && $entity !== 'channeled_metrics') {
+            $isMetrics = in_array($entity, ['metric', 'metrics', 'channeled_metric', 'channeled_metrics'], true);
+            if (!$isMetrics) {
                 return $this->syncEntities($entity, $startDate, $endDate, $config, $shouldContinue, $identityMapper);
             }
 
