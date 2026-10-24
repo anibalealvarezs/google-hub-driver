@@ -30,7 +30,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'roas_purchase'];
             $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
             $periodValue = is_object($period) && isset($period->value) ? $period->value : (string)$period;
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -72,7 +72,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'roas_purchase'];
             $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -123,7 +123,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'roas_purchase'];
             $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -178,7 +178,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'roas_purchase'];
             $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
@@ -235,7 +235,7 @@
             object|string|null $account = null,
         ): ArrayCollection
         {
-            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions'];
+            $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'roas_purchase'];
             $metricsList = !empty($metricsToProcess) ? $metricsToProcess : ($customFields ? explode(',', $customFields) : $defaultMetrics);
 
             $channeledAccountId = is_object($channeledAccount) ? (method_exists($channeledAccount, 'getId') ? $channeledAccount->getId() : (string)$channeledAccount) : (string)$channeledAccount;
