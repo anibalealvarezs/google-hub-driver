@@ -106,14 +106,29 @@
 
             $creds = $this->resolveGoogleCredentials($config);
 
+            $channelsConfig = \Anibalealvarezs\ApiDriverCore\Helpers\Helpers::getChannelsConfig()['google_ads'] ?? [];
+            $developerToken = $config['developer_token']
+                ?? $config['google_ads']['developer_token']
+                ?? $channelsConfig['developer_token']
+                ?? $_ENV['GOOGLE_ADS_DEVELOPER_TOKEN']
+                ?? getenv('GOOGLE_ADS_DEVELOPER_TOKEN')
+                ?: '';
+
+            $loginCustomerId = $config['login_customer_id']
+                ?? $config['google_ads']['login_customer_id']
+                ?? $channelsConfig['login_customer_id']
+                ?? $_ENV['GOOGLE_ADS_LOGIN_CUSTOMER_ID']
+                ?? getenv('GOOGLE_ADS_LOGIN_CUSTOMER_ID')
+                ?: null;
+
             return new GoogleAdsApi(
                 redirectUrl: $creds['redirectUrl'],
                 clientId: $creds['clientId'],
                 clientSecret: $creds['clientSecret'],
                 refreshToken: $creds['refreshToken'],
                 userId: $creds['userId'],
-                developerToken: $config['developer_token'] ?? $config['google_ads']['developer_token'] ?? $_ENV['GOOGLE_ADS_DEVELOPER_TOKEN'] ?? getenv('GOOGLE_ADS_DEVELOPER_TOKEN') ?: '',
-                loginCustomerId: $config['login_customer_id'] ?? $config['google_ads']['login_customer_id'] ?? $_ENV['GOOGLE_ADS_LOGIN_CUSTOMER_ID'] ?? getenv('GOOGLE_ADS_LOGIN_CUSTOMER_ID') ?: null,
+                developerToken: $developerToken,
+                loginCustomerId: $loginCustomerId,
                 scopes: $creds['scopes'],
                 token: $creds['token'],
                 tokenPath: $creds['tokenPath'],
