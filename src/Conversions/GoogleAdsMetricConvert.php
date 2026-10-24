@@ -365,13 +365,16 @@
 
                 // Normalize segments.device to canonical lowercase format
                 if (isset($processed['segments.device'])) {
-                    $processed['segments.device'] = match (strtoupper((string)$processed['segments.device'])) {
+                    $deviceNorm = match (strtoupper((string)$processed['segments.device'])) {
                         'DESKTOP' => 'desktop',
                         'HIGH_END_MOBILE', 'MOBILE' => 'mobile',
                         'TABLET' => 'tablet',
                         'CONNECTED_TV' => 'connected_tv',
                         default => strtolower((string)$processed['segments.device']),
                     };
+                    $processed['segments.device'] = $deviceNorm;
+                    $processed['device'] = $deviceNorm;
+                    $processed['device_type'] = $deviceNorm;
                 }
 
                 // Keep the original nested objects for backwards compatibility or fallback
