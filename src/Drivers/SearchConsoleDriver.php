@@ -59,6 +59,8 @@
         private static array $allDimensions = ['date', 'query', 'country', 'page', 'device', 'searchAppearance'];
         private static array $optionalDimensions = ['query', 'country', 'device', 'searchAppearance'];
 
+        public const SEARCH_TYPES = ['web', 'image', 'video', 'news', 'discover', 'googleNews'];
+
         /**
          * Determine if this driver produces search query/keyword data eligible for classification.
          *
@@ -124,8 +126,11 @@
                         'asset_type'         => 'page',
                         'default_filters'    => [
                             'dimensions.searchAppearance' => 'standard',
+                            'dimensions.search_type' => 'web',
                         ],
                         'group_patterns'     => [
+                            ['dimensions.search_type'],
+                            ['dimensions.search_type', 'daily'],
                             ['dimensions.country'],
                             ['dimensions.device'],
                             ['dimensions.country', 'dimensions.device'],
@@ -145,6 +150,7 @@
                             [],
                         ],
                         'filter_contract'    => [
+                            'dimensions.search_type'      => ['eq', 'neq', 'in'],
                             'channel'                     => ['eq'],
                             'dimensions.country'          => ['eq', 'neq', 'in'],
                             'dimensions.device'           => ['eq', 'neq', 'in'],
@@ -171,6 +177,7 @@
                         'asset_type'         => 'page',
                         'default_filters'    => [
                             'dimensions.searchAppearance' => ['operator' => 'neq', 'value' => 'standard'],
+                            'dimensions.search_type' => 'web',
                         ],
                         'group_patterns'     => [
                             ['dimensions.searchAppearance'],
@@ -181,6 +188,7 @@
                         'filter_contract'    => [
                             'channel'                     => ['eq'],
                             'dimensions.searchAppearance' => ['eq', 'neq', 'in'],
+                            'dimensions.search_type'      => ['eq', 'neq', 'in'],
                             'dimensions.country'          => ['eq', 'neq', 'in'],
                             'dimensions.device'           => ['eq', 'neq', 'in'],
                         ],
@@ -196,8 +204,10 @@
                     key: 'gsc_page_flow',
                     label: 'GSC Page Flow',
                     overrides: [
+                        'default_filters' => ['dimensions.search_type' => 'web'],
                         'filter_contract'    => [
                             'channel'                     => ['='],
+                            'dimensions.search_type'      => ['eq', 'neq', 'in'],
                             'page'                        => ['=', 'in'],
                             'dimensions.searchAppearance' => ['=', 'in'],
                             'metricDate'                  => ['between', '>=', '<='],
@@ -370,6 +380,13 @@
 
             $chanCfg = &$currentConfig['channels'][GoogleChannel::SEARCH_CONSOLE->value];
 
+            if (array_key_exists('search_types', $newData)) {
+                if (!is_array($newData['search_types']) || !$newData['search_types'] || array_diff($newData['search_types'], self::SEARCH_TYPES)) {
+                    throw new \InvalidArgumentException('search_types must contain supported GSC types.');
+                }
+                $chanCfg['search_types'] = array_values(array_unique($newData['search_types']));
+            }
+
             if ($historyRange) {
                 $chanCfg['cache_history_range'] = $historyRange;
             }
@@ -526,6 +543,10 @@
                 $sitesToProcess = $config['sites'] ?? $chanCfg['sites'] ?? [];
                 $rowLimit = $config['row_limit'] ?? $chanCfg['row_limit'] ?? 25000;
                 $calculateSynthetics = filter_var($config['calculate_synthetics'] ?? $chanCfg['calculate_synthetics'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                $searchTypes = $config['search_types'] ?? $chanCfg['search_types'] ?? self::SEARCH_TYPES;
+                if (!is_array($searchTypes) || !$searchTypes || array_diff($searchTypes, self::SEARCH_TYPES)) {
+                    throw new \InvalidArgumentException('search_types must be a non-empty list of supported GSC types.');
+                }
 
                 // 1. Batch Resolve Identities via Oracle
                 $pageMap = [];
@@ -652,7 +673,8 @@
                                 endDate: $chunkEndStr,
                                 rowLimit: $rowLimit,
                                 calculateSynthetics: $calculateSynthetics,
-                                shouldContinue: $shouldContinue
+                                shouldContinue: $shouldContinue,
+                                searchTypes: array_values(array_unique($searchTypes))
                             );
 
                             if (empty($rows)) {
@@ -690,7 +712,8 @@
                             $this->logger?->error("!!! ERROR: Fallo al sincronizar ventana $chunkStartStr a $chunkEndStr para $siteUrl: ".$e->getMessage());
                             if (str_contains($e->getMessage(), 'Sync aborted')) throw $e;
                             if ($this->isAuthenticationError($e)) throw $e;
-                            // For other errors, we continue with next chunk
+                            // A partially fetched type/window must remain retryable by the scheduler.
+                            throw $e;
                         }
 
                         $chunkStart->addDays(7);
@@ -729,7 +752,8 @@
             string    $endDate,
             int       $rowLimit = 25000,
             bool      $calculateSynthetics = true,
-            ?callable $shouldContinue = null
+            ?callable $shouldContinue = null,
+            array     $searchTypes = self::SEARCH_TYPES
         ): array
         {
             $finalRows = [];
@@ -743,8 +767,11 @@
                 $dayStr = $current->format('Y-m-d');
                 $this->logger?->info(">>> Fetching GSC Data for Date: $dayStr");
 
-                $dayRows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $rowLimit, $calculateSynthetics);
-                $finalRows = array_merge($finalRows, $dayRows);
+                foreach ($searchTypes as $searchType) {
+                    if ($shouldContinue && !$shouldContinue()) throw new Exception('Sync aborted by the orchestrator.');
+                    $dayRows = $this->fetchGSCDailyData($api, $siteUrl, $dayStr, $rowLimit, $calculateSynthetics, $searchType, $shouldContinue);
+                    $finalRows = array_merge($finalRows, $dayRows);
+                }
 
                 $current->addDay();
             }
@@ -760,9 +787,26 @@
             string $siteUrl,
             string $date,
             int    $rowLimit = 25000,
-            bool   $calculateSynthetics = true
+            bool   $calculateSynthetics = true,
+            string $searchType = 'web',
+            ?callable $shouldContinue = null
         ): array
         {
+            if (!in_array($searchType, self::SEARCH_TYPES, true)) throw new \InvalidArgumentException('Unsupported GSC search type.');
+            if (in_array($searchType, ['discover', 'googleNews'], true)) {
+                // These feeds have neither search queries nor ranking positions.
+                $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['date', 'page', 'country'], $rowLimit, $searchType, $shouldContinue);
+                return array_map(static function (array $row) use ($date, $searchType, $siteUrl): array {
+                    return [
+                        'date' => $row['keys'][0] ?? $date,
+                        'page' => $row['keys'][1] ?? $siteUrl,
+                        'country' => strtoupper($row['keys'][2] ?? Helpers::$defaultValues['country']),
+                        'search_type' => $searchType, 'searchAppearance' => 'standard',
+                        'clicks' => $row['clicks'], 'impressions' => $row['impressions'],
+                        'ctr' => $row['ctr'], 'synthetic' => false,
+                    ];
+                }, $rows);
+            }
             $baseDimensions = ['query', 'country', 'page', 'device'];
             $reconcileDimensions = ['date', 'query', 'country', 'page', 'device'];
 
@@ -781,14 +825,15 @@
                     $subsetsToFetch[] = $subset;
                 }
             } else {
-                $subsetsToFetch[] = $baseDimensions;
+                $subsetsToFetch = [$baseDimensions];
             }
 
             // 2. Fetch all combinations for this specific day
             $dayRows = [];
             foreach ($subsetsToFetch as $dimSubset) {
                 $actualDims = array_merge(['date'], $dimSubset);
-                $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, $actualDims, $rowLimit);
+                $rows = $this->fetchWithRetry($api, $siteUrl, $date, $date, $actualDims, $rowLimit, $searchType, $shouldContinue);
+                if ($calculateSynthetics && !$dimSubset && !$rows) return [];
                 $this->logger?->info("GSC Subset [".implode(',', $actualDims)."]: ".count($rows)." rows fetched.");
                 foreach ($rows as $row) {
                     $dayRows[] = array_merge($row, ['subset' => $actualDims]);
@@ -813,14 +858,15 @@
 
             // 4. Final normalization and add Search Appearance (Standard)
             // We tag all reconciled rows as 'standard' so they can be filtered separately from specific appearance breakdowns.
-            $finalDayRows = array_map(function ($row) {
+            $finalDayRows = array_map(function ($row) use ($searchType) {
                 $row['searchAppearance'] = 'standard';
+                $row['search_type'] = $searchType;
 
                 return $row;
             }, $reconciledRows);
 
             // Pass 2: Search Appearance (Parallel Set - Not processed by Möbius/IPF)
-            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit);
+            $appearanceRows = $this->fetchWithRetry($api, $siteUrl, $date, $date, ['searchAppearance'], $rowLimit, $searchType, $shouldContinue);
             foreach ($appearanceRows as $row) {
                 $finalDayRows[] = [
                     'date'             => $date,
@@ -829,6 +875,7 @@
                     'device'           => strtolower(Helpers::$defaultValues['device']),
                     'page'             => Helpers::$defaultValues['page'] ?? $siteUrl,
                     'searchAppearance' => $row['keys'][0] ?? 'standard',
+                    'search_type'      => $searchType,
                     'clicks'           => $row['clicks'],
                     'impressions'      => $row['impressions'],
                     'ctr'              => $row['ctr'],
@@ -843,18 +890,20 @@
         /**
          * @throws GuzzleException
          */
-        private function fetchWithRetry(SearchConsoleApi $api, string $siteUrl, string $startDate, string $endDate, array $dimensions, int $rowLimit): array
+        private function fetchWithRetry(SearchConsoleApi $api, string $siteUrl, string $startDate, string $endDate, array $dimensions, int $rowLimit, string $searchType = 'web', ?callable $shouldContinue = null): array
         {
             $maxRetries = 3;
             $retryCount = 0;
             while ($retryCount < $maxRetries) {
+                if ($shouldContinue && !$shouldContinue()) throw new Exception('Sync aborted by the orchestrator.');
                 try {
                     $response = $api->getAllSearchQueryResults(
                         siteUrl: $siteUrl,
                         startDate: $startDate,
                         endDate: $endDate,
                         rowLimit: $rowLimit,
-                        dimensions: $dimensions
+                        dimensions: $dimensions,
+                        type: $searchType
                     );
 
                     return $response['rows'] ?? [];
@@ -894,6 +943,7 @@
                     'cache_history_range'  => '16 months',
                     'cache_aggregations'   => true,
                     'calculate_synthetics' => true,
+                    'search_types'         => self::SEARCH_TYPES,
                     'cron_recent_hour'     => 5,
                     'cron_recent_minute'   => 0,
                 ],
@@ -978,6 +1028,7 @@
                             $dimSet = $dimManager->resolveDimensionSet([
                                 ['dimensionKey' => 'country', 'dimensionValue' => $code],
                                 ['dimensionKey' => 'device', 'dimensionValue' => $type],
+                                ['dimensionKey' => 'search_type', 'dimensionValue' => 'web'],
                             ]);
 
                             $imps = rand(10, 100);

@@ -9,6 +9,7 @@
 - Use `D:\laragon\www\_shared\AGENTS.md` and `D:\laragon\www\_shared\MEMORY.md` for cross-repository protocols and workspace-wide learnings.
 - Keep secrets, credentials, tokens, and private endpoints out of this file.
 ## Current notes
+- GSC search types: `SearchConsoleDriver::SEARCH_TYPES` includes web/image/video/news/discover/googleNews. `search_types` defaults to all six; explicit lists limit calls. Search-result cubes reconcile independently per type; empty baselines short-circuit and non-synthetic mode no longer mixes baseline totals with full-cube rows. Discover/Google News use date/page/country and omit unsupported position/query/device data. Conversion defaults legacy inputs to Web and includes `search_type` in dimension identity. Existing aggregation profiles default to Web; explicit dimension filters override. Rollout needs tenant 1.18.3 backfill plus channel-only historical replay without `--wipe-metrics`; see `docs/surface-manifest.md`.
 - Google driver must normalize Search Console and Analytics data for the orchestrator.
 - Search Console reconciliation now defaults to IPF/Raking with bridge seeding, using all 16 subset constraints as simultaneous inputs.
 - The earlier daily distribution bug was fixed by including the metric date in the aggregation grouping key.

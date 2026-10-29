@@ -53,6 +53,15 @@
             $logger?->info(sprintf("Starting GSC metrics conversion for %d rows...", $rowCount));
 
             foreach ($rows as &$row) {
+                $row['search_type'] = $row['search_type'] ?? 'web';
+                if (!in_array($row['search_type'], SearchConsoleDriver::SEARCH_TYPES, true)) {
+                    throw new \InvalidArgumentException('Unsupported GSC search type.');
+                }
+                if (in_array($row['search_type'], ['discover', 'googleNews'], true)) {
+                    unset($row['position'], $row['query'], $row['device']);
+                    $row['country'] = $row['country'] ?? Country::UNK->value;
+                    continue;
+                }
                 if (!isset($row['keys']) || !is_array($row['keys'])) {
                     $row['query'] = $row['query'] ?? 'unknown';
                     $row['country'] = $row['country'] ?? Country::UNK->value;
@@ -76,7 +85,7 @@
                     GoogleFeature::CTR->value         => GoogleFeature::CTR->value,
                     GoogleFeature::POSITION->value    => GoogleFeature::POSITION->value,
                 ],
-                'dimensions'           => ['page', 'searchAppearance'],
+                'dimensions'           => ['page', 'searchAppearance', 'search_type'],
                 'metadata_fields'      => ['synthetic'],
                 'context'              => UniversalMetricConverter::getUniversalContext([
                     'account'                    => $account,
