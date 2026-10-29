@@ -18,7 +18,7 @@ The existing Google Analytics, Google Ads and Business Profile drivers are uncha
 
 ## Tenant rollout
 
-Release the Google driver and deploy it with the tenant upgrade routine `1.18.2 → 1.18.3`. The routine labels existing untyped GSC configurations as Web, recomputes their canonical signatures, and updates both metric dimension hashes and channeled metric dimension-set links. It preserves already typed and other-channel records. A signature/uniqueness collision aborts and rolls back the upgrade; it never sums duplicates.
+Release the Google driver and deploy it with the tenant upgrade routine `1.18.2 → 1.18.3`. The routine labels existing untyped GSC configurations as Web, recomputes their canonical signatures, and updates both metric dimension hashes and channeled metric dimension-set links. It preserves already typed and other-channel records. Signature collisions are reconciled with the established recalculation policy: retain the oldest config ID, overlapping observations from newer configs, unique historical dates, and channel links. Duplicate observations are never summed. Unexpected write errors still roll back the transaction.
 
 Stop sync workers for the database migration and take the normal pre-upgrade backup. The routine also locks metric tables against concurrent writers; that PostgreSQL lock is not exercised by the SQLite regression suite. Downgrade requires restoring the backup because dropping type identities after additional ingestion would merge distinct datasets.
 
