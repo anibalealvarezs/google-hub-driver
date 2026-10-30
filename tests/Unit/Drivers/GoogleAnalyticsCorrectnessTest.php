@@ -8,6 +8,22 @@ use PHPUnit\Framework\TestCase;
 
 final class GoogleAnalyticsCorrectnessTest extends TestCase
 {
+    public function testRecipeCatalogSeparatesSourceAvailabilityFromCompatibilityAndCoverage(): void
+    {
+        $recipes = GoogleAnalyticsDriver::getReportRecipes();
+        foreach ($recipes as $recipe) self::assertLessThanOrEqual(9, count($recipe['dimensions']));
+        self::assertCount(9, $recipes['event_matrix']['dimensions']);
+        $catalog = GoogleAnalyticsDriver::getPropertyRecipeCatalog([
+            'metrics' => [['apiName' => 'eventCount'], ['apiName' => 'keyEvents']],
+            'dimensions' => array_map(fn ($name) => ['apiName' => $name], $recipes['event_matrix']['dimensions']),
+        ]);
+        self::assertTrue($catalog['event_matrix']['metadata_available']);
+        self::assertSame(['eventCount', 'keyEvents'], $catalog['event_matrix']['source_metrics']);
+        self::assertSame('not_checked', $catalog['event_matrix']['compatibility']);
+        self::assertSame('unknown', $catalog['event_matrix']['cache_coverage']);
+        self::assertFalse($catalog['traffic_matrix']['metadata_available']);
+    }
+
     public function testRevenueIsNotCostAndSourceNamesFollowPropertyMetadata(): void
     {
         $dictionary = GoogleAnalyticsDriver::getCanonicalMetricDictionary();

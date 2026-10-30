@@ -215,7 +215,7 @@
             
             $syncCampaigns = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'acquisition_matrix']));
             $syncPages = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
-            $syncEvents = ($targetEntity === 'entities' || in_array($targetEntity, ['event_matrix']) || in_array($level, ['event_matrix']));
+            $syncEvents = ($targetEntity === 'entities' || in_array($targetEntity, ['event_matrix', 'event', 'events']) || in_array($level, ['event_matrix']));
             $syncCountries = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
             $syncDevices = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix']));
             $syncAdGroups = ($targetEntity === 'entities' || in_array($targetEntity, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']) || in_array($level, ['traffic_matrix', 'event_matrix', 'ad_touchpoint_matrix', 'acquisition_matrix']));
@@ -490,48 +490,48 @@
 
 
 
-                // --- CONVERSION EVENTS ---
+                // Discover observed events independently of key-event designation.
                 if ($syncEvents) {
-                    $eventResponse = $api->runSimpleReport(
-                        propertyId: $propertyId,
-                        metrics: ['conversions'],
-                        dimensions: ['eventName'],
-                        startDate: $startDateStr,
-                        endDate: $endDateStr
-                    );
-
-                    $processedEvents = GoogleAnalyticsMetricConvert::preprocessRows($eventResponse);
-                    $buffer = new \Doctrine\Common\Collections\ArrayCollection();
-
-                    foreach ($processedEvents as $row) {
-                        if (!empty($row['eventName']) && !empty($row['conversions']) && (int)$row['conversions'] > 0) {
-                            $sourceKey = $row['eventName'];
-                            $unifiedKey = \Anibalealvarezs\ApiDriverCore\Classes\GlobalEventDictionary::getGlobalKey($sourceKey, 'google_analytics');
-                            
-                            $entities[] = [
-                                'platformId' => $sourceKey,
-                                'name'       => $unifiedKey,
-                                'type'       => 'event'
-                            ];
-
+                    $payload = [
+                        'dateRanges' => [['startDate' => $startDateStr, 'endDate' => $endDateStr]],
+                        'dimensions' => [['name' => 'eventName']],
+                        'metrics' => array_map(fn ($name) => ['name' => $name], self::resolveReportMetricNames(['eventCount'], $api->getMetadata((string)$propertyId))),
+                    ];
+                    self::assertReportCompatibility($api->checkCompatibility((string)$propertyId, $payload + ['compatibilityFilter' => 'COMPATIBLE']), $payload);
+                    if ($shouldContinue && !$shouldContinue()) {
+                        throw new \RuntimeException('GA4 event discovery cancelled; sync is incomplete.');
+                    }
+                    $seen = [];
+                    $api->runAllReportsAndProcess($propertyId, $payload, function ($response) use (&$entities, &$seen, $propertyId, $channeledAccount, $shouldContinue) {
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new \RuntimeException('GA4 event discovery cancelled; sync is incomplete.');
+                        }
+                        $buffer = new \Doctrine\Common\Collections\ArrayCollection();
+                        foreach (GoogleAnalyticsMetricConvert::preprocessRows($response) as $row) {
+                            $sourceKey = (string)($row['eventName'] ?? '');
+                            if ($sourceKey === '' || !is_numeric($row['eventCount'] ?? null) || (float)$row['eventCount'] <= 0 || isset($seen[$sourceKey])) {
+                                continue;
+                            }
+                            $seen[$sourceKey] = true;
+                            $entities[] = ['platformId' => $sourceKey, 'name' => $sourceKey, 'type' => 'event'];
                             $item = new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity();
                             $item->setChannel(GoogleChannel::ANALYTICS->value);
-                            $item->setPlatformId($sourceKey)
-                                 ->setTitle($unifiedKey)
-                                 ->setData(['source_key' => $sourceKey])
-                                 ->setContext([
-                                     'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
-                                     'channeledAccountId' => $propertyId
-                                 ]);
-                            $item->name = $unifiedKey;
+                            $item->setPlatformId($sourceKey)->setTitle($sourceKey)
+                                ->setData([
+                                    'source_key' => $sourceKey,
+                                    'canonical_name' => \Anibalealvarezs\ApiDriverCore\Classes\GlobalEventDictionary::getGlobalKey($sourceKey, 'google_analytics'),
+                                ])->setContext([
+                                    'channeledAccount' => $channeledAccount ?? (new \Anibalealvarezs\ApiDriverCore\Classes\UniversalEntity())->setPlatformId($propertyId),
+                                    'channeledAccountId' => $propertyId,
+                                ]);
+                            $item->name = $sourceKey;
                             $buffer->add($item);
                         }
-                    }
-
-                    if ($this->dataProcessor && $buffer->count() > 0) {
-                        ($this->dataProcessor)($buffer, 'event');
-                    }
-                    $this->logger?->info("<<< EXITO: Sincronización Entidades GA4 (Events): " . $buffer->count());
+                        if ($this->dataProcessor && !$buffer->isEmpty()) {
+                            ($this->dataProcessor)($buffer, 'event');
+                        }
+                    });
+                    $this->logger?->info('GA4 observed event discovery complete', ['count' => count($seen)]);
                 }
 
             } catch (\Exception $e) {
@@ -597,24 +597,18 @@
             $metadata = $api->getMetadata((string)$propertyId);
 
             foreach ($levelsToProcess as $level) {
-                $defaultMetrics = match ($level) {
-                    'event_matrix' => ['eventCount', 'conversions'],
-                    'traffic_matrix' => ['screenPageViews', 'sessions', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions'],
-                    'acquisition_matrix' => ['newUsers', 'activeUsers', 'totalUsers'],
-                    'ad_touchpoint_matrix' => ['sessions', 'conversions', 'totalRevenue'],
-                    default => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue']
-                };
-
-                $metricsList = $config['metrics'] ?? $defaultMetrics;
-                $metricsList = self::resolveReportMetricNames($metricsList, $metadata);
-
-                $dimensions = match ($level) {
-                    'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
-                    'event_matrix' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'],
-                    'acquisition_matrix' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'firstUserManualAdContent'],
-                    'ad_touchpoint_matrix' => ['date', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'],
-                    default => ['date']
-                };
+                $recipe = self::getReportRecipes()[$level] ?? null;
+                if ($recipe === null) {
+                    throw new \InvalidArgumentException('Unknown GA4 report recipe: ' . $level);
+                }
+                $requestedMetrics = $config['metrics'] ?? $recipe['metrics'];
+                $metricsList = self::resolveReportMetricNames($requestedMetrics, $metadata);
+                $allowedMetrics = $recipe['metrics'];
+                if (in_array('conversions', $allowedMetrics, true)) $allowedMetrics[] = 'keyEvents';
+                if (array_diff($metricsList, $allowedMetrics)) {
+                    throw new \InvalidArgumentException('GA4 metrics must belong to the selected report recipe.');
+                }
+                $dimensions = $recipe['dimensions'];
 
                 $startDateStr = $startDate->format('Y-m-d');
                 $endDateStr = $endDate->format('Y-m-d');
@@ -628,7 +622,10 @@
                     $this->logger?->info(">>> Sincronización automática de Entidades ($level) previo a la sincronización de métricas...");
                     $configForEntities = $config;
                     $configForEntities['level'] = $level; // Pass current level to syncEntities
-                    $this->syncEntities($startDate, $endDate, $configForEntities, $shouldContinue, $identityMapper);
+                    $entityResponse = $this->syncEntities($startDate, $endDate, $configForEntities, $shouldContinue, $identityMapper);
+                    if ($entityResponse->getStatusCode() >= 400) {
+                        throw new \RuntimeException('GA4 entity discovery failed; sync is incomplete.');
+                    }
                 }
 
                 try {
@@ -646,7 +643,10 @@
 
                     $totalMetricsCount = 0;
                     
-                    $api->runAllReportsAndProcess($propertyId, $payload, function ($response) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
+                    $api->runAllReportsAndProcess($propertyId, $payload, function ($response) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList, $shouldContinue) {
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new \RuntimeException('GA4 metric sync cancelled; sync is incomplete.');
+                        }
                         $rows = $response['rows'] ?? [];
                         if ($totalMetricsCount === 0 && count($rows) > 0) {
                             $this->logger?->info(">>> Primera fila cruda devuelta por GA4 ($level): " . json_encode($rows[0]));
@@ -923,11 +923,43 @@
             }
         }
 
+        /** Declared cache grains. Source availability alone does not make a field cacheable. */
+        public static function getReportRecipes(): array
+        {
+            return [
+                'account' => ['metrics' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'], 'dimensions' => ['date'], 'measurement_scope' => 'mixed', 'attribution' => 'property'],
+                'traffic_matrix' => ['metrics' => ['screenPageViews', 'sessions', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions'], 'dimensions' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'], 'measurement_scope' => 'mixed', 'attribution' => 'session'],
+                'event_matrix' => ['metrics' => ['eventCount', 'conversions'], 'dimensions' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'], 'measurement_scope' => 'event', 'attribution' => 'session'],
+                'acquisition_matrix' => ['metrics' => ['newUsers', 'activeUsers', 'totalUsers'], 'dimensions' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'firstUserManualAdContent'], 'measurement_scope' => 'user', 'attribution' => 'first_user'],
+                'ad_touchpoint_matrix' => ['metrics' => ['sessions', 'conversions', 'totalRevenue'], 'dimensions' => ['date', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'], 'measurement_scope' => 'mixed', 'attribution' => 'session'],
+            ];
+        }
+
+        /** Property metadata availability; compatibility and cache coverage remain separate. */
+        public static function getPropertyRecipeCatalog(array $metadata): array
+        {
+            $catalog = [];
+            $dimensions = array_column($metadata['dimensions'] ?? [], 'apiName');
+            foreach (self::getReportRecipes() as $name => $recipe) {
+                $entry = $recipe + ['dimension_limit' => 9, 'dimension_count' => count($recipe['dimensions']), 'compatibility' => 'not_checked', 'cache_coverage' => 'unknown'];
+                try {
+                    $entry['source_metrics'] = self::resolveReportMetricNames($recipe['metrics'], $metadata);
+                    $entry['metadata_available'] = !array_diff($recipe['dimensions'], $dimensions);
+                } catch (\InvalidArgumentException | \RuntimeException $e) {
+                    $entry['source_metrics'] = [];
+                    $entry['metadata_available'] = false;
+                }
+                $catalog[$name] = $entry;
+            }
+            return $catalog;
+        }
+
         /** Provider-specific meanings consumed by the agnostic aggregation engine. */
         public static function getAnalyticsQueryContract(): array
         {
             return [
                 'version' => 1,
+                'report_recipes' => self::getReportRecipes(),
                 'default_filters' => ['dimensions.scope' => 'traffic_matrix'],
                 'scope_filter' => 'dimensions.scope',
                 'groupable_fields' => [
