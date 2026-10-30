@@ -16,7 +16,7 @@
      */
     class GoogleAnalyticsMetricConvert
     {
-        private const array METADATA_FIELDS = ['bounce_rate'];
+        private const array METADATA_FIELDS = ['bounce_rate', 'ga4_report_quality'];
 
         /**
          * Converts GA4 Property API rows into metrics.
@@ -384,8 +384,13 @@
             $metricHeaders = array_map(fn($h) => $h['name'], $response['metricHeaders'] ?? []);
             $propertyId = $response['property_id'] ?? 'unknown_property';
 
-            return array_map(function ($row) use ($dimensionHeaders, $metricHeaders, $propertyId) {
+            $quality = array_intersect_key($response['metadata'] ?? [], array_flip([
+                'subjectToThresholding', 'dataLossFromOtherRow', 'currencyCode', 'timeZone',
+                'emptyReason', 'samplingMetadatas', 'schemaRestrictionResponse',
+            ]));
+            return array_map(function ($row) use ($dimensionHeaders, $metricHeaders, $propertyId, $quality) {
                 $processed = ['property_id' => (string)$propertyId];
+                if ($quality !== []) $processed['ga4_report_quality'] = $quality;
 
                 // Map Dimensions
                 $dimValues = $row['dimensionValues'] ?? [];
@@ -434,7 +439,10 @@
                 // Map Metrics
                 $metValues = $row['metricValues'] ?? [];
                 foreach ($metricHeaders as $idx => $metName) {
-                    $val = $metValues[$idx]['value'] ?? 0;
+                    if (!isset($metValues[$idx]['value']) || !is_numeric($metValues[$idx]['value'])) continue;
+                    $val = $metValues[$idx]['value'];
+                    // Stable cache identity across Google's source-name transition.
+                    if ($metName === 'keyEvents') $metName = 'conversions';
                     
                     // Specific mapping for GA4 metadata fields
                     if ($metName === 'bounceRate') {

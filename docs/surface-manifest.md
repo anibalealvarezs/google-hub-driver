@@ -1,6 +1,17 @@
-# Google driver surface — GSC search types
+# Google driver surface — GA4 correctness and GSC search types
 
-The existing Google Analytics, Google Ads and Business Profile drivers are unchanged by this update.
+## GA4 correctness increment (2026-10-30)
+
+GA4 now publishes query contract v1: costs unsupported, daily matrix isolation,
+same-grain session-weighted rates, explicitly non-unique reported user sums, virtual
+source/medium and currency guards. Requires the corresponding tenant contract
+executor. Source ingestion selects supported key-event names from property metadata,
+checks metric/dimension compatibility, retains quality metadata and propagates failed
+matrix requests. Cache grain and default conversions identity remain stable.
+See the tenant's `docs/ga4-correctness-rollout.md` for deployment/history requirements.
+Google Ads and Business Profile behavior is unchanged by this increment.
+
+## GSC search types
 
 | GSC surface | Status |
 |---|---|

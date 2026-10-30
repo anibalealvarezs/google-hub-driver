@@ -594,6 +594,7 @@
 
             $totalMetricsSyncedAllLevels = 0;
             $allMetricsCollection = new \Doctrine\Common\Collections\ArrayCollection();
+            $metadata = $api->getMetadata((string)$propertyId);
 
             foreach ($levelsToProcess as $level) {
                 $defaultMetrics = match ($level) {
@@ -605,6 +606,7 @@
                 };
 
                 $metricsList = $config['metrics'] ?? $defaultMetrics;
+                $metricsList = self::resolveReportMetricNames($metricsList, $metadata);
 
                 $dimensions = match ($level) {
                     'traffic_matrix' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'],
@@ -640,6 +642,8 @@
                         'metrics'    => array_map(fn($m) => ['name' => $m], $metricsList),
                     ];
 
+                    self::assertReportCompatibility($api->checkCompatibility((string)$propertyId, $payload + ['compatibilityFilter' => 'COMPATIBLE']), $payload);
+
                     $totalMetricsCount = 0;
                     
                     $api->runAllReportsAndProcess($propertyId, $payload, function ($response) use ($propertyId, $channeledAccount, $config, $level, &$totalMetricsCount, $metricsList) {
@@ -657,7 +661,7 @@
                             level: $level,
                             logger: $this->logger,
                             account: $config['account'] ?? null,
-                            metricsToProcess: $metricsList
+                            metricsToProcess: array_map(fn ($name) => $name === 'keyEvents' ? 'conversions' : $name, $metricsList)
                         );
 
                         $chunkCount = $chunkCollection->count() ?? 0;
@@ -682,8 +686,8 @@
                     $this->logger?->info("");
 
                 } catch (\Exception $e) {
-                    $this->logger?->error("GA4 Metrics Sync Error at level $level: ".$e->getMessage());
-                    // Don't break entirely, try the next matrix
+                    $this->logger?->error('GA4 matrix sync failed', ['scope' => $level, 'exception_class' => $e::class]);
+                    throw new \RuntimeException('GA4 matrix sync failed for scope '.$level.'. The sync is incomplete and can be retried.', 0, $e);
                 }
             }
 
@@ -839,7 +843,7 @@
                 'impressions' => ['screenPageViews', 'impressions'],
                 'sessions'    => ['sessions'],
                 'new_users'   => ['newUsers'],
-                'spend'       => ['totalRevenue', 'spend'],
+                'spend'       => [], // Explicitly unsupported; revenue must never resolve as cost.
                 'revenue'     => ['totalRevenue', 'revenue'],
                 'bounce_rate' => ['bounceRate', 'bounce_rate'],
                 'average_session_duration' => ['averageSessionDuration', 'average_session_duration'],
@@ -891,6 +895,78 @@
             ];
         }
 
+        public static function resolveReportMetricNames(array $metrics, array $metadata): array
+        {
+            $available = array_column($metadata['metrics'] ?? [], 'apiName');
+            if ($available === []) throw new \RuntimeException('GA4 metric metadata is unavailable.');
+            $resolved = [];
+            foreach ($metrics as $name) {
+                if (in_array($name, ['conversions', 'keyEvents'], true)) {
+                    $name = in_array('keyEvents', $available, true) ? 'keyEvents' : 'conversions';
+                }
+                if (!in_array($name, $available, true)) throw new \InvalidArgumentException('The requested GA4 metric is not supported by this property: '.$name);
+                $resolved[] = $name;
+            }
+            return array_values(array_unique($resolved));
+        }
+
+        public static function assertReportCompatibility(array $response, array $payload = []): void
+        {
+            foreach (['metricCompatibilities' => ['metrics', 'metricMetadata'], 'dimensionCompatibilities' => ['dimensions', 'dimensionMetadata']] as $key => [$requestKey, $metadataKey]) {
+                if (!isset($response[$key]) || !is_array($response[$key])) throw new \RuntimeException('GA4 compatibility verification is incomplete.');
+                $compatible = [];
+                foreach ($response[$key] as $item) {
+                    if (($item['compatibility'] ?? null) === 'COMPATIBLE') $compatible[] = $item[$metadataKey]['apiName'] ?? '';
+                    elseif ($payload === []) throw new \InvalidArgumentException('The requested GA4 report contains incompatible fields.');
+                }
+                if (array_diff(array_column($payload[$requestKey] ?? [], 'name'), $compatible)) throw new \InvalidArgumentException('The requested GA4 report contains incompatible fields.');
+            }
+        }
+
+        /** Provider-specific meanings consumed by the agnostic aggregation engine. */
+        public static function getAnalyticsQueryContract(): array
+        {
+            return [
+                'version' => 1,
+                'default_filters' => ['dimensions.scope' => 'traffic_matrix'],
+                'scope_filter' => 'dimensions.scope',
+                'groupable_fields' => [
+                    'traffic_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'country', 'device', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup', 'dimensions.landing_page'],
+                    'acquisition_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd', 'dimensions.firstUserDefaultChannelGroup', 'dimensions.firstUserSourceMedium'],
+                    'event_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd', 'event', 'dimensions.page', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup'],
+                    'ad_touchpoint_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd'],
+                    '__unscoped__' => ['channeledAccount'],
+                ],
+                'scopes' => [
+                    'traffic_matrix' => ['sessions', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions', 'keyEvents'],
+                    'acquisition_matrix' => ['newUsers', 'activeUsers', 'totalUsers'],
+                    'event_matrix' => ['eventCount', 'conversions', 'keyEvents'],
+                    'ad_touchpoint_matrix' => ['sessions', 'conversions', 'keyEvents', 'totalRevenue'],
+                    '__unscoped__' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'],
+                ],
+                'aliases' => [
+                    'impressions' => 'screenPageViews', 'pageviews' => 'screenPageViews',
+                    'revenue' => 'totalRevenue', 'total_revenue' => 'totalRevenue',
+                    'bounce_rate' => 'bounceRate', 'average_session_duration' => 'averageSessionDuration',
+                    'new_users' => 'newUsers', 'reach' => 'activeUsers', 'active_users' => 'activeUsers',
+                    'total_users' => 'totalUsers', 'event_count' => 'eventCount', 'events' => 'eventCount',
+                    'keyEvents' => 'conversions',
+                ],
+                'blocked_metrics' => ['spend', 'cost', 'cpc', 'cpm', 'cost_per_conversion', 'cost_per_result', 'roas', 'roas_purchase', 'purchase_roas'],
+                'rules' => [
+                    'bounceRate' => ['reducer' => 'companion_weighted_average', 'source_names' => ['bounceRate', 'bounce_rate'], 'weight_names' => ['sessions']],
+                    'averageSessionDuration' => ['reducer' => 'companion_weighted_average', 'source_names' => ['averageSessionDuration', 'average_session_duration'], 'weight_names' => ['sessions']],
+                    'newUsers' => ['reducer' => 'sum', 'quality' => 'sum_of_reported_user_counts_not_window_unique'],
+                    'activeUsers' => ['reducer' => 'sum', 'quality' => 'sum_of_reported_user_counts_not_window_unique'],
+                    'totalUsers' => ['reducer' => 'sum', 'quality' => 'sum_of_reported_user_counts_not_window_unique'],
+                    'totalRevenue' => ['reducer' => 'sum', 'currency_metadata_path' => ['ga4_report_quality', 'currencyCode']],
+                ],
+                'derived_dimensions' => [
+                    'sessionSourceMedium' => ['parts' => ['source', 'medium'], 'separator' => ' / '],
+                ],
+            ];
+        }
+
         public static function getAggregationProfiles(): array
         {
             return [
@@ -898,6 +974,7 @@
                     'key' => 'ga4_universal_matrix',
                     'channel' => 'google_analytics',
                     'label' => 'GA4 Universal Matrix',
+                    'query_contract' => self::getAnalyticsQueryContract(),
                     'asset_type' => 'account',
                     'metric_nature' => 'flow',
                     'period_modes' => ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
