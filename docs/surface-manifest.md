@@ -36,3 +36,34 @@ Stop sync workers for the database migration and take the normal pre-upgrade bac
 New scheduled windows fetch all enabled types. To populate **older dates** for the newly supported types, replay the configured GSC history range. The existing `app:nuclear-resync --channel=google_search_console` command can reschedule that channel without deleting its cached metrics: **do not pass `--wipe-metrics`**. It replaces that channel's pending jobs, so run it during rollout with workers stopped, then resume workers. No tenant or source requests are run by the automated regression tests.
 
 No source data is reconstructed beyond Google's retention/availability limits. Discover/Google News are ingested at date/page/country granularity without synthetic reconciliation or appearance expansion in this release. URL-derived fields and new UI selectors are outside this update.
+
+
+## GA4 expansion (working tree, 2026-10-30)
+
+`Analytics/GoogleAnalyticsCatalog` v2 projects property metadata and compiles frozen
+reports. Nine dimensions including date, ten metrics, bounded windows/rows and
+property/timezone/currency/authorization context are mandatory. Custom sums, counts
+and averages are distinct definitions. Metadata availability is not cached coverage.
+
+| Surface | Implementation |
+|---|---|
+| Engagement | Optional engagement_matrix: sessions, engaged sessions, engagement seconds, session-weighted engagement rate |
+| Ecommerce | Optional ecommerce_matrix: purchases, transactions, net/gross purchase revenue, refunds |
+| Products | Optional product_matrix: item views, cart additions, purchases, refunds, net/gross item revenue and item refunds; transaction measures excluded |
+| Custom definitions | Registered property dimensions and metrics in explicit bounded source reports, frozen metadata, no arbitrary automatic subset fan-out |
+| Window users | Single source window response, separate cache, daily rollup forbidden |
+| Cohorts | Dedicated firstSessionDate/cohortSpec with cohort measures and bounded follow-up |
+| Funnels | Dedicated SDK alpha endpoint; explicit enable_funnel_reports=false default and source validation gate |
+| Warehouse | Separate connector required; no reconstruction from independent aggregated reports |
+
+New daily scopes preserve raw API dimensions and recipe_revision=1. Legacy five
+recipes/default grains remain unchanged. The generic query contract opts into bounded
+calendar/trailing weighted reducers; dimensions from unrelated grains are rejected.
+Source-response execution rejects partial/oversized rows and changed timezone/currency.
+The tenant background queue enforces budgets; ordinary widgets never call Google.
+
+Update tenant and Facade together with published driver/SDK dependencies. Enable the
+additional_recipes selections and backfill only new scopes as needed. Existing bad
+historical metric identities still require an audited reconciliation or selective
+wipe/resync; these new definitions cannot repair them. Offline tests do not substitute
+for source parity, production quota or PostgreSQL volume acceptance.

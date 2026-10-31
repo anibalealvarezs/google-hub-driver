@@ -589,7 +589,7 @@
             
             $requestedLevel = $config['level'] ?? 'all';
             $levelsToProcess = $requestedLevel === 'all' 
-                ? ['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'ad_touchpoint_matrix']
+                ? array_merge(['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'ad_touchpoint_matrix'], array_values(array_intersect((array)($config['additional_recipes'] ?? []), ['engagement_matrix', 'ecommerce_matrix', 'product_matrix'])))
                 : [$requestedLevel];
 
             $totalMetricsSyncedAllLevels = 0;
@@ -697,6 +697,52 @@
             ]));
         }
 
+        public static function compileAnalyticsDefinition(array $definition, array $metadata, array $context): array
+        {
+            return \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::compile($definition, $metadata, $context);
+        }
+
+        public function fetchAnalyticsCatalog(array $config): array
+        {
+            $property = (string)($config['platform_id'] ?? $config['account_id'] ?? '');
+            if (!ctype_digit($property)) throw new \InvalidArgumentException('A numeric GA4 property ID is required.');
+            $api = $this->initializeApi($config);
+            $api->setMaxRetries(0);
+            $metadata = $api->getMetadata($property);
+            $probe = $api->runReport($property, ['metrics' => [['name' => 'eventCount']], 'dateRanges' => [['startDate' => 'yesterday', 'endDate' => 'yesterday']], 'returnPropertyQuota' => true]);
+            $context = ['property_id' => $property, 'time_zone' => $probe['metadata']['timeZone'] ?? null, 'currency' => $probe['metadata']['currencyCode'] ?? null, 'funnel_enabled' => (bool)($config['enable_funnel_reports'] ?? false)];
+            $catalog = \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::project($metadata, self::getReportRecipes(), $context);
+            $selected = array_merge(['account', 'traffic_matrix', 'event_matrix', 'acquisition_matrix', 'ad_touchpoint_matrix'], (array)($config['additional_recipes'] ?? []));
+            foreach (['metrics', 'dimensions'] as $kind) foreach ($catalog[$kind] as &$field) $field['selected_for_sync'] = (bool)array_intersect($selected, $field['recipes']);
+            unset($field);
+            return ['metadata' => $metadata, 'catalog' => $catalog, 'quota' => $probe['propertyQuota'] ?? [], 'source_delay_seconds' => \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::quotaDelay($probe['propertyQuota'] ?? [])];
+        }
+
+        /** Called by the bounded background report worker, never directly by widgets. */
+        public function executeAnalyticsReport(array $config, array $frozen, ?callable $shouldContinue = null): array
+        {
+            $property = (string)$frozen['context']['property_id'];
+            if ($property !== (string)($config['platform_id'] ?? $config['account_id'] ?? '')) throw new \InvalidArgumentException('Report property does not match its authorized source.');
+            $api = $this->initializeApi($config);
+            $api->setMaxRetries(0);
+            $payload = $frozen['payload'];
+            if ($frozen['kind'] === 'funnel') {
+                if (empty($config['enable_funnel_reports']) || !method_exists($api, 'runFunnelReport')) throw new \InvalidArgumentException('Funnel reports require explicit tenant enablement and the updated SDK.');
+                $response = $api->runFunnelReport($property, $payload);
+                $table = $response['funnelTable'] ?? null;
+                if (!is_array($table) || count($table['rows'] ?? []) >= $payload['limit']) throw new \LengthException('Funnel response is unavailable or reaches its row budget; partial data has not been cached.');
+                return $table + ['propertyQuota' => $response['propertyQuota'] ?? [], '_source_delay_seconds' => \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::quotaDelay($response['propertyQuota'] ?? [])];
+            }
+            self::assertReportCompatibility($api->checkCompatibility($property, $payload + ['compatibilityFilter' => 'COMPATIBLE']), $payload);
+            if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Report cancelled before source execution.');
+            $response = $api->runReport($property, $payload);
+            if ((int)($response['rowCount'] ?? 0) > $payload['limit']) throw new \LengthException('Report exceeds its row budget. Narrow its dimensions, dates or filters.');
+            if (count($response['rows'] ?? []) !== (int)($response['rowCount'] ?? 0)) throw new \RuntimeException('Incomplete report; partial data has not been cached.');
+            if (($response['metadata']['timeZone'] ?? null) !== $frozen['context']['time_zone']) throw new \RuntimeException('Property timezone changed. Refresh its catalog and create a new definition revision.');
+            if (!empty($frozen['context']['currency']) && isset($response['metadata']['currencyCode']) && $response['metadata']['currencyCode'] !== $frozen['context']['currency']) throw new \RuntimeException('Property currency changed. Refresh its catalog and create a new definition revision.');
+            return $response + ['_source_delay_seconds' => \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::quotaDelay($response['propertyQuota'] ?? [])];
+        }
+
         public function getConfigSchema(): array
         {
             return [
@@ -706,6 +752,8 @@
                     'cache_history_range' => '30 days',
                     'cache_aggregations'  => false,
                     'metrics_strategy'    => 'default',
+                    'additional_recipes'  => [],
+                    'enable_funnel_reports' => false,
                 ],
                 'PROPERTY' => [
                     'platformId'           => '',
@@ -747,6 +795,10 @@
             }
 
             $chanCfg = &$currentConfig['channels']['google_analytics'];
+            if (array_key_exists('additional_recipes', $newData)) {
+                $chanCfg['additional_recipes'] = array_values(array_intersect((array)$newData['additional_recipes'], ['engagement_matrix', 'ecommerce_matrix', 'product_matrix']));
+            }
+            if (array_key_exists('enable_funnel_reports', $newData)) $chanCfg['enable_funnel_reports'] = (bool)$newData['enable_funnel_reports'];
 
             if ($historyRange) {
                 $chanCfg['cache_history_range'] = $historyRange;
@@ -926,13 +978,13 @@
         /** Declared cache grains. Source availability alone does not make a field cacheable. */
         public static function getReportRecipes(): array
         {
-            return [
+            return \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::recipes([
                 'account' => ['metrics' => ['screenPageViews', 'sessions', 'bounceRate', 'totalRevenue'], 'dimensions' => ['date'], 'measurement_scope' => 'mixed', 'attribution' => 'property'],
                 'traffic_matrix' => ['metrics' => ['screenPageViews', 'sessions', 'bounceRate', 'averageSessionDuration', 'totalRevenue', 'conversions'], 'dimensions' => ['date', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'deviceCategory', 'countryId', 'landingPagePlusQueryString'], 'measurement_scope' => 'mixed', 'attribution' => 'session'],
                 'event_matrix' => ['metrics' => ['eventCount', 'conversions'], 'dimensions' => ['date', 'eventName', 'pagePath', 'sessionDefaultChannelGroup', 'sessionSourceMedium', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'], 'measurement_scope' => 'event', 'attribution' => 'session'],
                 'acquisition_matrix' => ['metrics' => ['newUsers', 'activeUsers', 'totalUsers'], 'dimensions' => ['date', 'firstUserDefaultChannelGroup', 'firstUserSourceMedium', 'firstUserCampaignName', 'firstUserGoogleAdsAdGroupName', 'firstUserManualTerm', 'firstUserManualAdContent'], 'measurement_scope' => 'user', 'attribution' => 'first_user'],
                 'ad_touchpoint_matrix' => ['metrics' => ['sessions', 'conversions', 'totalRevenue'], 'dimensions' => ['date', 'sessionCampaignName', 'sessionGoogleAdsAdGroupName', 'sessionManualTerm', 'sessionManualAdContent'], 'measurement_scope' => 'mixed', 'attribution' => 'session'],
-            ];
+            ]);
         }
 
         /** Property metadata availability; compatibility and cache coverage remain separate. */
@@ -957,9 +1009,10 @@
         /** Provider-specific meanings consumed by the agnostic aggregation engine. */
         public static function getAnalyticsQueryContract(): array
         {
-            return [
+            $contract = [
                 'version' => 1,
                 'report_recipes' => self::getReportRecipes(),
+                'temporal_policy' => 'bounded_calendar_and_trailing',
                 'default_filters' => ['dimensions.scope' => 'traffic_matrix'],
                 'scope_filter' => 'dimensions.scope',
                 'groupable_fields' => [
@@ -997,6 +1050,20 @@
                     'sessionSourceMedium' => ['parts' => ['source', 'medium'], 'separator' => ' / '],
                 ],
             ];
+            foreach (self::getReportRecipes() as $scope => $recipe) {
+                if (!in_array($scope, ['engagement_matrix', 'ecommerce_matrix', 'product_matrix'], true)) continue;
+                $contract['scopes'][$scope] = $recipe['metrics'];
+                $contract['groupable_fields'][$scope] = array_merge(['channeledAccount'], array_map(fn ($name) => 'dimensions.'.$name, array_filter($recipe['dimensions'], fn ($name) => $name !== 'date')));
+                $contract['scope_default_filters'][$scope] = ['dimensions.recipe_revision' => '1'];
+                $contract['dimension_filter_fields'][$scope] = array_merge(['dimensions.scope', 'dimensions.recipe_revision'], $contract['groupable_fields'][$scope]);
+                foreach ($recipe['metrics'] as $name) {
+                    $definition = \Anibalealvarezs\GoogleHubDriver\Analytics\GoogleAnalyticsCatalog::definitions()[$name];
+                    $contract['rules'][$name] ??= $definition;
+                    $snake = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name));
+                    $contract['aliases'][$snake] = $name;
+                }
+            }
+            return $contract;
         }
 
         public static function getAggregationProfiles(): array

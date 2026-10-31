@@ -73,7 +73,7 @@ class GoogleAnalyticsDriverTest extends TestCase
         $current = ['granular_sync' => false];
         $updated = $this->driver->updateConfiguration(['granular_sync' => 'true'], $current);
         
-        $this->assertTrue($updated['granular_sync']);
+        $this->assertTrue($updated['channels']['google_analytics']['granular_sync']);
     }
 
     public function testPrepareUiConfig()
@@ -87,8 +87,8 @@ class GoogleAnalyticsDriverTest extends TestCase
     public function testGetAssetPatterns()
     {
         $patterns = GoogleAnalyticsDriver::getAssetPatterns();
-        $this->assertArrayHasKey('google_analytics', $patterns);
-        $this->assertEquals('properties', $patterns['google_analytics']['key']);
+        $this->assertArrayHasKey(\Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType::LOCATION->value, $patterns);
+        $this->assertEquals('properties', $patterns[\Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType::LOCATION->value]['key']);
     }
 
     public function testGetCanonicalMetricDictionary()

@@ -353,6 +353,31 @@
             ], $logger);
         }
 
+        /** New recipes retain all raw source dimensions, without lossy entity lookups. */
+        public static function scopedMetrics(array $response, object|string $channeledAccount, string $scope, array $metrics, object|string|null $account = null, ?LoggerInterface $logger = null): ArrayCollection
+        {
+            $rows = self::preprocessRows($response);
+            $dimensions = array_values(array_filter(array_column($response['dimensionHeaders'] ?? [], 'name'), fn ($name) => $name !== 'date'));
+            foreach ($rows as $index => &$row) {
+                foreach ($response['dimensionHeaders'] ?? [] as $position => $header) {
+                    if ($header['name'] !== 'date') $row[$header['name']] = $response['rows'][$index]['dimensionValues'][$position]['value'] ?? null;
+                }
+                $row['scope'] = $scope;
+                // Preserve the original API dimension value as well as derived fields.
+                $row['recipe_revision'] = '1';
+            }
+            unset($row);
+            return UniversalMetricConverter::convert($rows, [
+                'channel' => 'google_analytics', 'period' => 'daily',
+                'platform_id_field' => 'property_id', 'date_field' => 'date',
+                'metrics' => array_combine($metrics, $metrics),
+                'dimensions' => array_merge(['scope', 'recipe_revision'], $dimensions),
+                'metadata_fields' => self::METADATA_FIELDS,
+                'context' => UniversalMetricConverter::getUniversalContext(['account' => $account, 'channeledAccount' => $channeledAccount]),
+                'row_key_fields' => ['property_id' => ['channeledAccount']],
+            ], $logger);
+        }
+
         public static function metrics(
             array              $response,
             object|string      $channeledAccount,
@@ -363,6 +388,7 @@
         ): ArrayCollection
         {
             return match ($level) {
+                'engagement_matrix', 'ecommerce_matrix', 'product_matrix' => self::scopedMetrics($response, $channeledAccount, $level, $metricsToProcess, $account, $logger),
                 'traffic_matrix' => self::trafficMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 'event_matrix' => self::eventMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
                 'acquisition_matrix' => self::acquisitionMatrixMetrics(response: $response, logger: $logger, channeledAccount: $channeledAccount, account: $account, metricsToProcess: $metricsToProcess),
