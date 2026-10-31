@@ -15,8 +15,8 @@ class SearchConsoleSearchTypesTest extends TestCase
             public function daily($api, string $type, bool $synthetics = false, ?callable $continue = null): array {
                 return $this->fetchGSCDailyData($api, 'https://example.com/', '2026-10-01', 25000, $synthetics, $type, $continue);
             }
-            public function period($api, ?callable $continue = null): array {
-                return $this->fetchGSCPeriodData($api, 'https://example.com/', '2026-10-01', '2026-10-01', 25000, true, $continue);
+            public function period($api, ?callable $continue = null, array $types = SearchConsoleDriver::SEARCH_TYPES): array {
+                return $this->fetchGSCPeriodData($api, 'https://example.com/', '2026-10-01', '2026-10-01', 25000, true, $continue, $types);
             }
         };
     }
@@ -90,7 +90,7 @@ class SearchConsoleSearchTypesTest extends TestCase
     public function testConfigurationAndProfilesKeepWebAsTheReportingDefault(): void
     {
         $driver = $this->driver();
-        $this->assertSame(SearchConsoleDriver::SEARCH_TYPES, $driver->getConfigSchema()['global']['search_types']);
+        $this->assertSame(SearchConsoleDriver::DEFAULT_SEARCH_TYPES, $driver->getConfigSchema()['global']['search_types']);
         $config = $driver->updateConfiguration(['type' => 'global', 'search_types' => ['web', 'image', 'web']], []);
         $this->assertSame(['web', 'image'], $config['channels']['google_search_console']['search_types']);
         foreach (SearchConsoleDriver::getAggregationProfiles() as $profile) {

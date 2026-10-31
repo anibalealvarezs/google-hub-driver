@@ -19,7 +19,7 @@ Google Ads and Business Profile behavior is unchanged by this increment.
 | Web, Image, Video, News tab | Daily clicks, impressions, CTR and position; independent query/country/page/device reconciliation and separate appearance pass |
 | Discover, Google News | Daily page/country clicks, impressions and CTR; no query, device or position is fabricated |
 | Search type | Stored as `search_type` dimension; part of dimensions hash and config identity |
-| Settings | `search_types` defaults to all six supported values; an explicit non-empty subset limits source calls |
+| Settings | `search_types` defaults to `['web']`; an explicit list can enable additional types (`image`, `video`, `news`, `discover`, `googleNews`) |
 | Aggregation | Existing requests default to Web via driver profile defaults; explicit `dimensions.search_type` filters select other types |
 | Historical ingestion | Existing seven-day processing windows; sequential daily/type calls; empty search-type baseline short-circuits reconciliation fan-out |
 | Synthetic mode | Search-result types only, isolated per type; disabled mode retrieves full cube plus appearance, without adding a second totals dataset |

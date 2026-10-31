@@ -60,6 +60,7 @@
         private static array $optionalDimensions = ['query', 'country', 'device', 'searchAppearance'];
 
         public const SEARCH_TYPES = ['web', 'image', 'video', 'news', 'discover', 'googleNews'];
+        public const DEFAULT_SEARCH_TYPES = ['web'];
 
         /**
          * Determine if this driver produces search query/keyword data eligible for classification.
@@ -543,7 +544,7 @@
                 $sitesToProcess = $config['sites'] ?? $chanCfg['sites'] ?? [];
                 $rowLimit = $config['row_limit'] ?? $chanCfg['row_limit'] ?? 25000;
                 $calculateSynthetics = filter_var($config['calculate_synthetics'] ?? $chanCfg['calculate_synthetics'] ?? true, FILTER_VALIDATE_BOOLEAN);
-                $searchTypes = $config['search_types'] ?? $chanCfg['search_types'] ?? self::SEARCH_TYPES;
+                $searchTypes = $config['search_types'] ?? $chanCfg['search_types'] ?? self::DEFAULT_SEARCH_TYPES;
                 if (!is_array($searchTypes) || !$searchTypes || array_diff($searchTypes, self::SEARCH_TYPES)) {
                     throw new \InvalidArgumentException('search_types must be a non-empty list of supported GSC types.');
                 }
@@ -753,7 +754,7 @@
             int       $rowLimit = 25000,
             bool      $calculateSynthetics = true,
             ?callable $shouldContinue = null,
-            array     $searchTypes = self::SEARCH_TYPES
+            array     $searchTypes = self::DEFAULT_SEARCH_TYPES
         ): array
         {
             $finalRows = [];
@@ -943,7 +944,7 @@
                     'cache_history_range'  => '16 months',
                     'cache_aggregations'   => true,
                     'calculate_synthetics' => true,
-                    'search_types'         => self::SEARCH_TYPES,
+                    'search_types'         => self::DEFAULT_SEARCH_TYPES,
                     'cron_recent_hour'     => 5,
                     'cron_recent_minute'   => 0,
                 ],
