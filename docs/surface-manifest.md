@@ -49,7 +49,7 @@ and averages are distinct definitions. Metadata availability is not cached cover
 |---|---|
 | Engagement | Optional engagement_matrix: sessions, engaged sessions, engagement seconds, session-weighted engagement rate |
 | Ecommerce | Optional ecommerce_matrix: purchases, transactions, net/gross purchase revenue, refunds |
-| Products | Optional product_matrix: item views, cart additions, purchases, refunds, net/gross item revenue and item refunds; transaction measures excluded |
+| Products | Optional product_matrix: item views, cart additions, purchases, net/gross item revenue and item refunds; transaction measures excluded |
 | Custom definitions | Registered property dimensions and metrics in explicit bounded source reports, frozen metadata, no arbitrary automatic subset fan-out |
 | Window users | Single source window response, separate cache, daily rollup forbidden |
 | Cohorts | Dedicated firstSessionDate/cohortSpec with cohort measures and bounded follow-up |

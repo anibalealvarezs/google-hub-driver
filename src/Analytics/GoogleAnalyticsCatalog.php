@@ -23,7 +23,7 @@ final class GoogleAnalyticsCatalog
                 'measurement_scope' => 'event', 'attribution' => 'session',
             ],
             'product_matrix' => [
-                'metrics' => ['itemsViewed', 'itemsAddedToCart', 'itemsPurchased', 'itemsRefunded', 'itemRevenue', 'grossItemRevenue', 'itemRefundAmount'],
+                'metrics' => ['itemsViewed', 'itemsAddedToCart', 'itemsPurchased', 'itemRevenue', 'grossItemRevenue', 'itemRefundAmount'],
                 'dimensions' => ['date', 'itemId', 'itemName', 'itemBrand', 'itemCategory', 'itemVariant'],
                 'measurement_scope' => 'item', 'attribution' => 'item',
             ],
@@ -33,7 +33,7 @@ final class GoogleAnalyticsCatalog
     public static function definitions(): array
     {
         $definitions = [];
-        foreach (['screenPageViews', 'sessions', 'eventCount', 'conversions', 'keyEvents', 'engagedSessions', 'userEngagementDuration', 'ecommercePurchases', 'transactions', 'itemsViewed', 'itemsAddedToCart', 'itemsPurchased', 'itemsRefunded'] as $name) {
+        foreach (['screenPageViews', 'sessions', 'eventCount', 'conversions', 'keyEvents', 'engagedSessions', 'userEngagementDuration', 'ecommercePurchases', 'transactions', 'itemsViewed', 'itemsAddedToCart', 'itemsPurchased'] as $name) {
             $definitions[$name] = ['reducer' => 'sum', 'unit' => $name === 'userEngagementDuration' ? 'seconds' : 'count'];
         }
         foreach (['totalRevenue', 'purchaseRevenue', 'grossPurchaseRevenue', 'refundAmount', 'itemRevenue', 'grossItemRevenue', 'itemRefundAmount'] as $name) {
