@@ -1105,7 +1105,12 @@
                         ['dimensions.firstUserCampaignName'],
                         ['dimensions.firstUserSourceMedium'],
                         ['dimensions.eventName'],
-                        ['dimensions.sessionSourceMedium']
+                        ['dimensions.sessionSourceMedium'],
+                        ['dimensions.itemId'],
+                        ['dimensions.itemName'],
+                        ['dimensions.itemBrand'],
+                        ['dimensions.itemCategory'],
+                        ['dimensions.itemVariant']
                     ],
                     'filter_contract' => [
                         'channeledAccount' => ['=', 'in'],
