@@ -1053,7 +1053,13 @@
             foreach (self::getReportRecipes() as $scope => $recipe) {
                 if (!in_array($scope, ['engagement_matrix', 'ecommerce_matrix', 'product_matrix'], true)) continue;
                 $contract['scopes'][$scope] = $recipe['metrics'];
-                $contract['groupable_fields'][$scope] = array_merge(['channeledAccount'], array_map(fn ($name) => 'dimensions.'.$name, array_filter($recipe['dimensions'], fn ($name) => $name !== 'date')));
+                $dims = array_filter($recipe['dimensions'], fn ($name) => $name !== 'date' && !in_array($name, ['countryId', 'deviceCategory'], true));
+                $groupable = array_merge(['channeledAccount'], array_map(fn ($name) => 'dimensions.'.$name, $dims));
+                if (in_array($scope, ['engagement_matrix', 'ecommerce_matrix'], true)) {
+                    $groupable[] = 'country';
+                    $groupable[] = 'device';
+                }
+                $contract['groupable_fields'][$scope] = $groupable;
                 $contract['scope_default_filters'][$scope] = ['dimensions.recipe_revision' => '1'];
                 $contract['dimension_filter_fields'][$scope] = array_merge(['dimensions.scope', 'dimensions.recipe_revision'], $contract['groupable_fields'][$scope]);
                 foreach ($recipe['metrics'] as $name) {
@@ -1085,6 +1091,8 @@
                         ['channeledCampaign.title'],
                         ['dimensions.landing_page'],
                         ['event.title'],
+                        ['country'],
+                        ['device'],
                         ['country.name'],
                         ['device.name'],
                         ['channeledCampaign.title', 'metricDate'],

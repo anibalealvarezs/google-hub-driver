@@ -357,7 +357,7 @@
         public static function scopedMetrics(array $response, object|string $channeledAccount, string $scope, array $metrics, object|string|null $account = null, ?LoggerInterface $logger = null): ArrayCollection
         {
             $rows = self::preprocessRows($response);
-            $dimensions = array_values(array_filter(array_column($response['dimensionHeaders'] ?? [], 'name'), fn ($name) => $name !== 'date'));
+            $rawDimensions = array_values(array_filter(array_column($response['dimensionHeaders'] ?? [], 'name'), fn ($name) => $name !== 'date'));
             foreach ($rows as $index => &$row) {
                 foreach ($response['dimensionHeaders'] ?? [] as $position => $header) {
                     if ($header['name'] !== 'date') $row[$header['name']] = $response['rows'][$index]['dimensionValues'][$position]['value'] ?? null;
@@ -367,6 +367,10 @@
                 $row['recipe_revision'] = '1';
             }
             unset($row);
+
+            // Filter out top-level entities from raw dimensions so they are resolved via metric_config relationships
+            $dimensions = array_values(array_filter($rawDimensions, fn ($d) => !in_array($d, ['countryId', 'deviceCategory'], true)));
+
             return UniversalMetricConverter::convert($rows, [
                 'channel' => 'google_analytics', 'period' => 'daily',
                 'platform_id_field' => 'property_id', 'date_field' => 'date',
@@ -374,7 +378,15 @@
                 'dimensions' => array_merge(['scope', 'recipe_revision'], $dimensions),
                 'metadata_fields' => self::METADATA_FIELDS,
                 'context' => UniversalMetricConverter::getUniversalContext(['account' => $account, 'channeledAccount' => $channeledAccount]),
-                'row_key_fields' => ['property_id' => ['channeledAccount']],
+                'row_key_fields' => [
+                    'property_id'    => ['channeledAccount'],
+                    'countryId'      => ['country'],
+                    'deviceCategory' => ['device'],
+                ],
+                'row_entity_fields' => [
+                    'countryId'      => 'countryCode',
+                    'deviceCategory' => 'deviceType',
+                ],
             ], $logger);
         }
 
