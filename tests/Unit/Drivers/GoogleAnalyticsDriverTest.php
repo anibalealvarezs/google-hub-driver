@@ -269,4 +269,41 @@ class GoogleAnalyticsDriverTest extends TestCase
         $this->assertEquals('US', $rows[0]['countryId']);
         $this->assertEquals(320.0, $rows[0]['reach']);
     }
+
+    public function testFetchLiveWindowNormalizesDateValues()
+    {
+        $mockApi = $this->createMock(\Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi::class);
+        $mockApi->expects($this->once())
+            ->method('runReport')
+            ->willReturn([
+                'metricHeaders' => [['name' => 'activeUsers', 'type' => 'TYPE_INTEGER']],
+                'dimensionHeaders' => [['name' => 'date']],
+                'rows' => [
+                    [
+                        'dimensionValues' => [['value' => '20261025']],
+                        'metricValues' => [['value' => '12']],
+                    ],
+                ],
+            ]);
+
+        $driver = $this->getMockBuilder(GoogleAnalyticsDriver::class)
+            ->onlyMethods(['initializeApi'])
+            ->getMock();
+
+        $driver->method('initializeApi')->willReturn($mockApi);
+
+        $rows = $driver->fetchLiveWindow(
+            config: [],
+            platformId: 'properties/123456',
+            metrics: ['reach'],
+            startDate: '2026-10-01',
+            endDate: '2026-10-31',
+            dimensions: ['daily']
+        );
+
+        $this->assertCount(1, $rows);
+        $this->assertEquals('2026-10-25', $rows[0]['date']);
+        $this->assertEquals('2026-10-25', $rows[0]['daily']);
+        $this->assertEquals(12.0, $rows[0]['reach']);
+    }
 }

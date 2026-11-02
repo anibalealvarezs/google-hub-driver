@@ -769,6 +769,9 @@
                 $item = [];
                 foreach ($dimHeaders as $idx => $dName) {
                     $val = $row['dimensionValues'][$idx]['value'] ?? null;
+                    if ($dName === 'date' && is_string($val) && strlen($val) === 8 && ctype_digit($val)) {
+                        $val = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
+                    }
                     $item[$dName] = $val;
                     if (isset($dimKeyMap[$dName])) {
                         $item[$dimKeyMap[$dName]] = $val;
