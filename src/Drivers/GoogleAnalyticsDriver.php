@@ -22,12 +22,13 @@
     use Anibalealvarezs\GoogleApi\Services\AnalyticsAdmin\AnalyticsAdminApi;
     use Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleChannel;
-    use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
     use Anibalealvarezs\GoogleHubDriver\Enums\GoogleEntityType;
+    use Anibalealvarezs\GoogleHubDriver\Conversions\GoogleAnalyticsMetricConvert;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\LiveWindowProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\PageableInterface;
     use Anibalealvarezs\ApiDriverCore\Helpers\FieldsNormalizerHelper;
 
-    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface, PageableInterface, AggregationProfileProviderInterface, MetricProfileProviderInterface
+    class GoogleAnalyticsDriver implements SyncDriverInterface, CanonicalMetricDictionaryProviderInterface, ChanneledAccountableInterface, PageableInterface, AggregationProfileProviderInterface, MetricProfileProviderInterface, LiveWindowProviderInterface
     {
         public const DEFAULT_MAX_WORKERS = 3;
 
@@ -697,6 +698,86 @@
             ]));
         }
 
+        public static function supportsLiveWindow(string $metric): bool
+        {
+            $nonAdditive = ['totalUsers', 'activeUsers', 'newUsers', 'total_users', 'active_users', 'new_users', 'reach'];
+            return in_array($metric, $nonAdditive, true);
+        }
+
+        public function fetchLiveWindow(
+            array $config,
+            string $platformId,
+            array $metrics,
+            string $startDate,
+            string $endDate,
+            array $dimensions = [],
+            array $filters = []
+        ): array {
+            $api = $this->initializeApi($config);
+            $api->setMaxRetries(0);
+
+            $gaMetrics = [];
+            $metricKeyMap = []; // gaMetricName => originalRequestedKey
+            foreach ($metrics as $m) {
+                $raw = match ($m) {
+                    'total_users' => 'totalUsers',
+                    'active_users', 'reach' => 'activeUsers',
+                    'new_users' => 'newUsers',
+                    default => $m,
+                };
+                $gaMetrics[] = ['name' => $raw];
+                $metricKeyMap[$raw] = $m;
+            }
+
+            $gaDimensions = [];
+            $dimKeyMap = []; // gaDimName => originalRequestedKey
+            foreach ($dimensions as $d) {
+                $rawDim = match ($d) {
+                    'country', 'dimensions.country' => 'countryId',
+                    'device', 'dimensions.device' => 'deviceCategory',
+                    'landing_page', 'dimensions.landing_page' => 'landingPagePlusQueryString',
+                    default => str_starts_with($d, 'dimensions.') ? substr($d, 11) : $d,
+                };
+                $gaDimensions[] = ['name' => $rawDim];
+                $dimKeyMap[$rawDim] = $d;
+            }
+
+            $payload = [
+                'dateRanges' => [['startDate' => $startDate, 'endDate' => $endDate]],
+                'metrics' => $gaMetrics,
+                'limit' => 5000,
+            ];
+            if (!empty($gaDimensions)) {
+                $payload['dimensions'] = $gaDimensions;
+            }
+
+            $response = $api->runReport($platformId, $payload);
+            $rows = [];
+            $metricHeaders = array_map(fn($h) => $h['name'], $response['metricHeaders'] ?? []);
+            $dimHeaders = array_map(fn($h) => $h['name'], $response['dimensionHeaders'] ?? []);
+
+            foreach ($response['rows'] ?? [] as $row) {
+                $item = [];
+                foreach ($dimHeaders as $idx => $dName) {
+                    $val = $row['dimensionValues'][$idx]['value'] ?? null;
+                    $item[$dName] = $val;
+                    if (isset($dimKeyMap[$dName])) {
+                        $item[$dimKeyMap[$dName]] = $val;
+                    }
+                }
+                foreach ($metricHeaders as $idx => $mName) {
+                    $val = isset($row['metricValues'][$idx]['value']) ? (float)$row['metricValues'][$idx]['value'] : 0.0;
+                    $item[$mName] = $val;
+                    if (isset($metricKeyMap[$mName])) {
+                        $item[$metricKeyMap[$mName]] = $val;
+                    }
+                }
+                $rows[] = $item;
+            }
+
+            return $rows;
+        }
+
         public function getConfigSchema(): array
         {
             return [
@@ -704,7 +785,7 @@
                     'enabled'             => false,
                     'max_workers'         => self::DEFAULT_MAX_WORKERS,
                     'cache_history_range' => '30 days',
-                    'cache_aggregations'  => false,
+                    'cache_aggregations'  => true,
                     'metrics_strategy'    => 'default',
                     'additional_recipes'  => [],
                     'enable_funnel_reports' => false,
@@ -762,6 +843,10 @@
                 if (isset($featureToggles[$key])) {
                     $chanCfg[$key] = (int)$featureToggles[$key];
                 }
+            }
+
+            if (isset($featureToggles['cache_aggregations'])) {
+                $chanCfg['cache_aggregations'] = filter_var($featureToggles['cache_aggregations'], FILTER_VALIDATE_BOOLEAN);
             }
 
             $chanCfg['enabled'] = $enabled;
