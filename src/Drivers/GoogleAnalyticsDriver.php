@@ -1067,9 +1067,9 @@
                 'default_filters' => ['dimensions.scope' => 'traffic_matrix'],
                 'scope_filter' => 'dimensions.scope',
                 'groupable_fields' => [
-                    'traffic_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'country', 'device', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup', 'dimensions.landing_page'],
+                    'traffic_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'country', 'device', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup', 'dimensions.landing_page', 'dimensions.landingPage', 'dimensions.landingPagePlusQueryString'],
                     'acquisition_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd', 'dimensions.firstUserDefaultChannelGroup', 'dimensions.firstUserSourceMedium'],
-                    'event_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd', 'event', 'dimensions.page', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup'],
+                    'event_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd', 'event', 'dimensions.page', 'dimensions.source', 'dimensions.medium', 'dimensions.sessionSourceMedium', 'dimensions.sessionDefaultChannelGroup', 'dimensions.landing_page', 'dimensions.landingPage', 'dimensions.landingPagePlusQueryString'],
                     'ad_touchpoint_matrix' => ['channeledAccount', 'channeledCampaign', 'channeledAdGroup', 'channeledAd'],
                     '__unscoped__' => ['channeledAccount'],
                 ],
