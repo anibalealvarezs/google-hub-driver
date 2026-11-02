@@ -733,9 +733,18 @@
             $dimKeyMap = []; // gaDimName => originalRequestedKey
             foreach ($dimensions as $d) {
                 $rawDim = match ($d) {
-                    'country', 'dimensions.country' => 'countryId',
-                    'device', 'dimensions.device' => 'deviceCategory',
-                    'landing_page', 'dimensions.landing_page' => 'landingPagePlusQueryString',
+                    'country', 'dimensions.country', 'countryId' => 'countryId',
+                    'device', 'dimensions.device', 'deviceCategory' => 'deviceCategory',
+                    'landing_page', 'dimensions.landing_page', 'landingPagePlusQueryString', 'dimensions.landingPagePlusQueryString' => 'landingPagePlusQueryString',
+                    'channeledCampaign' => 'sessionCampaignName',
+                    'channeledAdGroup' => 'sessionGoogleAdsAdGroupName',
+                    'channeledAd' => 'sessionManualAdContent',
+                    'event', 'events', 'eventName' => 'eventName',
+                    'page', 'dimensions.page', 'pagePath' => 'pagePath',
+                    'day', 'daily', 'date' => 'date',
+                    'week', 'weekly' => 'isoWeek',
+                    'month', 'monthly' => 'yearMonth',
+                    'year', 'yearly' => 'year',
                     default => str_starts_with($d, 'dimensions.') ? substr($d, 11) : $d,
                 };
                 $gaDimensions[] = ['name' => $rawDim];

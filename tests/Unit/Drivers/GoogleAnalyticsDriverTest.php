@@ -211,4 +211,62 @@ class GoogleAnalyticsDriverTest extends TestCase
         $this->assertEquals('Organic Search', $rows[0]['firstUserDefaultChannelGroup']);
         $this->assertEquals('Organic Search', $rows[0]['dimensions.firstUserDefaultChannelGroup']);
     }
+
+    public function testFetchLiveWindowMapsRelationalCampaignAndAdGroupDimensions()
+    {
+        $mockApi = $this->createMock(\Anibalealvarezs\GoogleApi\Services\AnalyticsData\AnalyticsDataApi::class);
+        $mockApi->expects($this->once())
+            ->method('runReport')
+            ->with(
+                'properties/123456',
+                $this->callback(function ($payload) {
+                    return isset($payload['dimensions'])
+                        && $payload['dimensions'][0]['name'] === 'sessionCampaignName'
+                        && $payload['dimensions'][1]['name'] === 'sessionGoogleAdsAdGroupName'
+                        && $payload['dimensions'][2]['name'] === 'countryId';
+                })
+            )
+            ->willReturn([
+                'metricHeaders' => [['name' => 'activeUsers', 'type' => 'TYPE_INTEGER']],
+                'dimensionHeaders' => [
+                    ['name' => 'sessionCampaignName'],
+                    ['name' => 'sessionGoogleAdsAdGroupName'],
+                    ['name' => 'countryId'],
+                ],
+                'rows' => [
+                    [
+                        'dimensionValues' => [
+                            ['value' => 'Summer_Sale'],
+                            ['value' => 'Retargeting_US'],
+                            ['value' => 'US'],
+                        ],
+                        'metricValues' => [['value' => '320']],
+                    ],
+                ],
+            ]);
+
+        $driver = $this->getMockBuilder(GoogleAnalyticsDriver::class)
+            ->onlyMethods(['initializeApi'])
+            ->getMock();
+
+        $driver->method('initializeApi')->willReturn($mockApi);
+
+        $rows = $driver->fetchLiveWindow(
+            config: [],
+            platformId: 'properties/123456',
+            metrics: ['reach'],
+            startDate: '2026-01-01',
+            endDate: '2026-01-31',
+            dimensions: ['channeledCampaign', 'channeledAdGroup', 'country']
+        );
+
+        $this->assertCount(1, $rows);
+        $this->assertEquals('Summer_Sale', $rows[0]['channeledCampaign']);
+        $this->assertEquals('Summer_Sale', $rows[0]['sessionCampaignName']);
+        $this->assertEquals('Retargeting_US', $rows[0]['channeledAdGroup']);
+        $this->assertEquals('Retargeting_US', $rows[0]['sessionGoogleAdsAdGroupName']);
+        $this->assertEquals('US', $rows[0]['country']);
+        $this->assertEquals('US', $rows[0]['countryId']);
+        $this->assertEquals(320.0, $rows[0]['reach']);
+    }
 }
