@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ebc64991bffa6aaf7bb32a90b93ca289",
+    "content-hash": "cce18f823ca246c365dbf9c762c8e27b",
     "packages": [
         {
             "name": "anibalealvarezs/api-client-skeleton",
@@ -71,17 +71,17 @@
         },
         {
             "name": "anibalealvarezs/api-driver-core",
-            "version": "v1.1.4",
+            "version": "v1.1.5",
             "source": {
                 "type": "git",
                 "url": "git@github.com:anibalealvarezs/api-driver-core.git",
-                "reference": "52e9c93784a89acfad10cc7d866b0d24de9b1786"
+                "reference": "6c0e18ad402dd57e5b03a9f0ddb533612f7107a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-52e9c93784a89acfad10cc7d866b0d24de9b1786-zip-f158ae.zip",
-                "reference": "52e9c93784a89acfad10cc7d866b0d24de9b1786",
-                "shasum": "3190a4953a1a7ce82c2a983c8cb7499eda84cc85"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-6c0e18ad402dd57e5b03a9f0ddb533612f7107a6-zip-054f35.zip",
+                "reference": "6c0e18ad402dd57e5b03a9f0ddb533612f7107a6",
+                "shasum": "e8dc8eacf21c2b7f34f295372f8258911ec65577"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -115,7 +115,7 @@
                 }
             ],
             "description": "Core interfaces and orchestration logic for APIs Hub drivers.",
-            "time": "2026-10-30T20:21:04+00:00"
+            "time": "2026-11-02T01:05:05+00:00"
         },
         {
             "name": "anibalealvarezs/google-api",
