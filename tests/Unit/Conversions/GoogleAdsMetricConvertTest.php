@@ -53,6 +53,27 @@ class GoogleAdsMetricConvertTest extends TestCase
         $this->assertEquals(2, $conversionsMetric->value);
     }
 
+    public function testConversionValueIsStoredSeparatelyFromSpend(): void
+    {
+        foreach (['conversionsValue' => '10', 'conversions_value' => '0'] as $field => $value) {
+            $metrics = GoogleAdsMetricConvert::customerMetrics(
+                rows: [[
+                    'customer' => ['id' => '12345'],
+                    'metrics' => ['cost_micros' => '2000000', $field => $value],
+                    'segments' => ['date' => '2026-10-01', 'device' => 'MOBILE'],
+                ]],
+                channeledAccount: 'acc1',
+            );
+            $byName = [];
+            foreach ($metrics as $metric) {
+                $byName[$metric->name] = $metric->value;
+            }
+
+            $this->assertEquals(['spend' => 2.0, 'conversion_value' => (float) $value], $byName);
+            $this->assertArrayNotHasKey('roas_purchase', $byName);
+        }
+    }
+
     public function testCampaignMetricsConversion(): void
     {
         $rows = [
