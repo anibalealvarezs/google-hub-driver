@@ -8,6 +8,7 @@
     use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
+    use Anibalealvarezs\ApiDriverCore\Interfaces\QueryClassifiableInterface;
     use Anibalealvarezs\ApiDriverCore\Traits\HasHierarchicalValidationTrait;
     use Anibalealvarezs\ApiDriverCore\Interfaces\ChanneledAccountableInterface;
     use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
@@ -24,7 +25,7 @@
     use Exception;
     use Psr\Log\LoggerInterface;
 
-    class GoogleAdsDriver implements SyncDriverInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
+    class GoogleAdsDriver implements SyncDriverInterface, ChanneledAccountableInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface, QueryClassifiableInterface
     {
         use HasHierarchicalValidationTrait;
         use SyncDriverTrait, GoogleSyncDriverTrait {
@@ -34,6 +35,16 @@
             GoogleSyncDriverTrait::reset insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::getDateFilterMapping insteadof SyncDriverTrait;
             GoogleSyncDriverTrait::validateConfig insteadof SyncDriverTrait;
+        }
+
+        /**
+         * Determine if this driver produces search query/keyword data eligible for classification.
+         *
+         * @return bool
+         */
+        public static function supportsQueryClassification(): bool
+        {
+            return true;
         }
 
         protected ?GoogleAdsApi $api = null;
