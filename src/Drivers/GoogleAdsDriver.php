@@ -320,7 +320,7 @@
             }
 
             // Map level and metric feature toggles into AD_ACCOUNT config block
-            $gadsToggles = ['campaigns', 'adgroups', 'ads', 'ad_account_metrics', 'campaign_metrics', 'adgroup_metrics', 'ad_metrics'];
+            $gadsToggles = ['campaigns', 'adgroups', 'ads', 'ad_account_metrics', 'campaign_metrics', 'adgroup_metrics', 'ad_metrics', 'search_term_metrics'];
             foreach ($gadsToggles as $toggleKey) {
                 if (isset($featureToggles[$toggleKey])) {
                     $chanCfg['AD_ACCOUNT'][$toggleKey] = (bool)$featureToggles[$toggleKey];
