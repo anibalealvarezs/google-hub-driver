@@ -28,6 +28,7 @@
             array              $metricsToProcess = [],
             ?string            $customFields = null,
             object|string|null $account = null,
+            ?string            $currency = null,
         ): ArrayCollection
         {
             $defaultMetrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
@@ -51,6 +52,8 @@
                     'channeledAccount'   => $channeledAccount,
                     'channeledAccountId' => $channeledAccountId,
                     'level'              => 'account',
+                    'currency'           => $currency,
+                    'sourceCurrency'     => $currency,
                 ]),
                 'row_key_fields'       => [],
                 'fallback_platform_id' => $channeledPlatformId
@@ -283,6 +286,7 @@
             string             $level = 'account',
             ?LoggerInterface   $logger = null,
             object|string|null $account = null,
+            ?string            $currency = null,
         ): ArrayCollection
         {
             return match ($level) {
@@ -290,7 +294,7 @@
                 'ad_group', 'adset' => self::adGroupMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 'ad' => self::adMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
                 'search_term', 'query' => self::searchTermMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
-                default => self::customerMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account),
+                default => self::customerMetrics(rows: $rows, logger: $logger, channeledAccount: $channeledAccount, account: $account, currency: $currency),
             };
         }
 

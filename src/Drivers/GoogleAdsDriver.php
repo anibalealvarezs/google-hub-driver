@@ -638,12 +638,14 @@
                             $rows = $data['results'] ?? [];
 
                             if (!empty($rows)) {
+                                $accountCurrency = $accData['currency_code'] ?? ($accData['currency'] ?? null);
                                 $collection = GoogleAdsMetricConvert::metrics(
                                     rows: $rows,
                                     channeledAccount: $caObject ?? $accountPlatformId,
                                     level: $level,
                                     logger: $this->logger,
-                                    account: (method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($config['accounts_group_name'] ?? 'Default')
+                                    account: (method_exists($caObject, 'getAccount')) ? $caObject->getAccount() : ($config['accounts_group_name'] ?? 'Default'),
+                                    currency: $accountCurrency
                                 );
 
                                 if ($this->dataProcessor && $collection->count() > 0) {
