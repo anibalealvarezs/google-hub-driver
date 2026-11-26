@@ -1123,6 +1123,42 @@
             return $contract;
         }
 
+        public static function getEntityMetricDefinitions(): array
+        {
+            return [
+                'events.occurrences' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'events',
+                    'measure' => 'event_occurrence_count',
+                    'label' => 'Event occurrences',
+                    'unit' => 'events',
+                    'reducer' => 'sum',
+                    'query' => [
+                        'temporal_grains' => ['daily', 'monthly', 'lifetime'],
+                        'breakdowns' => ['action'],
+                        'dimensions' => ['action'],
+                        'filters' => [],
+                    ],
+                ],
+                'events.observed_types' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'events',
+                    'measure' => 'distinct_event_names',
+                    'label' => 'Distinct event types',
+                    'unit' => 'types',
+                    'reducer' => 'count_distinct',
+                    'query' => [
+                        'temporal_grains' => ['daily', 'monthly', 'lifetime'],
+                        'breakdowns' => [],
+                        'dimensions' => [],
+                        'filters' => [],
+                    ],
+                ],
+            ];
+        }
+
         public static function getAggregationProfiles(): array
         {
             return [
@@ -1131,6 +1167,7 @@
                     'channel' => 'google_analytics',
                     'label' => 'GA4 Universal Matrix',
                     'query_contract' => self::getAnalyticsQueryContract(),
+                    'metric_definitions' => self::getEntityMetricDefinitions(),
                     'asset_type' => 'account',
                     'metric_nature' => 'flow',
                     'period_modes' => ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],

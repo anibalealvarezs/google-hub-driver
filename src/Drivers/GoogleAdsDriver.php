@@ -203,8 +203,95 @@
                 AggregationProfileTemplates::adsHierarchyProfile(
                     channel: 'google_ads',
                     key: 'google_ads_hierarchy',
-                    label: 'Google Ads Hierarchy'
+                    label: 'Google Ads Hierarchy',
+                    overrides: [
+                        'metric_definitions' => self::getEntityMetricDefinitions(),
+                    ]
                 ),
+            ];
+        }
+
+        /**
+         * Declares verified entity-backed metrics for Google Ads (campaigns, ad groups, ads).
+         */
+        public static function getEntityMetricDefinitions(): array
+        {
+            return [
+                'campaigns.records' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'campaigns',
+                    'measure' => 'campaign_count',
+                    'label' => 'Synced campaigns',
+                    'unit' => 'campaigns',
+                    'reducer' => 'count_distinct',
+                    'query' => [
+                        'temporal_grains' => ['daily', 'monthly', 'lifetime'],
+                        'breakdowns' => ['status', 'objective'],
+                        'dimensions' => ['status', 'objective'],
+                        'filters' => [],
+                    ],
+                ],
+                'campaigns.total_budget' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'campaigns',
+                    'measure' => 'total_budget',
+                    'label' => 'Total campaign budget',
+                    'unit' => 'currency',
+                    'reducer' => 'sum',
+                    'query' => [
+                        'temporal_grains' => ['lifetime'],
+                        'breakdowns' => ['status'],
+                        'dimensions' => ['status'],
+                        'filters' => [],
+                    ],
+                ],
+                'campaigns.average_budget' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'campaigns',
+                    'measure' => 'average_budget',
+                    'label' => 'Average campaign budget',
+                    'unit' => 'currency',
+                    'reducer' => 'avg',
+                    'query' => [
+                        'temporal_grains' => ['lifetime'],
+                        'breakdowns' => ['status'],
+                        'dimensions' => ['status'],
+                        'filters' => [],
+                    ],
+                ],
+                'ads.groups' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'ad-groups',
+                    'measure' => 'ad_group_count',
+                    'label' => 'Synced ad groups',
+                    'unit' => 'ad_groups',
+                    'reducer' => 'count_distinct',
+                    'query' => [
+                        'temporal_grains' => ['daily', 'monthly', 'lifetime'],
+                        'breakdowns' => ['status', 'campaign'],
+                        'dimensions' => ['status', 'campaign'],
+                        'filters' => [],
+                    ],
+                ],
+                'ads.records' => [
+                    'version' => 1,
+                    'producer' => 'catalog_entity@1',
+                    'entity_type' => 'ads',
+                    'measure' => 'ad_count',
+                    'label' => 'Synced ads',
+                    'unit' => 'ads',
+                    'reducer' => 'count_distinct',
+                    'query' => [
+                        'temporal_grains' => ['daily', 'monthly', 'lifetime'],
+                        'breakdowns' => ['status', 'campaign', 'ad_group'],
+                        'dimensions' => ['status', 'campaign', 'ad_group'],
+                        'filters' => [],
+                    ],
+                ],
             ];
         }
 
