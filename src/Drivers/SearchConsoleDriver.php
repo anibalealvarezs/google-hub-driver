@@ -1107,7 +1107,7 @@
                     'hostname'    => self::getPageHostname(asset: $asset),
                     'title'       => self::getPageTitle(asset: $asset),
                     'url'         => self::getPageUrl(asset: $asset),
-                    'enabled'     => ($asset['enabled'] ?? true) && (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
+                    'enabled'     => filter_var($asset['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN),
                     'data'        => self::getPageData(asset: $asset)
                 ]
             ];
@@ -1123,7 +1123,7 @@
                     'name'              => self::getChanneledAccountName(asset: $asset),
                     'type'              => self::getChanneledAccountType(),
                     'account'           => self::getChannelLabel(),
-                    'enabled'           => ($asset['enabled'] ?? true) && (($asset['data']['permissionLevel'] ?? $asset['permissionLevel'] ?? null) !== 'siteUnverifiedUser'),
+                    'enabled'           => filter_var($asset['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN),
                     'data'              => self::getChanneledAccountData(asset: $asset)
                 ]
             ];
