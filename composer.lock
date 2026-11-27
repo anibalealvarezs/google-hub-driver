@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "138f483ddfd3daa2a6e36c8de58a80e8",
+    "content-hash": "1729d0c6951837ad2d25d236aa53dc8d",
     "packages": [
         {
             "name": "anibalealvarezs/api-client-skeleton",
@@ -124,17 +124,17 @@
         },
         {
             "name": "anibalealvarezs/google-api",
-            "version": "v1.1.1",
+            "version": "v1.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/anibalealvarezs/google-api.git",
-                "reference": "e5ea596968f3c11ee9b701e57387b2052645a256"
+                "reference": "5e0e7b2eacf674df6cf4bad4745f88328c2c1cff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-e5ea596968f3c11ee9b701e57387b2052645a256-zip-3bfb9f.zip",
-                "reference": "e5ea596968f3c11ee9b701e57387b2052645a256",
-                "shasum": "3bff2ca95668e42bf1921999615644ce955b5162"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/google-api/anibalealvarezs-google-api-5e0e7b2eacf674df6cf4bad4745f88328c2c1cff-zip-f0934e.zip",
+                "reference": "5e0e7b2eacf674df6cf4bad4745f88328c2c1cff",
+                "shasum": "839d5b5e06e09b0cee039a0f2500ed897a0bbc35"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -190,9 +190,9 @@
             ],
             "support": {
                 "issues": "https://github.com/anibalealvarezs/google-api/issues",
-                "source": "https://github.com/anibalealvarezs/google-api/tree/v1.1.1"
+                "source": "https://github.com/anibalealvarezs/google-api/tree/v1.1.2"
             },
-            "time": "2026-10-31T02:42:05+00:00"
+            "time": "2026-11-27T02:40:29+00:00"
         },
         {
             "name": "anibalealvarezs/oauth-v1",
